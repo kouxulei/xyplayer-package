@@ -11,7 +11,7 @@ from xyplayer.configure import Configures
 class DownloadPage(QWidget):
     back_to_main_signal = pyqtSignal()
     listen_online_signal = pyqtSignal(str, str, str)
-    listen_local_signal = pyqtSignal(str)
+    listen_local_signal = pyqtSignal(bool)
     def __init__(self, parent = None):
         super(DownloadPage, self).__init__(parent)
         self.setup_ui()
@@ -71,7 +71,7 @@ class DownloadPage(QWidget):
         self.downloadTable.installEventFilter(self)
 
         self.titleLabel.clicked.connect(self.open_downloaddir)
-        self.downloadTable.playAction.triggered.connect(self.play_music)
+        self.downloadTable.playAction.triggered.connect(self.add_to_my_downloads)
         self.downloadTable.startDownloadAction.triggered.connect(self.start_download)
         self.downloadTable.startAllAction.triggered.connect(self.start_all)
         self.downloadTable.pauseDownloadAction.triggered.connect(self.pause_download)
@@ -93,22 +93,21 @@ class DownloadPage(QWidget):
         pos  += QPoint(20, 33)
         self.downloadTable.listMenu.exec_(self.mapToGlobal(pos))
     
-    def play_music(self):
+    def add_to_my_downloads(self):
         if not self.downloadModel.rowCount():
             return
         selections = self.downloadTable.selectionModel()
         selecteds = selections.selectedIndexes()
-        valid = []
+        self.valid = []
         for index in selecteds:
             if index.column() == 0:
                 state = self.downloadModel.record(index.row()).value("remain")
                 musicPath = self.downloadModel.record(index.row()).value("musicPath")
                 if state == "已完成" and os.path.exists(musicPath):
-                    valid.append(musicPath)
-        cnt = len(valid)
+                    self.valid.append(musicPath)
+        cnt = len(self.valid)
         if cnt:
-            musics = '->'.join(valid)
-            self.listen_local_signal.emit(musics)
+            self.listen_local_signal.emit(False)
             QMessageBox.information(self, "提示", "已添加%s首歌曲到我的下载，其他歌曲未完成下载，建议您在线播放（双击即可）！"%cnt)
         else:
             QMessageBox.information(self, "提示", "选中歌曲均未完成下载，建议您在线播放（双击即可）！")
@@ -129,7 +128,8 @@ class DownloadPage(QWidget):
             if ok == QMessageBox.Yes:
                 self.start_one(index.row())
         else:
-            self.listen_local_signal.emit(musicPath)
+            self.valid = [musicPath]
+            self.listen_local_signal.emit(True)
     
     def add_to_downloadtable(self, songLink, musicPath, title, album, musicId):
         for t in threading.enumerate():

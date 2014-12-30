@@ -1,11 +1,10 @@
 import os
-from PyQt4.QtGui import (QApplication, QMenu, QAction, QAbstractItemView, 
-            QTableView, QTableWidget, QTableWidgetItem, QItemDelegate, QIcon, QLabel, QPixmap, 
-            QStyleOptionProgressBarV2, QStyle)
+from PyQt4.QtGui import (QApplication, QMenu, QAction, QAbstractItemView, QStyle, 
+            QTableView, QTableWidget, QTableWidgetItem, QItemDelegate, QStyleOptionProgressBarV2)
 from PyQt4.QtCore import QPoint, Qt
 from PyQt4.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 from xyplayer.configure import Configures
-from xyplayer.mywidgets import NewListWidget
+#from xyplayer.mywidgets import NewListWidget
 
 class SqlOperate():
     def __init__(self):
@@ -348,7 +347,8 @@ class DownloadTable(QTableView):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.listMenu = QMenu()
         self.listMenu1 = QMenu("下载控制")
-        self.playAction = QAction("播放", self)
+        self.playAction = QAction("添加到“我的下载”", self)
+#        self.addBunchAction = QAction("添加到“我的下载”", self)
         self.pauseDownloadAction = QAction("暂停", self)
         self.stopDownloadAction = QAction("取消下载", self)
         self.startDownloadAction = QAction("开始", self)
@@ -367,6 +367,7 @@ class DownloadTable(QTableView):
         self.listMenu1.addAction(self.stopDownloadAction)
 #        self.listMenu.addAction(self.stopAllAction)
         self.listMenu.addAction(self.playAction)
+#        self.listMenu.addAction(self.addBunchAction)
         self.listMenu.addSeparator()
         self.listMenu.addMenu(self.listMenu1)
         self.listMenu.addSeparator()
@@ -443,21 +444,6 @@ class NewMusicTable(QTableWidget):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-#        widget = NewListWidget('东城卫._.够爱', True)
-#        self.add_widget(widget)
-#        self.add_record('S.H.E._.Super Star', False)
-#        self.add_record('陈艺鹏._.西关', True)
-#        self.add_record('东城卫._.够爱', True)
-#        self.add_record('S.H.E._.Super Star', False)
-#        self.add_record('陈艺鹏._.西关', True)
-#        self.add_record('东城卫._.够爱', True)
-#        self.add_record('S.H.E._.Super Star', True)
-#        self.add_record('陈艺鹏._.西关', True)
-#        self.add_record('东城卫._.够爱', False)
-#        self.add_record('S.H.E._.Super Star', False)
-#        self.add_record('陈艺鹏._.西关', True)
-#        self.setSelectionMode(QAbstractItemView.SingleSelection)
-#        self.setSelectionBehavior(QAbstractItemView.SelectRows)
         
     def add_widget(self, widget):
             countRow  =  self.rowCount()

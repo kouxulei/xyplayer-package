@@ -312,20 +312,15 @@ class Player(PlayerUi):
         if self.playTable == "喜欢歌曲":
             self.playbackPage.favoriteButton.setToolTip("喜欢")
         
-    def listen_local(self, file):
-        self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(3, 0))
-#        self.playTable = "默认列表"
-#        self.model.initial_model(self.playTable)
-#        self.musicTable.initial_view(self.model)
-#        self.managePage.listsFrame.model.initial_model(self.playTable)
-#        self.managePage.listsFrame.musicTable.initial_view(self.managePage.listsFrame.model)
-#        self.managePage.listsFrame.stateLabel.setText("当前播放列表：%s"%self.playTable)
-        musics = file.split('->')
-        k = self.add_only(musics)[3]
-        self.managePage.listsFrame.musicTable.selectRow(k)
-        self.music_table_clicked(self.managePage.listsFrame.musicTable.currentIndex())
-
-#        self.mediaObject.play()
+    def listen_local(self, toListen):
+        if self.currentTable != "我的下载":
+            self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(3, 0))
+        k = self.add_only(self.managePage.downloadPage.valid)[3]
+        if self.playTable == "我的下载":
+            self.model.initial_model(self.currentTable)    
+            self.musicTable.initial_view(self.model)
+        if toListen:
+            self.music_table_clicked(self.managePage.listsFrame.model.index(k, 0))
     
     def begin_to_listen(self, title, album, songLink):
         if not songLink:
