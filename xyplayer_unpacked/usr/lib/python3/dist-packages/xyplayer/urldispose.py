@@ -22,7 +22,6 @@ class SearchOnline():
             if not reqContent:
                 return (None, 0)    
             reqCache[url] = reqContent
-        print(reqContent)
         songs, hit = parse_songs_wrap(reqCache[url])
 #        for song in songs:
 #            print(song)
