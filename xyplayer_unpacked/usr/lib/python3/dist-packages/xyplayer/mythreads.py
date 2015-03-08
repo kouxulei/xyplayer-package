@@ -46,29 +46,29 @@ class DownloadThread(threading.Thread):
             time1 = time.time()
             try:
                 contentCache = res.read(102400)
+#            print('network broken')
+                with open(tempfileName, 'ab+') as f:
+                    f.write(contentCache)
+                time2 = time.time()
+                span = time2-time1
+                if len(contentCache) == 102400:
+                    netSpeed = 100/span
+                    remainTime = (self.length-self.currentLength)/(netSpeed*1024)
+                else:
+                    netSpeed = 0
+                    remainTime = 0
+                self.currentLength  += 102400
+                if self.currentLength>self.length:
+                    self.currentLength = self.length
+    #            elif len(contentCache) < 102400:
+    #                self.pause()
+                self.model.setData(self.model.index(self.row, 2), self.currentLength)
+                self.model.setData(self.model.index(self.row, 4), remainTime)
+                self.model.setData(self.model.index(self.row, 8), netSpeed)
+                if self.model.record(self.row).value('size') == '未知':
+                    self.model.setData(self.model.index(self.row, 3), self.length)
             except socket.timeout:
                 self.pause()
-#            print('network broken')
-            with open(tempfileName, 'ab+') as f:
-                f.write(contentCache)
-            time2 = time.time()
-            span = time2-time1
-            if len(contentCache) == 102400:
-                netSpeed = 100/span
-                remainTime = (self.length-self.currentLength)/(netSpeed*1024)
-            else:
-                netSpeed = 0
-                remainTime = 0
-            self.currentLength  += 102400
-            if self.currentLength>self.length:
-                self.currentLength = self.length
-#            elif len(contentCache) < 102400:
-#                self.pause()
-            self.model.setData(self.model.index(self.row, 2), self.currentLength)
-            self.model.setData(self.model.index(self.row, 4), remainTime)
-            self.model.setData(self.model.index(self.row, 8), netSpeed)
-            if self.model.record(self.row).value('size') == '未知':
-                self.model.setData(self.model.index(self.row, 3), self.length)
         res.close()
         if self.currentLength == self.length:
             os.rename(tempfileName, self.musicPath)
