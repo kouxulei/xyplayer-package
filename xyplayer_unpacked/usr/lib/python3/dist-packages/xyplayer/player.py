@@ -500,7 +500,7 @@ class Player(PlayerUi):
             self.t = sorted(self.lyricDict.keys())
             if currentTime-self.lyricOffset <= self.t[1]:
                 self.managePage.lyricLabel.setText('歌词同步显示于此！')
-                return        
+#                return        
             for i in range(1, len(self.t) - 1):
                 if self.t[i] < currentTime-self.lyricOffset and self.t[i + 1] > currentTime-self.lyricOffset and i!= self.j:
                     if self.lyricDict[self.t[i]]:
@@ -510,9 +510,9 @@ class Player(PlayerUi):
                         self.managePage.lyricLabel.setText("音乐伴奏... ...")
                     self.j = i
                     break
-            if not self.playbackPage.desktopLyric.isHidden():
+            text = self.managePage.lyricLabel.text()
+            if not self.playbackPage.desktopLyric.isHidden() and self.playbackPage.desktopLyric.text() != text:
                 x, y, old_width = self.playbackPage.desktopLyric.geometry_info()
-                text = self.managePage.lyricLabel.text()
                 width = self.playbackPage.desktopLyric.fontMetrics().width(text)
                 self.playbackPage.desktopLyric.setFixedWidth(width)
                 self.playbackPage.desktopLyric.setText(text)

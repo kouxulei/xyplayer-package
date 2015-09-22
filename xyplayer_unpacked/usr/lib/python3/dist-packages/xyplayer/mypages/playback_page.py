@@ -76,8 +76,8 @@ class PlaybackPage(QWidget):
         self.timeLabel1.setAlignment(Qt.AlignLeft and Qt.AlignVCenter)
         self.timeLabel2.setAlignment(Qt.AlignRight and Qt.AlignVCenter)
         
-        self.timeLabel1.setFixedSize(QSize(33, 25))
-        self.timeLabel2.setFixedSize(QSize(33, 25))
+        self.timeLabel1.setFixedSize(QSize(40, 25))
+        self.timeLabel2.setFixedSize(QSize(40, 25))
         
         self.timeLabel1.setStyleSheet("font-family:'微软雅黑';font-size:13px;color: white")
         self.timeLabel2.setStyleSheet("font-family:'微软雅黑';font-size:13px;color: white")
@@ -86,6 +86,7 @@ class PlaybackPage(QWidget):
         self.backButton = QPushButton()
         self.backButton.setIcon(QIcon(":/iconSources/icons/back.png"))
         self.backButton.setFixedSize(35, 30)
+        self.backButton.setIconSize(QSize(25, 25))
         self.backButton.setStyleSheet("QPushButton:hover{background:rgb(210,240,240)}")
         
         self.musicNameLabel = NewLabel()
@@ -119,9 +120,7 @@ class PlaybackPage(QWidget):
         self.artistConstellation.setFixedHeight(35)
         self.artistDetail = MyTextEdit()
         self.artistDetail.setFixedWidth(360)
-        self.artistDetail.setReadOnly(True)
-        self.artistDetail.setStyleSheet("font-family:微软雅黑;font-size:18px")
-        self.artistDetail.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.artistDetail.setStyleSheet("font-family:微软雅黑;font-size:18px;color:black;")
         
         artistInfoFrame = QFrame()
         artistInfoFrame.setStyleSheet("font-family:'微软雅黑';font-size:14px;")
@@ -156,7 +155,7 @@ class PlaybackPage(QWidget):
         self.lyricOffsetSButton.setText('S')
         
         self.lyricOffsetCombo = QComboBox()
-        self.lyricOffsetCombo.setStyleSheet("font-size:15px;color:blue")
+#        self.lyricOffsetCombo.setStyleSheet("font-size:15px;color:blue")
         self.lyricOffsetCombo.setFixedSize(70, 25)
         self.lyricOffsetCombo.insertItem(0, '提前')
         self.lyricOffsetCombo.insertItem(1, '延迟')
@@ -214,14 +213,12 @@ class PlaybackPage(QWidget):
 #        self.lyricText.setContextMenuPolicy(Qt.NoContextMenu)
         self.lyricText = MyTextEdit()
         self.lyricText.setFixedSize(360, 427)
-        self.lyricText.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.document = self.lyricText.document()
-        self.lyricText.setAlignment(Qt.AlignHCenter )
-        self.lyricText.setReadOnly(True)
+        self.lyricText.setAlignment(Qt.AlignHCenter)
         self.lyricText.setStyleSheet("font-family:'微软雅黑';font-size:23px;color:black;")
         
         self.lyricOperateWidget = QWidget()
-        self.lyricOperateWidget.setStyleSheet("background:rgb(210,240,240)")
+        self.lyricOperateWidget.setStyleSheet("background:rgb(210,240,240);font-size:15px;color:blue;")
         self.lyricOperateWidget.hide()
         lyricOffsetLayout = QHBoxLayout(self.lyricOperateWidget)
         lyricOffsetLayout.setSpacing(2)
@@ -465,7 +462,7 @@ class PlaybackPage(QWidget):
         self.lyricOffsetSlider.setValue(0)
         self.lyricOffsetLabel.setText('0.0秒')
         if index == 0 or index == 1:
-            self.lyricOffsetSlider.setRange(0, 50)        
+            self.lyricOffsetSlider.setRange(0, 200)        
         else:
             self.lyricOffsetSlider.setRange(0, 0)
         self.lyric_offset_changed_signal.emit(0)

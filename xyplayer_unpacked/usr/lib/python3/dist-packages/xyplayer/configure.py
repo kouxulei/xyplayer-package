@@ -27,6 +27,9 @@ class Configures():
         for dir in dirs:
             if not os.path.exists(dir):
                 os.mkdir(dir)
+        #if not os.path.exists(self.urlCache):
+            #with open(self.urlCache, 'w') as f:
+                #f.close()
         if not os.path.exists(self.settingFile):
             with open(self.settingFile, 'w') as f:
                 f.write(self.musicsDir)

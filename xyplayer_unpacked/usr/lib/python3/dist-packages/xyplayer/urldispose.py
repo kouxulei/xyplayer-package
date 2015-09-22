@@ -3,16 +3,16 @@ from urllib import request
 from PyQt4.QtGui import  QMessageBox
 from xyplayer.util import parse_songs_wrap, parse_quote, url_open
 from xyplayer.configure import Configures
-
-if not os.path.exists(Configures.urlCache):
-    f =open(Configures.urlCache, 'w') 
-    f.close()
+#
+#if not os.path.exists(Configures.urlCache):
+#    f =open(Configures.urlCache, 'w') 
+#    f.close()
 
 reqCache = {}
-f= open(Configures.urlCache, 'r+')
-contents = f.read()
-if contents:
-    reqCache = json.loads(contents) 
+#f= open(Configures.urlCache, 'r+')
+#contents = f.read()
+#if contents:
+#    reqCache = json.loads(contents) 
 songLinkCache = {}
     
 class SearchOnline():
@@ -31,9 +31,9 @@ class SearchOnline():
             if not reqContent:
                 return (None, 0)    
             reqCache[url] = reqContent
-            contents = json.dumps(reqCache)
-            with open(Configures.urlCache, 'w') as f:
-                f.write(contents)
+#            contents = json.dumps(reqCache)
+#            with open(Configures.urlCache, 'w') as f:
+#                f.write(contents)
         songs, hit = parse_songs_wrap(reqCache[url])
         return (songs, hit)
     

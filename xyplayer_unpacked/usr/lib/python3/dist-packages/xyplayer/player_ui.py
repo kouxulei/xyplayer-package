@@ -1,7 +1,7 @@
 import threading
-from PyQt4.QtGui import (QMessageBox, QDialog, QApplication, QIcon, QCursor,QPixmap, QStackedWidget, QSystemTrayIcon, 
-                                          QHBoxLayout, QSpacerItem, QLabel, QSizePolicy, QVBoxLayout, QFrame, QMenu, QPushButton, QAction)
-from PyQt4.QtCore import Qt, QEvent, QPoint
+from PyQt4.QtGui import (QMessageBox, QDialog, QIcon, QCursor,QPixmap, QStackedWidget, QSystemTrayIcon, 
+                                          QHBoxLayout, QLabel, QVBoxLayout, QFrame, QMenu, QPushButton, QAction)
+from PyQt4.QtCore import Qt, QEvent, QPoint, QSize
 from PyQt4.phonon import Phonon
 from xyplayer.mypages import manage_page, playback_page, setting_frame
 from xyplayer.mytables import SqlOperate, TableModel, TableView
@@ -85,11 +85,11 @@ class PlayerUi(QDialog):
         self.setFixedWidth(370)
         self.setAttribute(Qt.WA_QuitOnClose,True)
         
-        desktop = QApplication.desktop()
-        screenRec = desktop.screenGeometry()
-        desktopWidth = screenRec.width()
-        self.setGeometry((desktopWidth - 370)//2, 40, 370, 660)
-        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+#        desktop = QApplication.desktop()
+#        screenRec = desktop.screenGeometry()
+#        desktopWidth = screenRec.width()
+#        self.setGeometry((self.playbackPage.desktopLyric.desktopWidth - 370)//2, 40, 370, 660)       
+#        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
 #title_widgets
         self.titleIconLabel = QLabel()
@@ -114,6 +114,7 @@ class PlayerUi(QDialog):
         self.playbackPage.previousButton.setDefaultAction(self.previousAction)
         self.playbackPage.playButton.setDefaultAction(self.playAction)
         self.playbackPage.nextButton.setDefaultAction(self.nextAction)
+        self.setGeometry((self.playbackPage.desktopLyric.desktopWidth - 370)//2, 40, 370, 660)
         
 #管理页面
         self.managePage = manage_page.ManagePage()
@@ -123,10 +124,10 @@ class PlayerUi(QDialog):
 #设置菜单页面
         self.settingFrame = setting_frame.SettingFrame()
         self.settingFrame.volumeSlider.setAudioOutput(self.audioOutput)
-        self.audioOutput.setVolume(0)
+#        self.audioOutput.setVolume(0)
 
-#spacerItem
-        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+##spacerItem
+#        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
 #3个主按键
         self.globalBackButton = QPushButton(clicked = self.global_back)
@@ -135,6 +136,12 @@ class PlayerUi(QDialog):
         self.globalBackButton.setIcon(QIcon(":/iconSources/icons/global_back.png"))
         self.globalHomeButton.setIcon(QIcon(":/iconSources/icons/showMainWindow.png"))
         self.globalSettingButton.setIcon(QIcon(":/iconSources/icons/preference.png"))
+        self.globalBackButton.setFixedHeight(30)
+        self.globalBackButton.setIconSize(QSize(25, 25))
+        self.globalHomeButton.setFixedHeight(30)
+        self.globalHomeButton.setIconSize(QSize(25, 25))
+        self.globalSettingButton.setFixedHeight(30)
+        self.globalSettingButton.setIconSize(QSize(25, 25))
 
 #管理列表的model
         self.model = TableModel()      
@@ -148,7 +155,7 @@ class PlayerUi(QDialog):
         titleLayout.addWidget(self.titleIconLabel)
         titleLayout.addSpacing(3)
         titleLayout.addWidget(self.titleLabel)
-        titleLayout.addItem(spacerItem)
+#        titleLayout.addStretch()
         titleLayout.addWidget(self.hideButton)
         titleLayout.addWidget(self.minButton)
         titleLayout.addWidget(self.closeButton)

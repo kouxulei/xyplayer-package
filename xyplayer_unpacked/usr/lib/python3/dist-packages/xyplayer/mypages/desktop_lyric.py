@@ -11,7 +11,7 @@ class DesktopLyric(QLabel):
         screenRec = desktop.screenGeometry()
         self.desktopWidth = screenRec.width()
         self.desktopHeight = screenRec.height()
-        self.setGeometry((self.desktopWidth - 315)//2, self.desktopHeight, 315, 40)
+        self.setGeometry((self.desktopWidth - 500)//2, self.desktopHeight-90, 500, 60)
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
 #        self.setWordWrap(True)
@@ -19,9 +19,9 @@ class DesktopLyric(QLabel):
         self.setAlignment(Qt.AlignCenter)
 #        self.setStyleSheet("background:transparent;font-family:'楷体';font-size:45px;color:blue;")
         font = QFont()
-        font.setFamily("楷体")
+        font.setFamily("微软雅黑")
         font.setWeight(60)
-        font.setPointSize(28)
+        font.setPointSize(35)
         self.setFont(font)
         pe = QPalette()
         pe.setColor(QPalette.WindowText, QColor(0, 0, 255))
@@ -64,7 +64,7 @@ class DesktopLyric(QLabel):
         self.painter.end()      
     
     def original_place(self):
-        self.move(QPoint((self.desktopWidth - self.width())//2, self.desktopHeight - self.height()))
+        self.move(QPoint((self.desktopWidth - self.width())//2, self.desktopHeight - self.height()-30))
     
     def geometry_info(self):
         return self.geometry().x(), self.geometry().y(), self.width()

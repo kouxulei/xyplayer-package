@@ -8,6 +8,8 @@ class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
         super(MyTextEdit, self).__init__(parent)
         self.setContextMenuPolicy(Qt.NoContextMenu)
+        self.setReadOnly(True)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     
     def mousePressEvent(self, event):
         if event.button() == Qt.RightButton or event.button() == Qt.LeftButton:

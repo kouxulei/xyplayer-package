@@ -79,6 +79,7 @@ class SettingFrame(QLabel):
         
 #主堆栈窗口
         self.mainStack = QStackedWidget()
+        self.mainStack.setFixedWidth(345)
         self.mainStack.addWidget(buttonWidget)
 #        self.mainStack.setStyleSheet('background:black')
         self.mainStack.addWidget(self.mountoutDialog)
@@ -88,7 +89,7 @@ class SettingFrame(QLabel):
 
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(5)
-        mainLayout.setMargin(8)
+        mainLayout.setMargin(5)
         mainLayout.addLayout(titleLayout)
 #        mainLayout.addWidget(self.stateLabel)
         mainLayout.addSpacing(3)
