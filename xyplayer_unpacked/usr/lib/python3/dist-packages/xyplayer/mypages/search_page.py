@@ -23,7 +23,7 @@ class SearchFrame(QWidget):
     
     def setup_ui(self):
         self.searchTable = SearchTable()
-        self.searchTable.setColumnWidth(0, 35)
+        self.searchTable.setColumnWidth(0, 39)
         self.searchTable.setColumnWidth(1, 110)
         self.searchTable.setColumnWidth(2, 100)
         self.searchTable.setColumnWidth(3, 100)

@@ -326,27 +326,22 @@ class Player(PlayerUi):
         if not songLink:
             QMessageBox.critical(self, '错误', '链接为空，无法播放！')
             return
-        self.managePage.listsFrame.model.initial_model("在线试听")
-        self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
+        if self.currentTable != "在线试听":
+            self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(0, 0))
         k = -1
         for i in range(0, self.managePage.listsFrame.model.rowCount()):
             if self.managePage.listsFrame.model.record(i).value("paths") == songLink:
                 k = i
                 break
         if k == -1:
-#            musicId = songLink.split('~')[1]
-#            lrcName = title + '.lrc'
-#            lrcPath = os.path.join(Configures.lrcsDir, lrcName)
-#            if os.path.exists(lrcPath):
-#                os.remove(lrcPath)
-#            SearchOnline.get_lrc_path(title, musicId)
             self.managePage.listsFrame.model.add_record(title, '未知', album, songLink, '0M')
-            self.model.initial_model("在线试听")
-            self.musicTable.initial_view(self.model)
+            if self.playTable == "在线试听":
+                self.allPlaySongs.append(songLink)
+                self.playback_musictable_add_widget(title)
+                self.model.initial_model("在线试听")
+                self.musicTable.initial_view(self.model)
             self.music_table_clicked(self.managePage.listsFrame.model.index(self.managePage.listsFrame.model.rowCount()-1, 0))
         else:
-            self.model.initial_model("在线试听")
-            self.musicTable.initial_view(self.model)
             if self.playTable == "在线试听" and self.currentSourceRow == k:
                 return
             self.music_table_clicked(self.managePage.listsFrame.model.index(k, 0))
