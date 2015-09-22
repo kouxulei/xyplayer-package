@@ -1,20 +1,21 @@
 import os
 from PyQt4.QtGui import (QMessageBox,QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy, QVBoxLayout, 
-                                        QLineEdit,QToolButton, QLabel, QDialog, QFileDialog)
+                                        QLineEdit,QToolButton, QLabel, QWidget, QFileDialog)
 from PyQt4.QtCore import pyqtSignal, Qt
 from xyplayer.configure import Configures
 
-class PathsetFrame(QDialog):
+class PathsetFrame(QWidget):
     downloadDirChanged = pyqtSignal(str)
     def __init__(self, parent = None):
         super(PathsetFrame, self).__init__(parent)
-        self.setAttribute(Qt.WA_QuitOnClose,False)
-        self.setMinimumSize(370, 110)
         label = QLabel("歌曲下载到：")
+        label.setFixedHeight(35)
         with open(Configures.settingFile,  'r') as f:
             self.oldDir = f.read()
         self.lineEdit = QLineEdit("%s"%self.oldDir)
-        self.setWindowTitle("当前设置："+self.oldDir)
+        self.settedPathLabel = QLabel("当前设置："+self.oldDir)
+        self.settedPathLabel.setAlignment(Qt.AlignLeft)
+        self.settedPathLabel.setFixedHeight(35)
         self.openDir = QToolButton(clicked = self.select_dir)
         self.openDir.setText('...')
         self.defaultButton = QPushButton("默认值", clicked = self.default)
@@ -37,9 +38,7 @@ class PathsetFrame(QDialog):
         mainLayout.addWidget(label)
         mainLayout.addLayout(inputLayout)
         mainLayout.addLayout(buttonsLayout)
-    
-    def set_place(self, x, y):
-        self.setGeometry(x, y, 370, 110)
+        mainLayout.addWidget(self.settedPathLabel)
     
     def select_dir(self):
         f = QFileDialog()
@@ -60,13 +59,11 @@ class PathsetFrame(QDialog):
             with open(Configures.settingFile, 'w') as f:
                 f.write(newDir)
             self.oldDir = newDir
-            self.setWindowTitle("当前设置："+newDir)
+            self.settedPathLabel.setText("当前设置："+newDir)
             self.downloadDirChanged.emit(newDir)
-        self.close()
     
     def cancel(self):
         self.lineEdit.setText(self.oldDir)
-        self.close()
     
     def default(self):
         self.lineEdit.setText(Configures.musicsDir)

@@ -1,9 +1,9 @@
 import threading
 from PyQt4.QtGui import (QMessageBox, QDialog, QApplication, QIcon, QCursor,QPixmap, QStackedWidget, QSystemTrayIcon, 
                                           QHBoxLayout, QSpacerItem, QLabel, QSizePolicy, QVBoxLayout, QFrame, QMenu, QPushButton, QAction)
-from PyQt4.QtCore import Qt, QEvent, QPoint, QSize
+from PyQt4.QtCore import Qt, QEvent, QPoint
 from PyQt4.phonon import Phonon
-from xyplayer.mypages import pathset_frame, desktop_lyric, mount_out, manage_page, playback_page, setting_frame, time_out
+from xyplayer.mypages import manage_page, playback_page, setting_frame
 from xyplayer.mytables import SqlOperate, TableModel, TableView
 from xyplayer.configure import Configures
 from xyplayer.mywidgets import PushButton, NewListWidget
@@ -14,7 +14,7 @@ class PlayerUi(QDialog):
     def __init__(self, parent = None):
         super(PlayerUi, self).__init__(parent)
         self.sql = SqlOperate()
-        Configures.check_dirs()
+        Configures().check_dirs()
         self.initial_phonon()
         self.create_actions()
         self.setup_ui()
@@ -24,7 +24,7 @@ class PlayerUi(QDialog):
         self.mediaObject = Phonon.MediaObject(self)
         self.audioOutput = Phonon.AudioOutput(Phonon.MusicCategory, self)
         Phonon.createPath(self.mediaObject, self.audioOutput)
-        self.mediaObject.setTickInterval(500)        
+        self.mediaObject.setTickInterval(500)     
     
     def initial_parameters(self):
         self.widgets = []
@@ -77,7 +77,7 @@ class PlayerUi(QDialog):
         self.setWindowIcon(QIcon(":/iconSources/icons/musicface.png"))
         self.setObjectName('xyplayer')
         self.setStyleSheet("#xyplayer{border-image: url(:/iconSources/icons/player_background.png);background:transparent}")
-        self.setWindowFlags(Qt.MSWindowsFixedSizeDialogHint | Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.MSWindowsFixedSizeDialogHint | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 #        self.setWindowFlags(Qt.WindowMinhideButtonsHint)
 #        self.setWindowFlags(Qt.WindowStaysOnTopHint)
 #        self.setAttribute(Qt.WA_TranslucentBackground)
@@ -119,22 +119,11 @@ class PlayerUi(QDialog):
         self.managePage = manage_page.ManagePage()
         self.managePage.playButton.setDefaultAction(self.playAction)
         self.managePage.nextButton.setDefaultAction(self.nextAction)
-        
-#下载路径设置框
-        self.pathsetFrame = pathset_frame.PathsetFrame()
-
-#桌面歌词标签
-        self.desktopLyric = desktop_lyric.DesktopLyric()
 
 #设置菜单页面
         self.settingFrame = setting_frame.SettingFrame()
         self.settingFrame.volumeSlider.setAudioOutput(self.audioOutput)
-
-#计数退出页面
-        self.mountoutDialog = mount_out.MountoutDialog()
-        
-#定时退出页面
-        self.timeoutDialog = time_out.TimeoutDialog()
+        self.audioOutput.setVolume(0)
 
 #spacerItem
         spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
@@ -176,19 +165,21 @@ class PlayerUi(QDialog):
         self.mainStack = QStackedWidget()
         self.mainStack.addWidget(self.managePage)
         self.mainStack.addWidget(self.playbackPage)
-        
         mainLayout = QVBoxLayout(self)
         mainLayout.addLayout(titleLayout)
         mainLayout.setSpacing(0)
         mainLayout.setMargin(3)
         mainLayout.addWidget(self.mainStack)
         mainLayout.addWidget(self.globalFrame)
+#        mainLayout.addWidget(self.settingFrame)
         self.show_mainstack_0()
 
 #创建托盘图标
         self.trayIcon = QSystemTrayIcon(self)
         self.trayIcon.setIcon(QIcon(":/iconSources/icons/musicface.png"))
-
+        self.showDesktopLyricAction = QAction(
+             QIcon(":/iconSources/icons/desktopLyric.png"), "开启桌面歌词", 
+                self,  triggered = self.playbackPage.show_desktop_lyric )
         trayMenu = QMenu()
         trayMenu.addAction(self.showMainWindowAction)
         trayMenu.addAction(self.showDesktopLyricAction)
@@ -210,10 +201,6 @@ class PlayerUi(QDialog):
         self.showMainWindowAction = QAction(
              QIcon(":/iconSources/icons/showMainWindow.png"), "隐藏主界面", 
                 self,  triggered = self.show_mainwindow )
-        
-        self.showDesktopLyricAction = QAction(
-             QIcon(":/iconSources/icons/desktopLyric.png"), "开启桌面歌词", 
-                self,  triggered = self.show_desktop_lyric )
                 
         self.stopAction = QAction(
                 QIcon(":/iconSources/icons/stop.png"), "停止",
@@ -279,18 +266,15 @@ class PlayerUi(QDialog):
     def closeEvent(self, event):
         if not self.settingFrame.isHidden():
             self.settingFrame.hide()
-        if self.mountoutDialog.countoutMode and not self.mountoutDialog.remainMount or self.timeoutDialog.timeoutFlag:
+        if self.settingFrame.mountoutDialog.countoutMode and not self.settingFrame.mountoutDialog.remainMount or self.settingFrame.timeoutDialog.timeoutFlag:
             self.dispose_before_close()
             event.accept()
         else:
             self.show()
-            self.pathsetFrame.close()
             if threading.active_count() == 1:
                 ok = QMessageBox.question(self, '退出', '您确定退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
                 if ok == QMessageBox.Ok:
                     self.trayIcon.hide()
-                    if not self.desktopLyric.isHidden():
-                        self.desktopLyric.close()
                     self.managePage.downloadPage.downloadModel.submitAll()
                     event.accept()
                 else:
@@ -299,8 +283,6 @@ class PlayerUi(QDialog):
                 ok = QMessageBox.question(self, '退出', '当前有下载任务正在进行，您是否要挂起全部下载任务并退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
                 if ok == QMessageBox.Ok:
                     self.dispose_before_close()
-                    if not self.desktopLyric.isHidden():
-                        self.desktopLyric.close()
                     event.accept()
                 else:
                     event.ignore()
@@ -308,6 +290,10 @@ class PlayerUi(QDialog):
     def dispose_before_close(self):
         self.hide()
         self.trayIcon.hide()
+#        from xyplayer.urldispose.SearchOnline import reqCache
+#        contents = json.dumps(reqCache)
+#        with open(Configures.urlCache, 'w') as f:
+#            f.write(contents)
         for t in threading.enumerate():
             if t.name == 'downloadLrc':
                 t.stop()
@@ -315,17 +301,6 @@ class PlayerUi(QDialog):
                 t.pause()
                 t.join()
         self.managePage.downloadPage.downloadModel.submitAll()
-    
-    def about(self):
-        author = '作  者：Zheng-Yejian'
-        email = '邮  箱：1035766515@qq.com'
-        address = '项目网址：https://github.com/Zheng-Yejian/xyplayer'
-        specification = "说  明：项目旨在设计一个能实现基本播放以及在线搜索播放媒体资源功能的音乐播放器。谢谢您的使用，如果发现问题，还请与我交流。"   
-        thanks = '鸣谢：这里要感谢github上项目kwplayer的作者LiuLang，我正是从他的项目中获取的开发灵感和动力，而且也从中学到了许多东西。该项目的网址为https://github.com/LiuLang/kwplayer。'
-        QMessageBox.information(self, "关于xyPlayer","%s\n\n%s\n\n%s\n\n%s\n\n%s"%(author, email, address, specification, thanks))
-
-#    def close_all(self):
-#        self.close()
 
 # ###   播放模式设置  #######################################
     def seq_playmode_seted(self):
@@ -400,47 +375,21 @@ class PlayerUi(QDialog):
             self.y = self.geometry().y()
 #            x_offset = (self.width() - self.settingFrame.width()) / 2
 #            y_offset = (self.height() - self.settingFrame.height()) / 2
-            self.settingFrame.move(self.x + 10, self.y + 270)
+            self.settingFrame.move(self.x + 11, self.y + 245)
             pixmap = QPixmap(":/iconSources/icons/functions.png")
-#            pixmap = QPixmap("/home/zyj/图片/set_1.png")
+#            pixmap = QPixmap("/home/zyj/图片/function2.png")
             self.settingFrame.setPixmap(pixmap)
             self.settingFrame.setMask(pixmap.mask())
             self.settingFrame.show()  
+            self.settingFrame.show_main()
         else:
             self.settingFrame.hide()
     
-    def show_pathset_frame(self):
-#        x_offset = self.width() - self.pathsetFrame.width() / 2
-#        y_offset = self.height() - self.pathsetFrame.height() / 2
-        self.pathsetFrame.set_place(self.x - 11, self.y + 210)
-#        self.pathsetFrame.set_place(self.x + x_offset, self.y + y_offset)
-        self.settingFrame.close()
-        self.pathsetFrame.show()
-    
-    def show_desktop_lyric(self):
-        if self.desktopLyric.isHidden():
-#            self.desktopLyric.move(QPoint((self.desktopWidth - 800)//2, self.desktopHeight - 170))
+    def desktop_lyric_state_changed(self, be_to_off):
+        if be_to_off:
             self.showDesktopLyricAction.setText('关闭桌面歌词')
-            self.playbackPage.desktopLyricButton.setToolTip('关闭桌面歌词')
-            self.desktopLyric.show()
         else:
-            self.desktopLyric.hide()
             self.showDesktopLyricAction.setText('开启桌面歌词')
-            self.playbackPage.desktopLyricButton.setToolTip('开启桌面歌词')
-    
-    def show_mountout_dialog(self):
-        self.settingFrame.close()
-        self.mountoutDialog.show()
-        x_offset = (self.width() - self.mountoutDialog.width()) / 2
-        y_offset = (self.height() - self.mountoutDialog.height()) / 2
-        self.mountoutDialog.move(self.x + x_offset, self.y + y_offset)
-    
-    def show_timeout_dialog(self):
-        self.settingFrame.close()
-        self.timeoutDialog.show()
-        x_offset = (self.width() - self.mountoutDialog.width()) / 2
-        y_offset = (self.height() - self.mountoutDialog.height()) / 2
-        self.timeoutDialog.move(self.x + x_offset, self.y + y_offset)       
     
     def switch_to_online_list(self):
         self.managePage.show_lists_frame()

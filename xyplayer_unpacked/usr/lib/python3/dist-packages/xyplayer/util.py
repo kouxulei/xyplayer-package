@@ -48,7 +48,9 @@ def parse_lrc(text):
             timeTags.append(currentTime)
             offset = match.end()
             match = screen.match(line, offset)
-        content = line[offset:]
+        content = line[offset:].strip()
+        if not content:
+            content = '...'
         for tag in timeTags:
             lrcDisposed[tag] = content
     try:

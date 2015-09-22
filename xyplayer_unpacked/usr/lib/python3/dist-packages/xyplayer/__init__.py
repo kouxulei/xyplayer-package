@@ -2,6 +2,7 @@
 # Use of this source code is governed by GPLv3 license that can be found
 # in the LICENSE file.
 
-__version__ = '0.8.0-4'
+__version__ = '0.8.1-1'
+__versionNum__ = 811
 __doc__ = '''This is a simple musicplayer that can search, play, download musics from the Internet.
 '''

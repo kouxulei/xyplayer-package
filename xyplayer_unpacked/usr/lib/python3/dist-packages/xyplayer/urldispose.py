@@ -4,10 +4,19 @@ from PyQt4.QtGui import  QMessageBox
 from xyplayer.util import parse_songs_wrap, parse_quote, url_open
 from xyplayer.configure import Configures
 
+if not os.path.exists(Configures.urlCache):
+    f =open(Configures.urlCache, 'w') 
+    f.close()
+
 reqCache = {}
+f= open(Configures.urlCache, 'r+')
+contents = f.read()
+if contents:
+    reqCache = json.loads(contents) 
 songLinkCache = {}
     
 class SearchOnline():
+
     def search_songs(searchByType, keyword, page, rn = 15):
         url = ''.join([
             'http://search.kuwo.cn/r.s?ft=music&rn=%s'%rn,'&newsearch=1&primitive=0&cluster=0&itemset=newkm&rformat=xml&encoding=utf8&%s='%searchByType, 
@@ -22,9 +31,10 @@ class SearchOnline():
             if not reqContent:
                 return (None, 0)    
             reqCache[url] = reqContent
+            contents = json.dumps(reqCache)
+            with open(Configures.urlCache, 'w') as f:
+                f.write(contents)
         songs, hit = parse_songs_wrap(reqCache[url])
-#        for song in songs:
-#            print(song)
         return (songs, hit)
     
     def get_song_link(musicId):
