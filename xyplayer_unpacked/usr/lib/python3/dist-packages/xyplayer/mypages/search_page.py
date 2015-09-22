@@ -55,11 +55,11 @@ class SearchFrame(QWidget):
         musicIcon = QIcon(":/iconSources/icons/music.png")
         artistIcon = QIcon(":/iconSources/icons/artist.png")
         albumIcon = QIcon(":/iconSources/icons/album.png")       
-        self.searchComboBox.setIconSize(QSize(20,20))
+        self.searchComboBox.setIconSize(QSize(20, 20))
         self.searchComboBox.insertItem(0, musicIcon, "歌曲")
         self.searchComboBox.insertItem(1, artistIcon, "歌手")
         self.searchComboBox.insertItem(2, albumIcon, "专辑")
-        self.searchComboBox.setFixedSize(78, 33)
+        self.searchComboBox.setFixedSize(79, 33)
         self.searchComboBox.setCursor(Qt.ArrowCursor)
         
         self.firstPageButton = QPushButton("首页", clicked = self.jump_to_first_page)

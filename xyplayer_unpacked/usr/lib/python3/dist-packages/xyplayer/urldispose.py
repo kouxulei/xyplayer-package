@@ -53,11 +53,15 @@ class SearchOnline():
         songLinkTemp = songLinkTemp.split('/')
         songLink = '/'.join(songLinkTemp[:3]+songLinkTemp[5:])
         return songLink
-
-#获取歌手信息
-    def get_artist_info_path(artist):
+    
+    def get_local_artist_info_path(artist):
         infoName = artist+'.info'
         infoPath = os.path.join(Configures.artistInfosDir, infoName)
+        return infoPath
+    
+#获取歌手信息
+    def get_artist_info_path(artist):
+        infoPath = SearchOnline.get_local_artist_info_path(artist)
         if os.path.exists(infoPath):
             return infoPath
         url = ''.join([

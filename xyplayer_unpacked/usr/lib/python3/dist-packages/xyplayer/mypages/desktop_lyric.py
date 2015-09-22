@@ -19,7 +19,7 @@ class DesktopLyric(QLabel):
         self.setAlignment(Qt.AlignCenter)
 #        self.setStyleSheet("background:transparent;font-family:'楷体';font-size:45px;color:blue;")
         font = QFont()
-        font.setFamily("微软雅黑")
+        font.setFamily("楷体")
         font.setWeight(60)
         font.setPointSize(35)
         self.setFont(font)

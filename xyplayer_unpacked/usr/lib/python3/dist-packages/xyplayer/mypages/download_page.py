@@ -46,7 +46,6 @@ class DownloadPage(QWidget):
         self.downloadModel.initial_model()
         
         self.downloadTable = DownloadTable()
-        self.downloadTable.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent;}")
         self.downloadTable.initial_view(self.downloadModel)
         self.downloadTable.selectRow(0)
         self.myDelegate = MyDelegate()

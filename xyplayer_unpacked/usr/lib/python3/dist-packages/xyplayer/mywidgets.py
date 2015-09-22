@@ -1,6 +1,6 @@
 import os
 from PyQt4.QtGui import (QPushButton, QPixmap, QPainter, QLabel, QToolButton, QLinearGradient, QCursor, 
-                                        QColor, QIcon, QPalette, QFont, QVBoxLayout, QHBoxLayout, QWidget, QTextEdit)
+                                        QColor, QIcon, QPalette, QFont, QWidget, QTextEdit)
 from PyQt4.QtCore import pyqtSignal, Qt, QSize
 from xyplayer.configure import Configures
 
@@ -177,10 +177,10 @@ class NewListWidget(QLabel):
     info_button_clicked_signal = pyqtSignal(str)
     def __init__(self, title):
         super(NewListWidget, self).__init__()
-        self.setFixedSize(335, 85)
+        self.setFixedSize(334, 84)
         self.name = title
         self.setStyleSheet("QToolButton{background:transparent}"
-                                    "QToolButton:hover{border:1px solid yellow;border-radius:16px;background:yellow}")
+                                    "QToolButton:hover{border:0px solid yellow;border-radius:18px;background:yellow}")
         try:
             artistName = title.split('._.')[0]
             musicName = title.split('._.')[1]
@@ -191,13 +191,13 @@ class NewListWidget(QLabel):
         imagePath = os.path.join(Configures.imagesDir, imageName)
         if not os.path.exists(imagePath):
             imagePath = ":/iconSources/icons/anonymous.png"
-        self.artistPicture = QLabel()
-        self.artistPicture.setFixedSize(60, 60)
+        self.artistPicture = QLabel(self)
+#        self.artistPicture.setFixedSize(60, 60)
         self.artistPicture.setScaledContents(True)
         self.artistPicture.setPixmap(QPixmap(imagePath))
         
-        self.musicNameLabel = QLabel(musicName)
-        self.artistNameLabel = QLabel(artistName)
+        self.musicNameLabel = QLabel(musicName, self)
+        self.artistNameLabel = QLabel(artistName, self)
 #        self.musicNameLabel = NewLabel()
 #        self.musicNameLabel.setFixedWidth(100)
 #        self.musicNameLabel.setText(musicName)
@@ -211,22 +211,27 @@ class NewListWidget(QLabel):
         self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:20px;color: white;")
         self.artistNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:14px;color: white;")
 
-        self.infoButton = QToolButton(clicked = self.info_button_clicked)
+        self.infoButton = QToolButton(self, clicked = self.info_button_clicked)
         self.infoButton.setIcon(QIcon(":/iconSources/icons/info.png"))
-        self.infoButton.setIconSize(QSize(25, 25))
-        self.playButton = QToolButton(clicked = self.play_button_clicked)
+        self.infoButton.setIconSize(QSize(36, 36))
+        self.playButton = QToolButton(self, clicked = self.play_button_clicked)
         self.playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
-        self.playButton.setIconSize(QSize(25, 25))
+        self.playButton.setIconSize(QSize(36, 36))
 
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.musicNameLabel)
-        vbox.addWidget(self.artistNameLabel)
-
-        mainLayout = QHBoxLayout(self)
-        mainLayout.addWidget(self.artistPicture)
-        mainLayout.addLayout(vbox)
-        mainLayout.addWidget(self.playButton)
-        mainLayout.addWidget(self.infoButton)
+        self.artistPicture.setGeometry(10,  10,  64, 64)
+        self.musicNameLabel.setGeometry(84, 10, 154, 30)
+        self.artistNameLabel.setGeometry(84, 54, 154, 20)
+        self.playButton.setGeometry(250, 22, 36, 36) 
+        self.infoButton.setGeometry(295, 22, 36, 36)
+#        vbox = QVBoxLayout()
+#        vbox.addWidget(self.musicNameLabel)
+#        vbox.addWidget(self.artistNameLabel)
+#
+#        mainLayout = QHBoxLayout(self)
+#        mainLayout.addWidget(self.artistPicture)
+#        mainLayout.addLayout(vbox)
+#        mainLayout.addWidget(self.playButton)
+#        mainLayout.addWidget(self.infoButton)
 
     def play_button_clicked(self):
         self.play_button_clicked_signal.emit(self.name)

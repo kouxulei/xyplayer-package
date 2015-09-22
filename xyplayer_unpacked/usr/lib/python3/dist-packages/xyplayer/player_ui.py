@@ -25,14 +25,15 @@ class PlayerUi(QDialog):
         self.audioOutput = Phonon.AudioOutput(Phonon.MusicCategory, self)
         Phonon.createPath(self.mediaObject, self.audioOutput)
         self.mediaObject.setTickInterval(500)     
+        self.volume = self.audioOutput.volume()/2
+        self.audioOutput.setVolume(self.volume)
     
     def initial_parameters(self):
         self.widgets = []
         self.widgetIndex = 0
         self.dragPosition = QPoint(0, 0)
         self.lyricOffset = 0
-        self.playmodeIndex = 1
-        self.volume = self.audioOutput.volume()
+        self.playmodeIndex = 2
         self.currentSourceRow = -1
         self.totalTime = '00:00'
         self.cTime = '00:00'

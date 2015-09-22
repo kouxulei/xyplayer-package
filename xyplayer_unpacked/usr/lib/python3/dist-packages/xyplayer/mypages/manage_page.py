@@ -40,33 +40,39 @@ class ManagePage(QWidget):
         
         self.lyricLabel = LabelButton("歌词同步显示于此！", 33)
 
-#时间标签
-        self.timeLabel = QLabel("00:00/00:00")
-        self.timeLabel.setAlignment(Qt.AlignRight and Qt.AlignVCenter)
-        self.timeLabel.setFixedWidth(80)
-        self.timeLabel.setStyleSheet("font-family:'微软雅黑';font-size:13px;color: blue;background:transparent")
-        
+
+        self.frameBottomWidget = SpecialLabel('', 93)    
 #3个标签
-        self.artistHeadLabel = QLabel()
-        self.artistHeadLabel.setFixedSize(QSize(65, 65))
+        self.artistHeadLabel = QLabel(self.frameBottomWidget)
         self.artistHeadLabel.setScaledContents(True)
         self.artistHeadLabel.setPixmap(QPixmap(":/iconSources/icons/anonymous.png"))
+        self.artistHeadLabel.setGeometry(10, 14, 65, 65)
+
 #        self.musicNameLabel = QLabel("xyplayer")
-        self.musicNameLabel = NewLabel()
-        self.musicNameLabel.setMinimumWidth(100)
-        self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:17px;color: blue;background:transparent")
-        self.artistNameLabel = NewLabel()
+        self.musicNameLabel = NewLabel(self.frameBottomWidget)
+        self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:18px;color: blue;background:transparent")
+        self.musicNameLabel.setGeometry(80, 12, 120, 27)
+
+        self.artistNameLabel = NewLabel(self.frameBottomWidget)
         self.artistNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:15px;color: blue;background:transparent")
-        
-        self.playButton = QToolButton()
-        self.playButton.setIconSize(QSize(58, 58))
+        self.artistNameLabel.setGeometry(80, 41, 120, 23)
+
+        self.timeLabel = QLabel("00:00/00:00", self.frameBottomWidget)
+        self.timeLabel.setAlignment(Qt.AlignRight and Qt.AlignVCenter)
+        self.timeLabel.setStyleSheet("font-family:'微软雅黑';font-size:13px;color: blue;background:transparent")
+        self.timeLabel.setGeometry(80, 67, 120, 15)
+
+        self.playButton = QToolButton(self.frameBottomWidget)
+        self.playButton.setIconSize(QSize(70, 70))
         self.playButton.setStyleSheet("QToolButton{background:transparent}"
-                                                        "QToolButton:hover{border:4px solid blue;border-radius:32px;background:blue}")
-        self.nextButton = QToolButton()
-        self.nextButton.setIconSize(QSize(56, 56))
+                                                        "QToolButton:hover{border:0px solid blue;border-radius:35px;background:blue}")
+        self.playButton.setGeometry(205, 11, 70, 70)
+        self.nextButton = QToolButton(self.frameBottomWidget)
+        self.nextButton.setIconSize(QSize(70, 70))
         self.nextButton.setStyleSheet("QToolButton{background:transparent}"
-                                                        "QToolButton:hover{border:4px solid blue;border-radius:31px;background:blue}")
-        
+                                                        "QToolButton:hover{border:0px solid blue;border-radius:35px;background:blue}")
+        self.nextButton.setGeometry(275, 11, 70, 70)
+
         self.allListButton = LabelButton("列表管理")
         self.downloadPageButton = LabelButton("下载任务")
         
@@ -80,7 +86,7 @@ class ManagePage(QWidget):
         
         self.myListTable = MyListTable()
         self.myListTable.setStyleSheet("background:transparent")
-        self.myListTable.horizontalHeader().setStyleSheet("QHeaderView::section{background:transparent}")
+#        self.myListTable.horizontalHeader().setStyleSheet("QHeaderView::section{background:transparent}")
         for i in range(4, self.listsFrame.manageModel.rowCount()):
             text = self.listsFrame.manageModel.record(i).value('tableName')
             self.add_a_widget_to_table(text)
@@ -135,16 +141,15 @@ class ManagePage(QWidget):
         listsLayout.addLayout(hbox_fd)
         listsLayout.addLayout(hbox_nh)
 
-        self.frameBottomWidget = SpecialLabel('', 93)
-        frame_bottom_gbox = QGridLayout(self.frameBottomWidget)
-        frame_bottom_gbox.setMargin(7)
-        frame_bottom_gbox.addWidget(self.artistHeadLabel, 0, 0, 3, 1)
-        frame_bottom_gbox.addWidget(self.musicNameLabel, 0, 1, 1, 2)
-        frame_bottom_gbox.addWidget(self.artistNameLabel, 1, 1, 1, 2)
-        frame_bottom_gbox.addWidget(self.timeLabel, 2, 1, 1, 2)
-#        frame_bottom_gbox.addItem(spacerItem, 0, 2, 1, 5)
-        frame_bottom_gbox.addWidget(self.playButton, 0, 6, 3, 1)
-        frame_bottom_gbox.addWidget(self.nextButton, 0, 7, 3, 1)
+#         frame_bottom_gbox = QGridLayout(self.frameBottomWidget)
+#         frame_bottom_gbox.setMargin(7)
+#         frame_bottom_gbox.addWidget(self.artistHeadLabel, 0, 0, 3, 1)
+#         frame_bottom_gbox.addWidget(self.musicNameLabel, 0, 1, 1, 2)
+#         frame_bottom_gbox.addWidget(self.artistNameLabel, 1, 1, 1, 2)
+#         frame_bottom_gbox.addWidget(self.timeLabel, 2, 1, 1, 2)
+# #        frame_bottom_gbox.addItem(spacerItem, 0, 2, 1, 5)
+#         frame_bottom_gbox.addWidget(self.playButton, 0, 6, 3, 1)
+#         frame_bottom_gbox.addWidget(self.nextButton, 0, 7, 3, 1)
         
         homeWidget = QWidget()
         layout_list = QVBoxLayout(homeWidget)

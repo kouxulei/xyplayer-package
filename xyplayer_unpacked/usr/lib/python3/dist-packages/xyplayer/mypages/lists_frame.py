@@ -36,7 +36,7 @@ class ListsFrame(QWidget):
         self.model = TableModel()
         self.model.initial_model("默认列表")
         self.musicTable = TableView()
-        self.musicTable.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent;}")
+#        self.musicTable.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent;}")
         self.musicTable.initial_view(self.model)
 
         self.manageTable.selectRow(1)

@@ -239,12 +239,17 @@ class Player(PlayerUi):
         for index in selecteds:
             row = index.row()
             record = self.managePage.listsFrame.model.record(row)
+            title = record.value("title")
+            path = record.value("paths")
             if index.column() == 0:
-                if record.value("title") not in self.lovedSongs and os.path.exists(record.value("paths")):
-                    marked.append(record.value("title"))
-                    self.lovedSongs.append(record.value("title"))
+                if title not in self.lovedSongs and os.path.exists(record.value("paths")):
+                    if self.playTable == "喜欢歌曲":
+                        self.allPlaySongs.append(path)
+                        self.playback_musictable_add_widget(title)
+                    marked.append(title)
+                    self.lovedSongs.append(title)
                     self.model.initial_model("喜欢歌曲")
-                    self.model.insertRecord(self.model.rowCount(), record)
+                    self.model.add_record(record.value('title'), record.value('length'), record.value('album'), record.value('paths'), record.value('size'))
                     self.model.submitAll()
         self.model.initial_model(self.playTable)
         self.musicTable.initial_view(self.model)

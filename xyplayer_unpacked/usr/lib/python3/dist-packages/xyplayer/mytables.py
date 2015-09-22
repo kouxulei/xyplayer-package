@@ -438,11 +438,10 @@ class NewMusicTable(QTableWidget):
         self.setRowCount(0)
         self.setColumnCount(1)
         self.horizontalHeader().setVisible(False)
-        self.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent}")
-#        self.verticalHeader().setVisible(False)
+        self.verticalHeader().setVisible(False)
         self.setShowGrid(False)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+#        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         
     def add_widget(self, widget):
@@ -461,7 +460,7 @@ class MyListTable(QTableWidget):
     def __init__(self, parent = None):
         super(MyListTable, self).__init__(parent)
         self.horizontalHeader().setVisible(False)
-        self.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent}")
+#        self.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent}")
         self.verticalHeader().setVisible(False)
         self.setShowGrid(False)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)

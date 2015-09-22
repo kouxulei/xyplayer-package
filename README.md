@@ -1,50 +1,18 @@
-xyplayer
-================
-xyplayer是由python3结合pyqt4库开发的一款简单的在线音乐播放器，项目主页：https://github.com/Zheng-Yejian/xyplayer
+#xyplayer-package
+xyplayer-package放置[xyplayer](https://github.com/Zheng-Yejian/xyplayer)的deb安装包。  
 
+##程序安装
+下载最新的deb包(用*VERSION*表示某个版本号)：xyplayer_*VERSION*_all.deb  
 
-支持系统：
-================
-ubuntu14.04与linuxmint17
+```bash
+sudo apt-get install gdebi
+sudo gdebi xyplayer_VERSION_all.deb
+```
 
+##程序升级
+0.8.1以上的版本加入了在线升级的功能：  
+右下角菜单键 -> 关于 -> 更新 -> 检查更新 -> 在线更新  
 
-程序介绍：
-================
-    xyplayer主要能进行本地歌曲管理、在线音乐搜索以及简单的歌曲下载管理，该播放器是根据个人需求和喜好而去学习开发的，功能方面虽然远逊于windows下的各类播放器，但对很多希望有一款兼具本地管理与网络功能播放器的linux用户来说应该基本够用，未来还会继续升级和完善。
-    目前具备的主要功能如下：
-    1、实现基本播放功能，包括播放、暂停、停止、上一首、下一首、播放进度调节、音量调节；
-    2、三种播放模式：列表循环、单曲循环、随机播放；
-    3、列表操作：创建歌曲列表、删除列表、向列表添加删除歌曲；
-    4、标记喜欢歌曲、批量标记；
-    5、在线歌曲搜索、试听、下载（可按歌手、歌曲、专辑进行类型搜索）；
-    6、歌曲下载管理，包括批量开始下载、暂停下载、取消下载、重新下载、网速显示；
-    7、歌词处理功能，包括歌词同步下载、显示、简单的同步校准、桌面歌词显示；
-    8、歌手信息显示；
-    9、歌曲下载路径自定义设置；
-
-
-安装包：
-=================
-软件包下载网址：https://github.com/Zheng-Yejian/xyplayer-package
-
-
-程序安装
-=================
-方法（1）：步骤一："sudo dpkg -i xyplayer_××××_all.deb"
-                        步骤二："sudo apt-get install -f"
-
-方法（2）：步骤一：安装gdebi，执行"sudo apt-get install gdebi"
-                        步骤二：执行"sudo gdebi xyplayer_××××_all.deb"
-
-注意：程序安装好后，系统可能自动下载使用gstreamer的phonon后端，在使用效果上远不如vlc的phonon后端，在拖动进度条时很容易卡住，因此最好卸载掉gstreamer的phonon后端。执行“ sudo apt-get remove phonon-backend-gstreamer phonon-backend-gsteamer-common ”即可。
-
-
-存在的问题：
-=================
-（1）在网络状况不良的情况下，程序容易卡住；
-（2）初次添加本地歌曲时需要较长时间。
-
-
-问题反馈：
-=================
-如果使用有问题，可以在论坛回复，或者发邮箱：1035766515@qq.com
+##欢迎交流
++ qq：1532768931
++ 邮箱：<zhengyejian@sina.com>
