@@ -6,7 +6,7 @@ from xyplayer.configure import Configures
 
 reqCache = {}
 songLinkCache = {}
-
+    
 class SearchOnline():
     def search_songs(searchByType, keyword, page, rn = 15):
         url = ''.join([
@@ -22,13 +22,10 @@ class SearchOnline():
             if not reqContent:
                 return (None, 0)    
             reqCache[url] = reqContent
-#        try:
-#            songsWrap = jsonLoads(reqCache[url])
-#        except ValueError :
-#            return (None, 0)
-#        hit = int(songsWrap['HIT'])
-#        songs = songsWrap['abslist']
+        print(reqContent)
         songs, hit = parse_songs_wrap(reqCache[url])
+#        for song in songs:
+#            print(song)
         return (songs, hit)
     
     def get_song_link(musicId):
@@ -47,30 +44,6 @@ class SearchOnline():
         songLinkTemp = songLinkTemp.split('/')
         songLink = '/'.join(songLinkTemp[:3]+songLinkTemp[5:])
         return songLink
-#        t1 = time.time()
-##        req = request.urlopen(songLink)
-##        t2 = time.time()
-##        songBytes = 0
-##        if req.status == 200 and  req.reason == 'OK' and req.getheader('Content-Type') == 'audio/mpeg':
-##            songBytes = req.getheader('Content-Length')
-##        t3 = time.time()
-##        print('urlsDispose.py SearchOnline.get_song_link t2-t1 = %s'%(t2-t1))
-##        print('urlsDispose.py SearchOnline.get_song_link t3-t2 = %s'%(t3-t2))
-#        c = pycurl.Curl()
-#        c.setopt(pycurl.URL, songLink)
-#        c.setopt(pycurl.NOBODY, 1)
-#        c.setopt(pycurl.FOLLOWLOCATION, 1)
-#        t3 = time.time()
-#        c.perform()
-#        t4 = time.time()
-#        songBytes = str(int(c.getinfo(pycurl.CONTENT_LENGTH_DOWNLOAD)))
-#        if c.getinfo(pycurl.CONTENT_TYPE) == 'audio/mpeg':
-#            t2 = time.time()
-#            print('urlsDispose.py SearchOnline.get_song_link t2-t1 = %s'%(t2-t1))
-#            print('urlsDispose.py SearchOnline.get_song_link t4-t3 = %s'%(t4-t3))
-#            songLinkCache[musicId] = [songLink, songBytes]
-#            return songLink, songBytes
-#        return None, 0
 
 #获取歌手信息
     def get_artist_info_path(artist):
@@ -149,7 +122,7 @@ class SearchOnline():
             return lrcPath
         return None
     
- #获取歌词   
+#获取歌词   
     def  get_lrc_path(title, musicId):
         lrcName = title+'.lrc'
         lrcPath = os.path.join(Configures.lrcsDir, lrcName)

@@ -74,6 +74,7 @@ def parse_songs_wrap(str):
     hit = int(re.search('Hit\=(\d+)', str).group(1))
     songs_wrap = []
     str_list = str.split('\r\n\r\n')
+#    print(str_list)
     for i in range(1, 16):
         if str_list[i]:
             song_list = str_list[i].split('\r\n')

@@ -2,6 +2,8 @@ import os
 
 class Configures():
 #    INSTALLPATH = '/usr/lib/python3/dist-packages/xyplayer'
+    FILE_LENGTH_MB = 1000000
+    LINE_HEIGHT = 28.11
     NOERROR = -1
     URLERROR = -2
     TYPEERROR = -3
@@ -12,7 +14,7 @@ class Configures():
     artistInfosDir = os.path.join(cacheDir, 'infos')
     lrcsDir = os.path.join(cacheDir, 'lrcs')
     settingFile = os.path.join(cacheDir, 'settings')
-    db = os.path.join(cacheDir, 'xyplayer.db')
+    db = os.path.join(cacheDir, 'xyplayer_new.db')
     
     def check_dirs():
         if not os.path.exists(Configures.cacheDir):
