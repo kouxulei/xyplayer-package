@@ -1,8 +1,8 @@
 import os
-from PyQt4.QtGui import (QPushButton, QPixmap, QPainter, QLabel, QToolButton, QLinearGradient, QCursor, 
-                                        QColor, QIcon, QPalette, QFont, QWidget, QTextEdit)
-from PyQt4.QtCore import pyqtSignal, Qt, QSize
-from xyplayer.configure import Configures
+from PyQt5.QtWidgets import QPushButton, QLabel, QToolButton, QWidget, QTextEdit
+from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont
+from PyQt5.QtCore import pyqtSignal, Qt, QSize
+from xyplayer import Configures
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):

@@ -1,6 +1,7 @@
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4.QtSql import QSqlTableModel
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtSql import QSqlTableModel
 from xyplayer.mywidgets import LabelButton
 from xyplayer.mytables import TableModel, TableView, ManageTableView
 
@@ -60,10 +61,15 @@ class ListsFrame(QWidget):
         hbox2.addWidget(self.musicTable)
         
         mainLayout = QVBoxLayout(self)
-        mainLayout.setMargin(0)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.addLayout(hbox1)
         mainLayout.addLayout(hbox2)
-        
+    
+    def manage_model_remove_row(self, row):
+        self.manageModel.removeRow(row)
+        self.manageModel.submitAll()
+        self.manageModel.select()    # this statement can't be omitted, or it's view  couldn't update 
+
     def check_actions_in_page(self, row):
         if row == 0:
             self.musicTable.deleteAction.setVisible(False)

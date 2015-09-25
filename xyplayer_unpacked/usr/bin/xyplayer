@@ -1,16 +1,11 @@
-#!/usr/bin/env python3
-
-# Copyright (C) 2013-2014 Zheng-Yejian <1035766515@qq.com>
-
-# Use of this source code is governed by GPLv3 license that can be found
-# in the LICENSE file.
+#!/usr/bin/python3
 
 import sys
-from PyQt4.QtGui import QApplication
+from PyQt5.QtWidgets import QApplication
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("xyPlayer")
+    app.setApplicationName("xyplayer")
     app.setQuitOnLastWindowClosed(True)
     
     from xyplayer.player import Player

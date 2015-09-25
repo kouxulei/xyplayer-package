@@ -1,5 +1,6 @@
-from PyQt4.QtGui import QApplication,  QCursor, QPalette, QLabel, QFont, QMenu, QAction, QColor, QPainter, QLinearGradient, QPen
-from PyQt4.QtCore import Qt, pyqtSignal, QPoint
+from PyQt5.QtWidgets import QApplication,  QLabel, QMenu, QAction
+from PyQt5.QtGui import QCursor, QPalette, QFont, QColor, QPainter, QLinearGradient, QPen
+from PyQt5.QtCore import Qt, pyqtSignal, QPoint
 
 class DesktopLyric(QLabel):
     hide_desktop_lyric_signal = pyqtSignal()
@@ -67,7 +68,7 @@ class DesktopLyric(QLabel):
         self.move(QPoint((self.desktopWidth - self.width())//2, self.desktopHeight - self.height()-30))
     
     def geometry_info(self):
-        return self.geometry().x(), self.geometry().y(), self.width()
+        return self.geometry().x(), self.geometry().y(), self.width(), self.height()
     
     def hide_desktop_lyric(self):
         self.hide_desktop_lyric_signal.emit()

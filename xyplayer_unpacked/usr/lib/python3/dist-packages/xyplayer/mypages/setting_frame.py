@@ -1,10 +1,12 @@
-from PyQt4.QtGui import *  
-from PyQt4.QtCore import *  
-from PyQt4.phonon import Phonon
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *  
+from PyQt5.QtCore import *  
 from xyplayer.mypages import time_out, mount_out, pathset_frame, about_page
 from xyplayer.mywidgets import ToolButton, LabelButton
   
 class SettingFrame(QLabel):  
+    changeVolume = pyqtSignal(int)
+    changeMuting = pyqtSignal(bool)
     def __init__(self, parent = None):  
         super(SettingFrame, self).__init__(parent)  
         self.setAttribute(Qt.WA_QuitOnClose,False)
@@ -30,7 +32,12 @@ class SettingFrame(QLabel):
         self.aboutPage = about_page.AboutPage()
 
 #音量条
-        self.volumeSlider = Phonon.VolumeSlider(self)
+        self.playerMuted  = False
+        self.muteButton = QToolButton(clicked=self.mute_clicked)
+        self.muteButton.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
+        self.volumeSlider = QSlider(Qt.Horizontal, sliderMoved=self.changeVolume)
+        self.volumeSlider.setRange(0, 100)
+        self.volumeSlider.setValue(75)
         self.volumeSlider.setFixedSize(QSize(270, 25))
          
         self.downloadPathButton = ToolButton(":/iconSources/icons/download_path.png", "下载路径")
@@ -58,9 +65,9 @@ class SettingFrame(QLabel):
         self.backButton = QPushButton()
         self.backButton.setFixedSize(50, 30)
         
-        
 #综合布局
         titleLayout = QHBoxLayout()
+        titleLayout.addSpacing(3)
         titleLayout.addWidget(self.titlePic)
         titleLayout.addWidget(self.titleLabel)
         titleLayout.addSpacing(6)
@@ -74,12 +81,14 @@ class SettingFrame(QLabel):
         buttonsLayout.addWidget(self.aboutButton, 1, 1)
         
         hbox_vlmsld = QHBoxLayout()
-        hbox_vlmsld.addSpacing(0)
+        hbox_vlmsld.addStretch()
+        hbox_vlmsld.addWidget(self.muteButton)
         hbox_vlmsld.addWidget(self.volumeSlider)
+        hbox_vlmsld.addStretch()
         
 #主堆栈窗口
         self.mainStack = QStackedWidget()
-        self.mainStack.setFixedWidth(345)
+        self.mainStack.setFixedWidth(354)
         self.mainStack.addWidget(buttonWidget)
 #        self.mainStack.setStyleSheet('background:black')
         self.mainStack.addWidget(self.mountoutDialog)
@@ -88,15 +97,15 @@ class SettingFrame(QLabel):
         self.mainStack.addWidget(self.aboutPage)
 
         mainLayout = QVBoxLayout(self)
-        mainLayout.setSpacing(5)
-        mainLayout.setMargin(5)
+  #      mainLayout.setSpacing(6)
+        mainLayout.setContentsMargins(0, 3, 0, 3)
         mainLayout.addLayout(titleLayout)
 #        mainLayout.addWidget(self.stateLabel)
-        mainLayout.addSpacing(3)
+        #mainLayout.addSpacing(3)
         mainLayout.addWidget(self.mainStack)
-        mainLayout.addSpacing(5)
+       # mainLayout.addSpacing(0)
         mainLayout.addLayout(hbox_vlmsld)
-        mainLayout.addSpacing(25)
+        mainLayout.addSpacing(21)
     
     def create_connections(self):
         self.titlePic.clicked.connect(self.show_main)
@@ -148,3 +157,10 @@ class SettingFrame(QLabel):
         self.mainStack.setCurrentIndex(4)
         self.titleLabel.setText("关于")
     
+    def set_muted(self, muted):
+        if muted != self.playerMuted:
+            self.playerMuted = muted
+            self.muteButton.setIcon(self.style().standardIcon(QStyle.SP_MediaVolumeMuted if muted else QStyle.SP_MediaVolume))
+    
+    def mute_clicked(self):
+        self.changeMuting.emit(not self.playerMuted)

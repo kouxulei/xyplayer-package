@@ -1,9 +1,11 @@
-import os, socket
+import os
+import socket
 from urllib import request
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from xyplayer import __version__, __versionNum__
-from xyplayer.configure import Configures
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
+from xyplayer import app_version, app_version_num
+from xyplayer import Configures
 
 class AboutPage(QWidget):
     def __init__(self, parent = None):
@@ -16,30 +18,32 @@ class AboutPage(QWidget):
         self.setStyleSheet("QLabel{font-size:13px;color:white}")
         authorLabel = QLabel('作  者：Zheng-Yejian')
         emailLabel = QLabel('邮  箱：1035766515@qq.com')
-        self.addressLabel = QLabel("项目网址：<a style = 'color:green;'href= https://github.com/Zheng-Yejian/xyplayer>github.com/Zheng-Yejian/xyplayer</a>")
-        self.debAddressLabel = QLabel("deb包网址：<a style = 'color:green;'href= https://github.com/Zheng-Yejian/xyplayer-package>github.com/Zheng-Yejian/xyplayer-package</a>")
+        self.addressLabel = QLabel("项目主页：<a style = 'color:yellow;'href= https://github.com/Zheng-Yejian/xyplayer>github.com/Zheng-Yejian/xyplayer</a>")
+        self.debAddressLabel = QLabel("deb下载：<a style = 'color:yellow;'href= https://github.com/Zheng-Yejian/xyplayer-package>github.com/Zheng-Yejian/xyplayer-package</a>")
 
 #使用说明
         specText = QTextEdit()
         specText.setReadOnly(True)
-        specList = ["xyplayer项目旨在设计一个能实现基本播放以及在线搜索播放媒体资源功能的音乐播放器。谢谢您的使用，如果发现问题，还请与我交流。", " ",  "当前版本： %s"%__version__, " ",  
-                            "特别操作说明：", "1、主界面右键长按拖动窗口；", "2、设置页面右键单击返回；"]
-        for line in specList:
-            specText.append(line)
+        specs = ("<p>xyplayer项目旨在设计一个能实现基本播放以及在线搜索播放媒体资源功能的MP3播放器。谢谢您的使用，如果发现问题，还请与我交流。</p>"
+                        "<p>当前版本： %s</p>"
+                        "<p>特别操作说明：</p>"
+                        "<p>1. 主界面右键长按拖动窗口；</p>"
+                        "<p>2. 设置页面右键单击返回；</p>"%app_version )
+        specText.setText(specs)
             
 #感谢页面   
-        thanksList = ["要感谢<a style = 'color:green;' href=https://github.com/LiuLang/kwplayer>github.com/LiuLang/kwplayer</a>项目的参与者们，我从他们的代码中收获了很多。", 
-                            "播放器的图标大部分从网上找来的，谢谢这些素材的作者。"]   
+        thanks = ("<p>谢谢<a style = 'color:green;' href=https://github.com/LiuLang/kwplayer>github.com/LiuLang/kwplayer</a>"
+                        "项目的作者，程序中kuwo的网络API使用、歌词的解码解析以及项目流程的管理都是从您的项目中学来的。</p>"
+                        "<p>播放器的图标大部分从网上找来的，谢谢这些素材的作者。</p>")
         thanksText = QTextEdit()
         thanksText.setReadOnly(True)
-        for line in thanksList:
-            thanksText.append(line)
+        thanksText.setText(thanks)
 
 #更新页面
         
-        currentVersion = QLabel('当前版本：' + __version__)
+        currentVersion = QLabel('当前版本：' + app_version)
         self.newestVersionLabel = QLabel('最新版本：未检查')
-        self.versionNum = __versionNum__
+        self.versionNum = app_version_num
         self.checkUpdateButton = QPushButton("检查更新")
         self.checkUpdateButton.setFixedWidth(70)
         self.updateButton = QPushButton('在线更新')
@@ -55,7 +59,7 @@ class AboutPage(QWidget):
         if os.path.exists(Configures.changelog):
             newVersion = self.fill_changelog_text()
             newVersionNum = self.version_to_num(newVersion)
-            if newVersionNum > __versionNum__:
+            if newVersionNum > app_version_num:
                 self.newestVersionLabel.setText('最新版本：存在%s或更高版本'%newVersion )
             else:
                 self.newestVersionLabel.setText('最新版本：未检查')
@@ -80,7 +84,7 @@ class AboutPage(QWidget):
         
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(0)
-        mainLayout.setMargin(3)
+        mainLayout.setContentsMargins(3, 3, 3, 3)
         mainLayout.addWidget(authorLabel)
         mainLayout.addWidget(emailLabel)
         mainLayout.addWidget(self.addressLabel)
@@ -98,10 +102,11 @@ class AboutPage(QWidget):
     
     def fill_changelog_text(self):
         with open(Configures.changelog, 'r+') as f:
-            version = f.read(8)
+            version = f.readline().strip()
             content = f.read()
         f.close()
-        self.changeLogText.append(version + content)
+        self.changeLogText.append(version)
+        self.changeLogText.append(content)
         cur = self.changeLogText.textCursor()
         cur.setPosition(0, QTextCursor.MoveAnchor)
         self.changeLogText.setTextCursor(cur)
@@ -113,19 +118,19 @@ class AboutPage(QWidget):
             try:
                 int(c)
                 m += c
-            except:
+            except ValueError:
                 continue
         if not m:
-            return __versionNum__
+            return app_version_num
         return int(m)
     
     def check_update(self):
         url = 'https://raw.githubusercontent.com/Zheng-Yejian/xyplayer-package/master/changelog'
         try:
             req = request.urlopen(url)
-            version = req.read(8).decode()
+            version = req.readline().decode()
             versionNum = self.version_to_num(version)
-            if versionNum > __versionNum__ or not os.path.exists(Configures.changelog):
+            if versionNum != app_version_num or not os.path.exists(Configures.changelog):
                 with open(Configures.changelog, 'w') as f:
                     content = req.read().decode()
                     content = version + content
@@ -135,7 +140,7 @@ class AboutPage(QWidget):
                 if self.changeLogText.isHidden():
                     self.changeLogText.show()
                 f.close()
-            if versionNum > __versionNum__ :
+            if versionNum > app_version_num :
                 self.newestVersionLabel.setText('最新版本：' + version)
                 self.newestVersion = version[1:]
                 self.updateButton.show()
@@ -151,8 +156,8 @@ class AboutPage(QWidget):
             if fail:
                 return
         os.system('gdebi-gtk %s'%debLocal)
-        from xyplayer import __version__
-        if __version__ == self.newestVersion:
+        from xyplayer import app_version
+        if app_version == self.newestVersion:
             self.updateButton.hide()
             self.newestVersionLabel.setText('已完成更新，请重启播放器!')
             self.updateState.setText("完成更新")

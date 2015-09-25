@@ -1,5 +1,5 @@
-from PyQt4.QtGui import QHBoxLayout, QPushButton, QVBoxLayout, QSpinBox, QLabel, QDialog, QMessageBox
-from PyQt4.QtCore import pyqtSignal, Qt
+from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QVBoxLayout, QSpinBox, QLabel, QDialog, QMessageBox
+from PyQt5.QtCore import pyqtSignal, Qt
 
 class MountoutDialog(QDialog):
     mountSetSignal = pyqtSignal(int)

@@ -1,18 +1,13 @@
-import os, json, base64, zlib
+import os
+import json
+import zlib
+import base64
 from urllib import request
-from PyQt4.QtGui import  QMessageBox
+from PyQt5.QtWidgets import  QMessageBox
+from xyplayer import Configures
 from xyplayer.util import parse_songs_wrap, parse_quote, url_open
-from xyplayer.configure import Configures
-#
-#if not os.path.exists(Configures.urlCache):
-#    f =open(Configures.urlCache, 'w') 
-#    f.close()
 
 reqCache = {}
-#f= open(Configures.urlCache, 'r+')
-#contents = f.read()
-#if contents:
-#    reqCache = json.loads(contents) 
 songLinkCache = {}
     
 class SearchOnline():

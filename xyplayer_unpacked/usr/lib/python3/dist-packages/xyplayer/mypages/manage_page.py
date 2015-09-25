@@ -1,5 +1,6 @@
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 from xyplayer.mywidgets import LabelButton, SpecialLabel, NewLabel
 from xyplayer.mypages import  search_page, download_page, lists_frame
 from xyplayer.mytables import MyListTable
@@ -130,7 +131,7 @@ class ManagePage(QWidget):
         
         hbox_nh = QHBoxLayout()
         hbox_nh.setSpacing(7)
-        hbox_nh.setMargin(0)
+        hbox_nh.setContentsMargins(0, 0, 0, 0)
         hbox_nh.addLayout(vbox_mar)
         hbox_nh.addLayout(vbox_no)
         
@@ -154,7 +155,7 @@ class ManagePage(QWidget):
         homeWidget = QWidget()
         layout_list = QVBoxLayout(homeWidget)
         layout_list.setSpacing(8)
-        layout_list.setMargin(0)
+        layout_list.setContentsMargins(0, 0, 0, 0)
         layout_list.addLayout(hbox_sch)
         layout_list.addLayout(listsLayout)
 #        layout_list.addWidget(self.randomOneButton)

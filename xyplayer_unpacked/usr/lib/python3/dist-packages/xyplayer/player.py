@@ -1,39 +1,33 @@
-import os, time, random
+import os
+import time
+import random
 from http.client import HTTPConnection
 from socket import gaierror
-from PyQt4.QtGui import (QMessageBox, QLineEdit, QIcon, QCursor, QInputDialog, QFileDialog, QPixmap, QApplication)
-from PyQt4.QtCore import Qt, QTime, QUrl
-
-try:
-    from PyQt4.phonon import Phonon
-except ImportError:
-    import sys
-    app = QApplication(sys.argv)
-    QMessageBox.critical(None, "Music Player",
-            "Your Qt installation does not have Phonon support.",
-            QMessageBox.Ok | QMessageBox.Default,
-            QMessageBox.NoButton)
-    sys.exit(1)
+from PyQt5.QtWidgets import QMessageBox, QLineEdit, QInputDialog, QFileDialog
+from PyQt5.QtGui import QIcon, QCursor, QPixmap
+from PyQt5.QtCore import Qt, QTime, QUrl, QPoint
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from xyplayer import Configures
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urldispose import SearchOnline
-from xyplayer.configure import Configures
-from xyplayer.util import read_music_info, parse_lrc
+from xyplayer.util import read_music_info, parse_lrc, trace_to_keep_time
 from xyplayer.player_ui import PlayerUi
 
 class Player(PlayerUi):
     def __init__(self, parent = None):
         super(Player, self).__init__(parent)
+#        self.initial_phonon()
+        self.initial_player_back()
+        self.initial_parameters()
         self.create_connections()
-        self.managePage.ui_initial()
-        self.playbackPage.ui_initial()
-    
-    def create_connections(self):      
-#        self.settingFrame.installEventFilter(self)
         
-        self.mediaObject.tick.connect(self.tick)        
-        self.mediaObject.stateChanged.connect(self.state_changed)      
-        self.mediaObject.currentSourceChanged.connect(self.source_changed)
-        self.mediaObject.finished.connect(self.music_finished)
+    def create_connections(self):      
+        self.mediaPlayer.positionChanged.connect(self.tick)        
+        self.mediaPlayer.stateChanged.connect(self.state_changed)      
+        self.mediaPlayer.currentMediaChanged.connect(self.source_changed)
+        self.mediaPlayer.mediaStatusChanged.connect(self.media_status_changed)
+        self.mediaPlayer.durationChanged.connect(self.duration_changed)
+        self.mediaPlayer.mutedChanged.connect(self.settingFrame.set_muted)
         
         self.playbackPage.seekSlider.valueChanged.connect(self.slider_value_changed)
         self.playbackPage.seekSlider.sliderPressed.connect(self.slider_pressed)
@@ -78,6 +72,50 @@ class Player(PlayerUi):
 
         self.settingFrame.pathsetFrame.downloadDirChanged.connect(self.set_new_downloaddir)
         self.settingFrame.timeoutDialog.time_out_signal.connect(self.close)
+        self.settingFrame.changeVolume.connect(self.mediaPlayer.setVolume)
+        self.settingFrame.changeMuting.connect(self.mediaPlayer.setMuted)
+
+    def initial_player_back(self):
+        self.mediaPlayer = QMediaPlayer()
+        self.mediaPlayer.setNotifyInterval(500)
+
+    def initial_parameters(self):
+        self.widgets = []
+        self.widgetIndex = 0
+        self.dragPosition = QPoint(0, 0)
+        self.lyricOffset = 0
+        self.playmodeIndex = 2
+        self.currentSourceRow = -1
+        self.totalTime = '00:00'
+        self.cTime = '00:00'
+        self.playTable =  "默认列表"
+        self.currentTable = "默认列表"
+        self.noError = 1
+        self.allPlaySongs = []
+        self.files = []
+        self.toPlaySongs = []
+        self.lyricDict = {}
+#        self.info = ''
+        self.j = -5
+        self.deleteLocalfilePermit = False
+        try:
+            with open(Configures.settingFile, 'r') as f:
+                self.downloadDir = f.read()
+        except:
+            self.downloadDir = Configures.musicsDir
+        
+        self.model.initial_model("喜欢歌曲")
+        self.lovedSongs = []  
+        for i in range(0, self.model.rowCount()):
+            self.lovedSongs.append(self.model.record(i).value("title"))     
+            print(self.lovedSongs[i])
+        
+        self.model.initial_model("默认列表")
+        self.musicTable.initial_view(self.model)
+        for i in range(0, self.model.rowCount()):
+            self.allPlaySongs.append(self.model.record(i).value("paths"))  
+            title = self.model.record(i).value("title")
+            self.playback_musictable_add_widget(title)
 
     def delete_localfile(self):
         self.deleteLocalfilePermit = True
@@ -97,7 +135,7 @@ class Player(PlayerUi):
         try:
             artist = title.split('._.')[0]
             musicName = title.split('._.')[1]
-        except:
+        except IndexError:
             artist = '未知'
             musicName = title
         if musicName:
@@ -118,16 +156,16 @@ class Player(PlayerUi):
         self.downloadDir = newDir
     
     def slider_pressed(self):
-        self.mediaObject.tick.disconnect(self.tick)
+        self.mediaPlayer.positionChanged.disconnect(self.tick)
     
     def seek(self):
-        if self.mediaObject.state() == Phonon.StoppedState:
-            self.mediaObject.play()
-            self.mediaObject.seek(self.playbackPage.seekSlider.value())
+        if self.mediaPlayer.state() == QMediaPlayer.StoppedState:
+            self.mediaPlayer.play()
+            self.mediaPlayer.setPosition(self.playbackPage.seekSlider.value())
         else:
-            self.mediaObject.seek(self.playbackPage.seekSlider.value())
-            self.mediaObject.play()
-        self.mediaObject.tick.connect(self.tick)
+            self.mediaPlayer.setPosition(self.playbackPage.seekSlider.value())
+            self.mediaPlayer.play()
+        self.mediaPlayer.positionChanged.connect(self.tick)
 
 #删除选中项 
     def delete_selecteds(self):
@@ -199,12 +237,6 @@ class Player(PlayerUi):
                         self.managePage.listsFrame.musicTable.selectRow(firstDeletedRow)
                 elif ok  == QMessageBox.No:
                     selecteds1 = []
-#                    for index in selecteds:
-#                        row = index.row()
-#                        if index.column() == 0 and self.managePage.listsFrame.model.record(row).value("paths")!=  self.managePage.listsFrame.model.record(self.currentSourceRow).value("paths"):
-#                            if self.deleteLocalfilePermit:
-#                                self.managePage.listsFrame.model.delete_localfiles(index)
-#                            self.managePage.listsFrame.model.removeRow(row)
                     for index in selecteds:
                         row = index.row()
                         if self.managePage.listsFrame.model.record(row).value("paths") ==  self.managePage.listsFrame.model.record(self.currentSourceRow).value("paths"):
@@ -380,28 +412,18 @@ class Player(PlayerUi):
             QMessageBox.information(self, "提示", "以下歌曲链接出错，无法下载！\n%s"%errorSongs)
         if len(isExistsSongs):
             existsSongs = '\n'.join(isExistsSongs)
-            QMessageBox.information(self, "提示", "以下歌曲已在下载目录中不再进行下载，您可以在不联网的情况下点击在线列表播放！\n%s"%existsSongs)
+            QMessageBox.information(self, "提示", 
+                "以下歌曲已在下载目录中不再进行下载，您可以在不联网的情况下点击在线列表播放！\n%s"%existsSongs)
 
-#计数退出的两个函数    
-#    def mountout_start(self, remainMount):
-#        self.remainMount = remainMount
-#        self.mountoutMode = 1
-#        self.settingFrame.mountoutExitButton.setText("计数退出(%s)"%self.remainMount)
-#    
-#    def mountout_stop(self):
-#        self.mountoutMode = 0
-#        self.remainMount = 0
-#        self.settingFrame.mountoutExitButton.setText("计数退出(×)")
-#        self.settingFrame.mountoutDialog.close()
     
+    #note: in pyqt5, function 'QFileDialog.getopenFileNames' return a tuple, it structs like "(['/home/xxx/file.mp3'], '*.mp3')"
+    #      while in pyqt4,just a list. 
     def add_files(self):
-        selected_files_list_temp = QFileDialog.getOpenFileNames(self, "选择音乐文件",
-                self.downloadDir, self.tr("*.mp3"))
-        self.files = selected_files_list_temp
-#        selected_files_list.clear()
-#        print(self.files)
+        self.files = QFileDialog.getOpenFileNames(self, "选择音乐文件",
+                self.downloadDir, self.tr("*.mp3"))[0]
         self.adding()
 
+    @trace_to_keep_time
     def add_only(self, files):
         if not len(files):
             return
@@ -411,10 +433,7 @@ class Player(PlayerUi):
         for i in range(0, self.managePage.listsFrame.model.rowCount()):
             pathsInTable.append(self.managePage.listsFrame.model.record(i).value("paths"))
         newAddedCount = 0
-        t1 = time.time()
-#        for item in files:
-#            if item not in pathsInTable:
-        for item in set(files)-set(pathsInTable):
+        for item in list(set(files)-set(pathsInTable)):
             self.setCursor(QCursor(Qt.BusyCursor))
             title, album, totalTime =  read_music_info(item)
             if self.currentTable == "喜欢歌曲":
@@ -424,17 +443,12 @@ class Player(PlayerUi):
                 self.playback_musictable_add_widget(title)
             fileLength = round(os.path.getsize(item)/Configures.FILE_LENGTH_MB, 1)
             size = '%s M'%fileLength
-            t3 = time.time()
             self.managePage.listsFrame.model.add_record(title, totalTime, album, item, size)  
-            t4 = time.time()
-            print('Player.py Player.add_only t4-t3 = %s'%(t4-t3))
             newAddedTitles.append((title, item))
         width = self.managePage.listsFrame.musicTable.columnWidth(1)
         self.managePage.listsFrame.model.initial_model(self.currentTable)
         self.managePage.listsFrame.musicTable.initial_view(self.managePage.listsFrame.model)
         self.managePage.listsFrame.musicTable.setColumnWidth(1, width)
-        t2 = time.time()
-        print('Player.py Player.add_only t2-t1 = %s'%(t2-t1))
         newAddedCount = len(newAddedTitles)
         repeatCount = addCount-newAddedCount     
         try:
@@ -464,31 +478,23 @@ class Player(PlayerUi):
             return
         addCount, newAddedCount, repeatCount = self.add_and_choose_play(self.files)
         QMessageBox.information(self, "添加完成", "您选择了%s首歌曲！\n新添加了%s首歌曲，有%s首歌曲已在列表中不被添加！"%(addCount, newAddedCount, repeatCount))
-        
-    def tick(self):
-        if not self.musicTable.currentIndex():
-            self.musicTable.selectRow(self.currentSourceRow)
-        self.playbackPage.seekSlider.setRange(0, self.mediaObject.totalTime())
-        currentTime = self.mediaObject.currentTime()
-        self.syc_lyric(currentTime)
-        self.playbackPage.seekSlider.setValue(currentTime)
-        minutes = (currentTime / 60000) % 60
-        seconds = (currentTime / 1000) % 60
-        self.cTime = QTime(0, minutes, seconds ).toString('mm:ss')
-        totalTimeValue = self.mediaObject.totalTime()/1000
-        try:
-            ratio = currentTime/1000/totalTimeValue
-        except:
-            ratio = 0
-        self.managePage.frameBottomWidget.setGradient(ratio)
-        if self.totalTime == '未知':
-            hours = totalTimeValue/3600
-            minutes = (totalTimeValue%3600)/60
-            seconds = (totalTimeValue)%3600%60
-            if totalTimeValue < 3600:
-                self.totalTime = QTime(0, minutes, seconds).toString('mm:ss')
-            else:
-                self.totalTime = QTime(hours, minutes, seconds).toString('hh:mm:ss')
+    
+    def format_position_to_mmss(self, value):
+        value = value // 1000
+        hours = value // 3600
+        minutes = (value % 3600) // 60    
+        seconds = value % 3600 % 60
+        if hours:
+            return QTime(hours, minutes, seconds).toString('hh:mm:ss')
+        return QTime(0, minutes, seconds).toString('mm:ss')
+    
+    def duration_changed(self, duration):
+        self.playbackPage.seekSlider.setMaximum(duration)
+        exactTotalTime = self.format_position_to_mmss(self.mediaPlayer.duration())
+        if self.totalTime != exactTotalTime:
+            self.totalTime = exactTotalTime
+            self.managePage.timeLabel.setText('00:00/%s'%self.totalTime)
+            self.playbackPage.timeLabel2.setText(self.totalTime)
             self.model.setData(self.model.index(self.currentSourceRow, 2), self.totalTime)
             self.model.submitAll()
             self.musicTable.selectRow(self.currentSourceRow)
@@ -496,9 +502,22 @@ class Player(PlayerUi):
                 self.managePage.listsFrame.model.initial_model(self.playTable)
                 self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
                 self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
+                
+    def tick(self):
+        if not self.musicTable.currentIndex():
+            self.musicTable.selectRow(self.currentSourceRow)
+        currentTime = self.mediaPlayer.position()
+        self.syc_lyric(currentTime)
+        self.playbackPage.seekSlider.setValue(currentTime)
+        self.cTime = self.format_position_to_mmss(currentTime)
+        totalTimeValue = self.mediaPlayer.duration()/1000
+        try:
+            ratio = currentTime/1000/totalTimeValue
+        except:
+            ratio = 0
+        self.managePage.frameBottomWidget.setGradient(ratio)
         self.managePage.timeLabel.setText(self.cTime + '/' + self.totalTime)
         self.playbackPage.timeLabel1.setText(self.cTime)
-        self.playbackPage.timeLabel2.setText(self.totalTime)
         
     def syc_lyric(self, currentTime):
         if len(self.lyricDict) and self.playbackPage.document.blockCount():
@@ -517,100 +536,29 @@ class Player(PlayerUi):
                     break
             text = self.managePage.lyricLabel.text()
             if not self.playbackPage.desktopLyric.isHidden() and self.playbackPage.desktopLyric.text() != text:
-                x, y, old_width = self.playbackPage.desktopLyric.geometry_info()
+                x, y, old_width, height = self.playbackPage.desktopLyric.geometry_info()
                 width = self.playbackPage.desktopLyric.fontMetrics().width(text)
                 self.playbackPage.desktopLyric.setFixedWidth(width)
                 self.playbackPage.desktopLyric.setText(text)
-                self.playbackPage.desktopLyric.move(x + (old_width - width) / 2, y)
-                
-
-#    def syc_lyric(self, currentTime):
-#        if len(self.lyricDict) and self.playbackPage.document.blockCount():
-#            t = sorted(self.lyricDict.keys())
-#            if currentTime-self.lyricOffset <= t[1]:
-#                self.managePage.lyricLabel.setText('歌词同步显示于此！')
-#                return
-#            vscrollbar = self.playbackPage.lyricText.verticalScrollBar() 
-#            for i in range(1, len(t)-1):
-#                if t[i] < currentTime-self.lyricOffset and t[i + 1] > currentTime-self.lyricOffset and i!= self.j:
-#                    if self.lyricDict[t[i]]:
-#                        self.managePage.lyricLabel.setText(self.lyricDict[t[i]])
-#                        self.jump_to_line(i + 6)
-#                    else:
-#                        self.managePage.lyricLabel.setText("音乐伴奏... ...")
-#                    print(self.playbackPage.lyricText.height())
-##                    half_line_num = self.playbackPage.lyricText.height() / (2*Configures.LINE_HEIGHT)
-#                    lineNum = self.playbackPage.linesOfLine[i-1]
-#                    if lineNum + 6 >= 7:
-#                        value = (lineNum - 1) * Configures.LINE_HEIGHT
-##                        value_offset = Configures.LINE_HEIGHT/((t[i+1] - t[i])*2)
-##                        new_value = value + value_offset
-#                        vscrollbar.setValue(value )
-#                        if value + Configures.LINE_HEIGHT > vscrollbar.maximum():
-#                            if self.j == len(t) -8:
-#                                self.playbackPage.lyricText.append('The End')
-#                            else:
-#                                self.playbackPage.lyricText.append(' ')
-#                    self.j = i
-#                    break
-#            if currentTime > t[-1] and self.j != len(t) - 1:
-#                if self.lyricDict[t[-1]]:
-#                    self.managePage.lyricLabel.setText(self.lyricDict[t[-1]])
-#                    self.jump_to_line(len(t) + 5)
-#                    vscrollbar.setValue(vscrollbar.value()+Configures.LINE_HEIGHT)
-#                else:
-#                    self.managePage.lyricLabel.setText("音乐伴奏... ...")
-#                self.j = len(t) - 1
-#            if not self.playbackPage.desktopLyric.isHidden():
-#                text = self.managePage.lyricLabel.text()
-#                width = self.playbackPage.desktopLyric.fontMetrics().width(text)
-#                self.playbackPage.desktopLyric.setFixedWidth(width + 5)
-#                self.playbackPage.desktopLyric.setText(text)
-#                
-#    def jump_to_line(self, line_num):
-#        block = self.playbackPage.document.findBlockByNumber(line_num)
-#        pos = block.position()
-#        print("jumpToLine_%s"%pos)
-#        cur = self.playbackPage.lyricText.textCursor()
-#        cur.setPosition(pos, QTextCursor.MoveAnchor)
-#        cur.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
-#        self.playbackPage.lyricText.setTextCursor(cur)
+                self.playbackPage.desktopLyric.setGeometry(x + (old_width - width) / 2, y, width, height)
     
-    def state_changed(self, newState, oldState):
+    def state_changed(self, newState):
         self.managePage.listsFrame.manageTable.setToolTip('当前播放列表：\n    %s'%self.playTable)
         self.managePage.listsFrame.musicTable.setToolTip('当前播放列表：\n    %s\n'%self.playTable + '当前曲目：\n  %s'%self.model.record(self.currentSourceRow).value("title"))        
         if not self.model.rowCount():
             return        
         if not self.musicTable.currentIndex:
             self.musicTable.selectRow(self.currentSourceRow)
-        if newState == Phonon.ErrorState:
-            self.noError = 0
-            sourceDispose =  Phonon.MediaSource("/usr/share/sounds/error_happened.ogg")
-            self.mediaObject.setCurrentSource(sourceDispose)
-            self.mediaObject.play()
-            self.show()
-            if self.mediaObject.errorType() == Phonon.FatalError:
-                QMessageBox.warning(self, "致命错误", self.mediaObject.errorString())
-            else:
-                QMessageBox.warning(self, "错误", self.mediaObject.errorString())
-            self.noError = 1
-        elif newState == Phonon.PlayingState:
-            self.playAction.setIcon(QIcon(":/iconSources/icons/pause.png"))
-#            self.playbackPage.playButton.setIcon(QIcon(":/iconSources/icons/pause.png"))
-            try:
-                self.widgets[self.currentSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/pause.png"))
-            except:pass
-        elif newState == Phonon.StoppedState:
-            self.playAction.setIcon(QIcon(":/iconSources/icons/play.png"))
-#            self.playbackPage.playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
-            try:
-                self.widgets[self.currentSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
-            except:
-                pass
-        elif newState == Phonon.PausedState:
-            self.playAction.setIcon(QIcon(":/iconSources/icons/play.png"))
-#            self.playbackPage.playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
-            self.widgets[self.currentSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
+        iconPath = ''
+        if newState == QMediaPlayer.PlayingState:
+            iconPath = ':/iconSources/icons/pause.png'
+        elif newState in [QMediaPlayer.StoppedState, QMediaPlayer.PausedState]:
+            iconPath = ':/iconSources/icons/play.png'
+        icon = QIcon(iconPath)
+        self.playAction.setIcon(icon)
+        try:
+            self.widgets[self.currentSourceRow].playButton.setIcon(icon)
+        except IndexError:pass
 
     def source_changed(self):  
         if not self.model.rowCount():
@@ -638,13 +586,14 @@ class Player(PlayerUi):
             
     def update_parameters(self):
         self.playTable = self.model.tableName()
-        try:
-            self.widgets[self.currentSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
-        except:pass
+        oldSourceRow = self.currentSourceRow
         self.currentSourceRow = self.musicTable.currentIndex().row()
-        self.widgets[self.currentSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/pause.png"))
+        try:
+            self.widgets[oldSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
+            self.widgets[self.currentSourceRow].playButton.setIcon(QIcon(":/iconSources/icons/pause.png"))
+        except IndexError:
+            print('self.widgets IndexError')
         self.playbackPage.musicTable.selectRow(self.currentSourceRow)
-        self.totalTime = self.model.record(self.currentSourceRow).value("length")
         title = self.model.record(self.currentSourceRow).value("title")
         try:
             artistName = title.split('._.')[0].strip()
@@ -655,7 +604,9 @@ class Player(PlayerUi):
         self.playbackPage.musicNameLabel.setText(musicName)
         self.managePage.artistNameLabel.setText(artistName)
         self.managePage.musicNameLabel.setText(musicName)
-        self.managePage.timeLabel.setText('00:00/'+self.totalTime)
+        self.totalTime = self.model.record(self.currentSourceRow).value("length")
+        self.managePage.timeLabel.setText('00:00/%s'%self.totalTime)
+        self.playbackPage.timeLabel2.setText(self.totalTime)
     
     def update_near_played_queue(self):
         currentSourcePath = self.model.record(self.currentSourceRow).value("paths")
@@ -793,43 +744,40 @@ class Player(PlayerUi):
                 self.manage_table_clicked(selecteds[0])
                 self.managePage.listsFrame.manageTable.selectRow(selectedsRow)
 
-
     def delete_tables(self):    
         selections = self.managePage.listsFrame.manageTable.selectionModel()
         selecteds = selections.selectedIndexes()
         row =  selecteds[0].row()
-        tableDeleted = self.managePage.listsFrame.manageModel.data(self.managePage.listsFrame.manageModel.index(row, 1))
-        ok = QMessageBox.warning(self, "删除列表", "列表'%s'将被删除，表中记录将被全部移除！\n您是否继续？"%tableDeleted, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
+        tablenameDeleted = self.managePage.listsFrame.manageModel.data(self.managePage.listsFrame.manageModel.index(row, 1))
+        ok = QMessageBox.warning(self, "删除列表", "列表'%s'将被删除，表中记录将被全部移除！\n您是否继续？"%tablenameDeleted, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
         if ok == QMessageBox.Yes:
-            self.sql.dropTable(tableDeleted)
+            self.sql.dropTable(tablenameDeleted)
+            self.managePage.listsFrame.manage_model_remove_row(row)
             self.managePage.myListTable.removeRow(row - 4)
             del self.managePage.listButtons[row]
-            self.managePage.listsFrame.manageModel.removeRow(selecteds[0].row())
-            self.managePage.listsFrame.manageModel.submitAll()
-            if self.playTable!= tableDeleted:
+            if self.playTable!= tablenameDeleted:
                 for i in range(0, self.managePage.listsFrame.manageModel.rowCount()):
                     if self.managePage.listsFrame.manageModel.record(i).value("tableName") == self.playTable:
                         break
                 self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(i, 0))
             else:
                 self.ui_initial()
-#                self.playbackPage.musicTable.clear_new_music_table()
-#                self.widgets.clear()
                 self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(1, 0))
                 self.managePage.listsFrame.musicTable.selectRow(0)
                 self.music_table_clicked(self.managePage.listsFrame.musicTable.currentIndex())
 
+    def decide_to_play_or_pause(self, row):
+        if  row!= self.currentSourceRow or self.mediaPlayer.state() == QMediaPlayer.StoppedState:
+            self.media_sources_seted(row)
+        elif self.mediaPlayer.state()  == QMediaPlayer.PausedState:
+            self.mediaPlayer.play()
+        elif self.mediaPlayer.state() == QMediaPlayer.PlayingState:
+            self.mediaPlayer.pause()
+
     def music_table_clicked(self, index):
         self.managePage.listsFrame.musicTable.selectRow(index.row())
-#        with open(Configures.settingFile, 'r') as f:
-#            self.downloadDir = f.read()
         if self.managePage.listsFrame.model.tableName() == self.playTable:
-            if  index.row()!= self.currentSourceRow or self.mediaObject.state() == Phonon.StoppedState:
-                self.media_sources_seted(index.row())
-            elif self.mediaObject.state()  == Phonon.PausedState:
-                self.mediaObject.play()
-            elif self.mediaObject.state() == Phonon.PlayingState:
-                self.mediaObject.pause()
+            self.decide_to_play_or_pause(index.row())
         else:
             playTableOld = self.playTable
             self.playTable = self.managePage.listsFrame.model.tableName()
@@ -851,13 +799,8 @@ class Player(PlayerUi):
         for i in range(len(self.widgets)):
             if self.widgets[i].name == title:
                 break
-        if  i != self.currentSourceRow or self.mediaObject.state() == Phonon.StoppedState:
-            self.media_sources_seted(i)
-        elif self.mediaObject.state()  == Phonon.PausedState:
-            self.mediaObject.play()
-        elif self.mediaObject.state() == Phonon.PlayingState:
-            self.mediaObject.pause()
-    
+        self.decide_to_play_or_pause(i)
+            
     def playback_page_music_info(self, title):
         for i in range(len(self.widgets)):
             if self.widgets[i].name == title:
@@ -901,7 +844,7 @@ class Player(PlayerUi):
         minutes = (value / 60000) % 60
         seconds = (value / 1000) % 60
         cTime = QTime(0, minutes, seconds ).toString('mm:ss')
-        self.managePage.timeLabel.setText(cTime + '/' + self.totalTime)
+        self.managePage.timeLabel.setText('%s/%s'%(cTime, self.totalTime))
         self.playbackPage.timeLabel1.setText(cTime)
         self.playbackPage.timeLabel2.setText(self.totalTime)
         self.syc_lyric(value)
@@ -913,13 +856,14 @@ class Player(PlayerUi):
         self.musicTable.selectRow(row)
         if self.playTable == self.managePage.listsFrame.model.tableName():
             self.managePage.listsFrame.musicTable.selectRow(row)
-        
         sourcePath = self.model.record(row).value("paths")
         title = self.model.record(row).value("title")
-        
         musicName = title + '.mp3'
         musicPathO = os.path.join(Configures.musicsDir, musicName)
         musicPath = os.path.join(self.downloadDir, musicName)
+        isAnUrl = False
+        errorType = Configures.NOERROR
+        isAnUrl = False
         if  os.path.exists(musicPath):
             sourcePath = musicPath
         elif os.path.exists(musicPathO):
@@ -928,37 +872,37 @@ class Player(PlayerUi):
             isErrorHappen = self.is_url_error()
             if isErrorHappen:
                 self.noError = 0
-                sourceDispose =  Phonon.MediaSource("/usr/share/sounds/error_happened.ogg")
-                self.mediaObject.setCurrentSource(sourceDispose)
-                self.mediaObject.play()
-                if self.isHidden():
-                    self.show()
-#                    if errorType == Configures.URLERROR:
-                QMessageBox.critical(self, "错误", "联网出错！\n"+"无法联网播放歌曲'"+"%s"%self.model.record(row).value("title")+"'！\n您最好在网络畅通时下载该曲目！")
-                self.noError = 1
+                errorType = Configures.NONETERROR
+                sourcePath = "/usr/share/sounds/error_happened.ogg"
             else:
                 sourcePath = sourcePath.split('~')[0].strip()
-                sourceDispose =  Phonon.MediaSource(QUrl(sourcePath))
-                self.mediaObject.setCurrentSource(sourceDispose)
-                self.mediaObject.play()
-            return
+                isAnUrl = True
         else:
             if os.path.exists(self.model.record(row).value('paths')):
                 sourcePath=self.model.record(row).value('paths')
             else:
                 self.noError = 0
-                sourceDispose =  Phonon.MediaSource("/usr/share/sounds/error_happened.ogg")
-                self.mediaObject.setCurrentSource(sourceDispose)
-                self.mediaObject.play()
+                errorType = Configures.PATHERROR
+                sourcePath = "/usr/share/sounds/error_happened.ogg"
+        if isAnUrl:
+            url = QUrl(sourcePath)
+        else:
+            url = QUrl.fromLocalFile(sourcePath)
+        self.play_from_url(url)
+        if errorType != Configures.NOERROR:       
+            if self.isHidden():
                 self.show()
+            if errorType == Configures.NONETERROR:
+                QMessageBox.critical(self, "错误", "联网出错！\n"+"无法联网播放歌曲'"+"%s"%self.model.record(row).value("title")+"'！\n您最好在网络畅通时下载该曲目！")
+            elif errorType == Configures.PATHERROR:
                 QMessageBox.information(self, "提示", "路径'"+"%s"%self.model.record(row).value("paths")+"'无效，请尝试重新下载并添加对应歌曲！")
-                self.noError = 1
-                return
-        sourcePath = 'file://' + sourcePath
-        sourceDispose =  Phonon.MediaSource(QUrl(sourcePath))
-        self.mediaObject.setCurrentSource(sourceDispose)
-        self.mediaObject.play()
-
+            self.noError = 1 
+    
+    def play_from_url(self, url):
+        mediaContent = QMediaContent(url)
+        self.mediaPlayer.setMedia(mediaContent)
+        self.mediaPlayer.play()
+    
     def is_url_error(self):
         t1 = time.time()
         try:
@@ -973,13 +917,13 @@ class Player(PlayerUi):
             return True
 
     def play_music(self):
-        if self.mediaObject.state() == Phonon.PlayingState :
-            self.mediaObject.pause()
+        if self.mediaPlayer.state() == QMediaPlayer.PlayingState :
+            self.mediaPlayer.pause()
         else:
-            self.mediaObject.play()
+            self.mediaPlayer.play()
     
     def stop_music(self):
-        self.mediaObject.stop()
+        self.mediaPlayer.stop()
         self.playbackPage.seekSlider.setValue(0)
         self.syc_lyric(-0.5)
 
@@ -987,7 +931,7 @@ class Player(PlayerUi):
         if not self.model.rowCount():
             return
         self.stop_music()
-        self.mediaObject.clearQueue()
+#        self.mediaObject.clearQueue()
         if self.playmodeIndex == 1:
             if self.currentSourceRow - 1 >= 0:
                 self.media_sources_seted(self.currentSourceRow - 1)
@@ -1015,7 +959,7 @@ class Player(PlayerUi):
         if not self.model.rowCount():
             return
         self.stop_music()
-        self.mediaObject.clearQueue()
+#        self.mediaObject.clearQueue()
         if self.playmodeIndex == 1:
             if  self.currentSourceRow + 1 < self.model.rowCount():
                 self.media_sources_seted(self.currentSourceRow + 1)
@@ -1039,6 +983,11 @@ class Player(PlayerUi):
     def music_finished(self):
         if self.noError:
             self.next_song()
+    
+    def media_status_changed(self, status):
+        if status == QMediaPlayer.EndOfMedia:
+            self.music_finished()
+
 
 
 

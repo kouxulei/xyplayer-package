@@ -1,12 +1,13 @@
-import os, threading
-from PyQt4.QtGui import (QWidget, QIcon, QCursor, QMessageBox,QHBoxLayout, 
-                                            QPushButton,QVBoxLayout, QDesktopServices, QLabel)
-from PyQt4.QtCore import Qt, pyqtSignal, QTimer, QPoint, QUrl, QSize
-from PyQt4 import QtSql
+import os
+import threading
+from PyQt5.QtWidgets import QWidget, QMessageBox, QHBoxLayout, QPushButton,QVBoxLayout, QLabel
+from PyQt5.QtGui import QIcon, QCursor, QDesktopServices
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QPoint, QUrl, QSize
+from PyQt5 import QtSql
+from xyplayer import Configures
 from xyplayer.mywidgets import LabelButton
 from xyplayer.mytables import DownloadTable, DownloadModel, MyDelegate
 from xyplayer.mythreads import DownloadThread, DownloadLrcThread
-from xyplayer.configure import Configures
 
 class DownloadPage(QWidget):
     back_to_main_signal = pyqtSignal()
@@ -61,7 +62,7 @@ class DownloadPage(QWidget):
 #        firstLayout.addWidget(self.openDir)
         
         mainLayout = QVBoxLayout(self)
-        mainLayout.setMargin(0)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
 #        mainLayout.setSpacing(4)
         mainLayout.addLayout(firstLayout)
         mainLayout.addWidget(self.downloadTable)

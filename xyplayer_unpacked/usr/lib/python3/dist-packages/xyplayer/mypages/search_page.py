@@ -1,11 +1,15 @@
-import time, os, threading
-from PyQt4.QtGui import (QWidget, QIcon, QCursor, QMessageBox,QHBoxLayout, QComboBox, QPushButton, 
-                                        QVBoxLayout, QLineEdit,QToolButton, QLabel)
-from PyQt4.QtCore import Qt, pyqtSignal, QSize
+import os
+import time
+import threading
+from PyQt5.QtWidgets import (
+    QWidget, QMessageBox,QHBoxLayout, QComboBox, QPushButton, 
+    QVBoxLayout, QLineEdit,QToolButton, QLabel)
+from PyQt5.QtGui import QIcon, QCursor
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
+from xyplayer import Configures
 from xyplayer.mytables import SearchTable, TableModel
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urldispose import SearchOnline
-from xyplayer.configure import Configures
 
 class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()
@@ -86,7 +90,7 @@ class SearchFrame(QWidget):
         pageNumLayout = QHBoxLayout(self.jumpNum)
         pageNumLayout.addStretch()
         pageNumLayout.addWidget(self.pageNum)
-        pageNumLayout.setMargin(0)
+        pageNumLayout.setContentsMargins(0, 0, 0, 0)
         pageNumLayout.setSpacing(0)
         pageNumLayout.setContentsMargins(0, 0, 0, 0)
         self.jumpNum.setTextMargins(0, 0, self.pageNum.width(), 0)
@@ -96,7 +100,6 @@ class SearchFrame(QWidget):
         searchLayout.addWidget(self.searchComboBox)
         searchLayout.addStretch()
         searchLayout.addWidget(self.clearButton)
-        searchLayout.setMargin(1)
         searchLayout.setSpacing(0)
         searchLayout.setContentsMargins(0, 0, 0, 0)
 #        self.lineEdit.setLayout(searchLayout)
@@ -111,7 +114,7 @@ class SearchFrame(QWidget):
 #综合布局
         self.controlWidget = QWidget()
         controlLayout = QHBoxLayout(self.controlWidget)
-        controlLayout.setMargin(0)
+        controlLayout.setContentsMargins(0, 0, 0, 0)
         controlLayout.setSpacing(6)
 #        spacerItem  =  QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 #        controlLayout.addItem(spacerItem)
@@ -124,7 +127,7 @@ class SearchFrame(QWidget):
 #        controlLayout.addItem(spacerItem)
         
         mainLayout = QVBoxLayout(self)
-        mainLayout.setMargin(0)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
 #        mainLayout.addSpacing(6)
         mainLayout.addLayout(hbox_sch)
         mainLayout.addSpacing(2)

@@ -1,9 +1,11 @@
-# -*- coding = utf-8 -*-
-import os, re, time
+import os
+import re
+import time
 from urllib import parse, request
+from functools import wraps
 from mutagenx.mp3 import MP3
 from mutagenx.easyid3 import EasyID3
-from PyQt4.QtCore import QTime
+from PyQt5.QtCore import QTime
 
 def read_music_info(path):
     audio = MP3(path)
@@ -27,8 +29,8 @@ def read_music_info(path):
         totalTime = QTime(hours, minutes, seconds).toString('hh:mm:ss')
     return title,album, totalTime
 
-def list_to_seconds(list):
-    min, sec, ms = list
+def list_to_seconds(timeTuple):
+    min, sec, ms = timeTuple
     if not ms:
         currentTime = int(min)*60 + int(sec)
     else:
@@ -37,7 +39,7 @@ def list_to_seconds(list):
 
 def parse_lrc(text):
     lines = text.split('\n')
-    lrcDisposed = {-2:''}
+    lrcHandled = {-2:''}
     screen = re.compile('\[([0-9]{2}):([0-9]{2})(\.[0-9]{1,3})?\]')
     for line in lines:
         offset = 0
@@ -52,14 +54,14 @@ def parse_lrc(text):
         if not content:
             content = '...'
         for tag in timeTags:
-            lrcDisposed[tag] = content
-    try:
-        c = re.match('offset\=(\-?\d+)',lines[-1])
+            lrcHandled[tag] = content
+    c = re.match('offset\=(\-?\d+)',lines[-1])
+    if c:
         offset = int(c.group(1))
         print('parse_lrc: %s'%offset)
-    except:
+    else:
         offset = 0
-    return offset, lrcDisposed
+    return offset, lrcHandled
     
 def write_tags(musicPath, title, album):
     audio = MP3(musicPath, ID3 = EasyID3)
@@ -104,3 +106,12 @@ def url_open(url, retries = 3):
         return reqContent
     except:
         return -2
+
+def trace_to_keep_time(func):
+    @wraps(func)
+    def _call(*args, **kwargs):
+        t1 = time.time()
+        result = func(*args, **kwargs)
+        print('fuction "%s" consumes: %fs'%(func.__name__, time.time() - t1))
+        return result  #Do not forget the returns
+    return _call

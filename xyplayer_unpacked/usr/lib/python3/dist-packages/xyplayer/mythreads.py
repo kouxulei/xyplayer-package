@@ -1,4 +1,7 @@
-import os, time, threading, socket
+import os
+import time
+import socket
+import threading
 from urllib import request
 from xyplayer.util import write_tags
 from xyplayer.urldispose import SearchOnline

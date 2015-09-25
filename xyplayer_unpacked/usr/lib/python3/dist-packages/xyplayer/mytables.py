@@ -1,9 +1,9 @@
 import os
-from PyQt4.QtGui import (QApplication, QMenu, QAction, QAbstractItemView, QStyle, 
-            QTableView, QTableWidget, QTableWidgetItem, QItemDelegate, QStyleOptionProgressBarV2)
-from PyQt4.QtCore import QPoint, Qt
-from PyQt4.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
-from xyplayer.configure import Configures
+from PyQt5.QtWidgets import (QApplication, QMenu, QAction, QAbstractItemView, QStyle, 
+            QTableView, QTableWidget, QTableWidgetItem, QItemDelegate, QStyleOptionProgressBar)
+from PyQt5.QtCore import QPoint, Qt
+from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
+from xyplayer import Configures
 #from xyplayer.mywidgets import NewListWidget
 
 class SqlOperate():
@@ -95,6 +95,11 @@ class TableModel(QSqlTableModel):
 class TableView(QTableView):
     def __init__(self, parent = None):
         super(TableView, self).__init__(parent)
+        self.set_attritutes()
+        self.create_contextmenu()
+        self.create_connections()
+    
+    def set_attritutes(self):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -106,23 +111,18 @@ class TableView(QTableView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.horizontalHeader().setVisible(False)
-#        self.setStyleSheet("QTableView{background-color:rgb(250,250,115)}")
-#        font = QFont()
-#        font.setFamily("微软雅黑")
-#        self.setFont(font)
-        self.create_contextmenu()
-        
+        self.rowSelected = 0
+        self.defaultRowHeight = 30
+
+    def create_connections(self):
+        self.customContextMenuRequested.connect(self.music_table_menu)   
+        #self.clicked.connect(self.change_row_height)
+
     def initial_view(self, model):
         self.setModel(model)    
-#        self.setColumnWidth(0, 240)
-#        self.setColumnWidth(1, 80)
-#        self.setColumnWidth(2, 160)
         for i in range(12):
             if i != 1:
                 self.hideColumn(i)
-#        self.hideColumn(2)
-#        self.hideColumn(3)
-#        self.hideColumn(4)
         self.setColumnWidth(1, 300)
         
     def create_contextmenu(self):
@@ -147,12 +147,17 @@ class TableView(QTableView):
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.songSpecAction)
         self.listMenu.addSeparator()
-        self.listMenu.addAction(self.switchToSearchPageAction)
-        self.customContextMenuRequested.connect(self.music_table_menu)        
+        self.listMenu.addAction(self.switchToSearchPageAction)     
     
     def music_table_menu(self, pos):
         pos += QPoint(30, 30)
         self.listMenu.exec_(self.mapToGlobal(pos))
+
+    def change_row_height(self, index):
+        oldSelected = self.rowSelected
+        self.rowSelected = index.row()
+        self.setRowHeight(oldSelected, 30)
+        self.setRowHeight(self.rowSelected, 60)
 
 class ManageTableView(QTableView):
     def __init__(self, parent = None):
@@ -380,7 +385,7 @@ class MyDelegate(QItemDelegate):
     def paint(self,painter,option,index):
         if index.column() == 2:
             progress = int(index.model().data(index, Qt.DisplayRole))
-            progressBarOption = QStyleOptionProgressBarV2()
+            progressBarOption = QStyleOptionProgressBar()
             progressBarOption.state = QStyle.State_Enabled
             progressBarOption.direction = QApplication.layoutDirection()
             progressBarOption.rect = option.rect

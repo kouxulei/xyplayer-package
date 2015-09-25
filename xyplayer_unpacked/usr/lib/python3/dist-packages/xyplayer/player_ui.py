@@ -1,11 +1,12 @@
 import threading
-from PyQt4.QtGui import (QMessageBox, QDialog, QIcon, QCursor,QPixmap, QStackedWidget, QSystemTrayIcon, 
-                                          QHBoxLayout, QLabel, QVBoxLayout, QFrame, QMenu, QPushButton, QAction)
-from PyQt4.QtCore import Qt, QEvent, QPoint, QSize
-from PyQt4.phonon import Phonon
+from PyQt5.QtWidgets import (
+    QMessageBox, QDialog, QStackedWidget, QSystemTrayIcon, QAction, 
+    QHBoxLayout, QLabel, QVBoxLayout, QFrame, QMenu, QPushButton)
+from PyQt5.QtGui import QIcon, QCursor,QPixmap
+from PyQt5.QtCore import Qt, QEvent, QSize
+from xyplayer import Configures
 from xyplayer.mypages import manage_page, playback_page, setting_frame
 from xyplayer.mytables import SqlOperate, TableModel, TableView
-from xyplayer.configure import Configures
 from xyplayer.mywidgets import PushButton, NewListWidget
 
 import xyplayer.allIcons_rc
@@ -15,56 +16,10 @@ class PlayerUi(QDialog):
         super(PlayerUi, self).__init__(parent)
         self.sql = SqlOperate()
         Configures().check_dirs()
-        self.initial_phonon()
         self.create_actions()
         self.setup_ui()
-        self.initial_parameters()
-        
-    def initial_phonon(self):
-        self.mediaObject = Phonon.MediaObject(self)
-        self.audioOutput = Phonon.AudioOutput(Phonon.MusicCategory, self)
-        Phonon.createPath(self.mediaObject, self.audioOutput)
-        self.mediaObject.setTickInterval(500)     
-        self.volume = self.audioOutput.volume()/2
-        self.audioOutput.setVolume(self.volume)
-    
-    def initial_parameters(self):
-        self.widgets = []
-        self.widgetIndex = 0
-        self.dragPosition = QPoint(0, 0)
-        self.lyricOffset = 0
-        self.playmodeIndex = 2
-        self.currentSourceRow = -1
-        self.totalTime = '00:00'
-        self.cTime = '00:00'
-        self.playTable =  "默认列表"
-        self.currentTable = "默认列表"
-        self.noError = 1
-        self.allPlaySongs = []
-        self.files = []
-        self.toPlaySongs = []
-        self.lyricDict = {}
-#        self.info = ''
-        self.j = -5
-        self.deleteLocalfilePermit = False
-        try:
-            with open(Configures.settingFile, 'r') as f:
-                self.downloadDir = f.read()
-        except:
-            self.downloadDir = Configures.musicsDir
-        
-        self.model.initial_model("喜欢歌曲")
-        self.lovedSongs = []  
-        for i in range(0, self.model.rowCount()):
-            self.lovedSongs.append(self.model.record(i).value("title"))     
-            print(self.lovedSongs[i])
-        
-        self.model.initial_model("默认列表")
-        self.musicTable.initial_view(self.model)
-        for i in range(0, self.model.rowCount()):
-            self.allPlaySongs.append(self.model.record(i).value("paths"))  
-            title = self.model.record(i).value("title")
-            self.playback_musictable_add_widget(title)
+        self.managePage.ui_initial()
+        self.playbackPage.ui_initial()
     
     def playback_musictable_add_widget(self, title):
         widget = NewListWidget(title)
@@ -124,7 +79,6 @@ class PlayerUi(QDialog):
 
 #设置菜单页面
         self.settingFrame = setting_frame.SettingFrame()
-        self.settingFrame.volumeSlider.setAudioOutput(self.audioOutput)
 #        self.audioOutput.setVolume(0)
 
 ##spacerItem
@@ -164,7 +118,7 @@ class PlayerUi(QDialog):
         self.globalFrame = QFrame()
         self.globalFrame.setStyleSheet("QPushButton{border:2px solid lightgray;border-radius:10px;}")
         hbox4 = QHBoxLayout(self.globalFrame)
-#        hbox4.setMargin(2)
+        hbox4.setContentsMargins(4, 2, 4, 2)
         hbox4.addWidget(self.globalBackButton)
         hbox4.addWidget(self.globalHomeButton)
         hbox4.addWidget(self.globalSettingButton)
@@ -176,7 +130,7 @@ class PlayerUi(QDialog):
         mainLayout = QVBoxLayout(self)
         mainLayout.addLayout(titleLayout)
         mainLayout.setSpacing(0)
-        mainLayout.setMargin(3)
+        mainLayout.setContentsMargins(3, 6, 3, 8)
         mainLayout.addWidget(self.mainStack)
         mainLayout.addWidget(self.globalFrame)
 #        mainLayout.addWidget(self.settingFrame)
@@ -231,11 +185,11 @@ class PlayerUi(QDialog):
                 triggered = self.previous_song)
         
         self.seqPlaymodeAction = QAction(
-            QIcon(":/iconSources/icons/playmode_select.png"),  "顺序循环", 
+            QIcon(":/iconSources/icons/playmode_select_no.png"),  "顺序循环", 
                 self, triggered = self.seq_playmode_seted)
                 
         self.rdnPlaymodeAction = QAction(
-            QIcon(":/iconSources/icons/playmode_select_no.png"),  "随机播放", 
+            QIcon(":/iconSources/icons/playmode_select.png"),  "随机播放", 
                 self, triggered = self.rdn_playmode_seted)
         
         self.onePlaymodeAction = QAction(
@@ -275,7 +229,7 @@ class PlayerUi(QDialog):
         if not self.settingFrame.isHidden():
             self.settingFrame.hide()
         if self.settingFrame.mountoutDialog.countoutMode and not self.settingFrame.mountoutDialog.remainMount or self.settingFrame.timeoutDialog.timeoutFlag:
-            self.dispose_before_close()
+            self.handle_before_close()
             event.accept()
         else:
             self.show()
@@ -290,18 +244,14 @@ class PlayerUi(QDialog):
             else:
                 ok = QMessageBox.question(self, '退出', '当前有下载任务正在进行，您是否要挂起全部下载任务并退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
                 if ok == QMessageBox.Ok:
-                    self.dispose_before_close()
+                    self.handle_before_close()
                     event.accept()
                 else:
                     event.ignore()
 
-    def dispose_before_close(self):
+    def handle_before_close(self):
         self.hide()
         self.trayIcon.hide()
-#        from xyplayer.urldispose.SearchOnline import reqCache
-#        contents = json.dumps(reqCache)
-#        with open(Configures.urlCache, 'w') as f:
-#            f.write(contents)
         for t in threading.enumerate():
             if t.name == 'downloadLrc':
                 t.stop()
@@ -310,7 +260,6 @@ class PlayerUi(QDialog):
                 t.join()
         self.managePage.downloadPage.downloadModel.submitAll()
 
-# ###   播放模式设置  #######################################
     def seq_playmode_seted(self):
         self.playmodeIndex = 1      
         self.playmode_check()
@@ -349,7 +298,6 @@ class PlayerUi(QDialog):
         self.seqPlaymodeAction.setIcon(QIcon(icon_path1))
         self.rdnPlaymodeAction.setIcon(QIcon(icon_path2))
         self.onePlaymodeAction.setIcon(QIcon(icon_path3))
-# ############## 播放模式  ###################################
     
     def show_minimized(self):
         if not self.settingFrame.isHidden():
@@ -381,11 +329,8 @@ class PlayerUi(QDialog):
         if self.settingFrame.isHidden():
             self.x= self.geometry().x()
             self.y = self.geometry().y()
-#            x_offset = (self.width() - self.settingFrame.width()) / 2
-#            y_offset = (self.height() - self.settingFrame.height()) / 2
-            self.settingFrame.move(self.x + 11, self.y + 245)
+            self.settingFrame.move(self.x + 8, self.y + 243)
             pixmap = QPixmap(":/iconSources/icons/functions.png")
-#            pixmap = QPixmap("/home/zyj/图片/function2.png")
             self.settingFrame.setPixmap(pixmap)
             self.settingFrame.setMask(pixmap.mask())
             self.settingFrame.show()  

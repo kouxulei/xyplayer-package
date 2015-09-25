@@ -1,11 +1,14 @@
-import json, re, os
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+import os
+import re
+import json
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 from xyplayer.urldispose import SearchOnline
 from xyplayer.mytables import NewMusicTable
 from xyplayer.mywidgets import NewLabel, MyTextEdit
 from xyplayer.mypages import desktop_lyric
-from xyplayer import __version__
+from xyplayer import app_version
 
 class PlaybackPage(QWidget):
     lyric_offset_changed_signal = pyqtSignal(int)
@@ -128,23 +131,6 @@ class PlaybackPage(QWidget):
         self.refreshBtn.setStyleSheet("background:rgb(210,240,240);color:blue;")
         self.refreshBtn.setGeometry(315, 85, 40, 30)
         
-#        artistInfoFrame.setStyleSheet("font-family:'微软雅黑';font-size:14px;")
-#        artistInfoLayout = QGridLayout(artistInfoFrame)
-#        artistInfoLayout.setSpacing(4)
-#        artistInfoLayout.setRowMinimumHeight(0, 45)
-#        artistInfoLayout.setColumnMinimumWidth(0, 105)
-#        artistInfoLayout.setSpacing(2)
-#        artistInfoLayout.setMargin(0)
-#        artistInfoLayout.addWidget(self.artistHeadLabel, 0, 0, 2, 1)
-#        artistInfoLayout.addWidget(self.artistGender, 0, 1)
-#        artistInfoLayout.addWidget(self.artistBirthday, 0, 2)
-#        artistInfoLayout.addWidget(self.artistConstellation, 1, 1)
-#        artistInfoLayout.addWidget(self.artistLanguage, 1, 2)
-#        artistInfoLayout.addWidget(self.artistName, 2, 0)
-#        artistInfoLayout.addWidget(self.artistBirthplace, 2, 1)
-#        artistInfoLayout.addWidget(self.refreshBtn, 2, 2)
-#        artistInfoLayout.addWidget(self.artistDetail, 3, 0, 3, 3)
-        
 #歌词各控件
         self.lyricOperateButton = QPushButton(clicked = self.show_lyric_operate_widget)
         self.lyricOperateButton.setStyleSheet("QPushButton:hover{border:2px solid lightgray;border-color:white;background:rgb(210,240,240)}"
@@ -230,7 +216,7 @@ class PlaybackPage(QWidget):
         self.lyricOperateWidget.hide()
         lyricOffsetLayout = QHBoxLayout(self.lyricOperateWidget)
         lyricOffsetLayout.setSpacing(2)
-        lyricOffsetLayout.setMargin(0)
+        lyricOffsetLayout.setContentsMargins(0, 0, 0, 0)
         lyricOffsetLayout.addWidget(self.lyricOffsetCombo)
         lyricOffsetLayout.addWidget(self.lyricOffsetSlider)
         lyricOffsetLayout.addWidget(self.lyricOffsetLabel)
@@ -257,7 +243,7 @@ class PlaybackPage(QWidget):
 
 #综合布局
         hbox2 = QHBoxLayout()
-        hbox2.setMargin(13)
+        hbox2.setContentsMargins(13, 15, 13, 11)
         hbox2.addWidget(self.timeLabel1)
         hbox2.addWidget(self.seekSlider)
         hbox2.addWidget(self.timeLabel2)
@@ -273,7 +259,7 @@ class PlaybackPage(QWidget):
         
         mainLayout = QVBoxLayout(widget1)
         mainLayout.setSpacing(0)
-        mainLayout.setMargin(2)
+        mainLayout.setContentsMargins(2, 2, 2, 2)
         mainLayout.addLayout(hbox3)
         mainLayout.addWidget(self.stackedWidget)
         mainLayout.addLayout(hbox2)
@@ -552,7 +538,7 @@ class PlaybackPage(QWidget):
                             " ",
                             "声明：Use of this source code is governed by GPLv3 license that can be found in the LICENSE file. ",
                             " ", 
-                            "版本: %s "%__version__,
+                            "版本: %s "%app_version,
                             " ", 
                             "简介: This is a simple musicplayer that can search, play, download musics from the Internet."]
         self.lyricText.clear()

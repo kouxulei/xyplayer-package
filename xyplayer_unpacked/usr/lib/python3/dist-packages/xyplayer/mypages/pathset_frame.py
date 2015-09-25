@@ -1,8 +1,9 @@
 import os
-from PyQt4.QtGui import (QMessageBox,QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy, QVBoxLayout, 
-                                        QLineEdit,QToolButton, QLabel, QWidget, QFileDialog)
-from PyQt4.QtCore import pyqtSignal, Qt
-from xyplayer.configure import Configures
+from PyQt5.QtWidgets import (
+    QMessageBox,QHBoxLayout, QPushButton, QSpacerItem, QSizePolicy, 
+    QLineEdit,QToolButton, QLabel, QWidget, QFileDialog, QVBoxLayout)
+from PyQt5.QtCore import pyqtSignal, Qt
+from xyplayer import Configures
 
 class PathsetFrame(QWidget):
     downloadDirChanged = pyqtSignal(str)
