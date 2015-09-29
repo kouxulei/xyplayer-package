@@ -1,4 +1,5 @@
 import os
+import sys
 import socket
 from urllib import request
 from PyQt5.QtGui import *
@@ -8,6 +9,7 @@ from xyplayer import app_version, app_version_num
 from xyplayer import Configures
 
 class AboutPage(QWidget):
+    updatingStateChanged = pyqtSignal(int)
     def __init__(self, parent = None):
         super(AboutPage, self).__init__(parent)
         socket.setdefaulttimeout(3)
@@ -15,11 +17,15 @@ class AboutPage(QWidget):
         self.create_connections()
 
     def setup_ui(self):
-        self.setStyleSheet("QLabel{font-size:13px;color:white}")
-        authorLabel = QLabel('作  者：Zheng-Yejian')
-        emailLabel = QLabel('邮  箱：1035766515@qq.com')
-        self.addressLabel = QLabel("项目主页：<a style = 'color:yellow;'href= https://github.com/Zheng-Yejian/xyplayer>github.com/Zheng-Yejian/xyplayer</a>")
-        self.debAddressLabel = QLabel("deb下载：<a style = 'color:yellow;'href= https://github.com/Zheng-Yejian/xyplayer-package>github.com/Zheng-Yejian/xyplayer-package</a>")
+        self.setStyleSheet("QLabel{font-size:14px;color:white}")
+        self.authorLabel = QLabel('作&nbsp;&nbsp;者：<a style="color:yellow" href=https://github.com/Zheng-Yejian>Zheng-Yejian</a>')
+        self.emailLabel = QLabel('邮&nbsp;&nbsp;箱：<a style="color:yellow" href="mailto:1035766515@qq.com">1035766515@qq.com</a>')
+        self.addressLabel = QLabel('链&nbsp;&nbsp;接：'
+            '<a style="color:yellow;" href=https://github.com/Zheng-Yejian/xyplayer>软件源码</a>'
+            '<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+            '<a style = "color:yellow;" href=https://github.com/Zheng-Yejian/xyplayer-package>deb包下载</a>'
+            '<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+            '<a style = "color:yellow;" href="http://forum.ubuntu.org.cn/viewtopic.php?f=74&t=465335">软件发布</a>')
 
 #使用说明
         specText = QTextEdit()
@@ -40,7 +46,6 @@ class AboutPage(QWidget):
         thanksText.setText(thanks)
 
 #更新页面
-        
         currentVersion = QLabel('当前版本：' + app_version)
         self.newestVersionLabel = QLabel('最新版本：未检查')
         self.versionNum = app_version_num
@@ -53,14 +58,16 @@ class AboutPage(QWidget):
         self.changeLogText.setReadOnly(True)
         self.progressBar = QProgressBar()
         self.updateState = QLabel()
+        self.updateState.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.progressBar.hide()
         self.updateState.hide()
         
+        self.changelogVersionNum = 0
         if os.path.exists(Configures.changelog):
-            newVersion = self.fill_changelog_text()
-            newVersionNum = self.version_to_num(newVersion)
-            if newVersionNum > app_version_num:
-                self.newestVersionLabel.setText('最新版本：存在%s或更高版本'%newVersion )
+            changelogVersion = self.fill_changelog_text()
+            self.changelogVersionNum = self.version_to_num(changelogVersion)
+            if self.changelogVersionNum > app_version_num:
+                self.newestVersionLabel.setText('最新版本：存在%s或更高版本'%changelogVersion )
             else:
                 self.newestVersionLabel.setText('最新版本：未检查')
         else:
@@ -85,19 +92,19 @@ class AboutPage(QWidget):
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(0)
         mainLayout.setContentsMargins(3, 3, 3, 3)
-        mainLayout.addWidget(authorLabel)
-        mainLayout.addWidget(emailLabel)
+        mainLayout.addWidget(self.authorLabel)
+        mainLayout.addWidget(self.emailLabel)
         mainLayout.addWidget(self.addressLabel)
-        mainLayout.addWidget(self.debAddressLabel)
         mainLayout.addWidget(self.tabWidget)
     
     def create_connections(self):
-        self.addressLabel.linkActivated.connect(self.openUrl)
-        self.debAddressLabel.linkActivated.connect(self.openUrl)
+        self.authorLabel.linkActivated.connect(self.open_url)
+        self.emailLabel.linkActivated.connect(self.open_url)
+        self.addressLabel.linkActivated.connect(self.open_url)
         self.checkUpdateButton.clicked.connect(self.check_update)
         self.updateButton.clicked.connect(self.update)
     
-    def openUrl(self, url):
+    def open_url(self, url):
         QDesktopServices.openUrl(QUrl(url))
     
     def fill_changelog_text(self):
@@ -128,48 +135,54 @@ class AboutPage(QWidget):
         url = 'https://raw.githubusercontent.com/Zheng-Yejian/xyplayer-package/master/changelog'
         try:
             req = request.urlopen(url)
-            version = req.readline().decode()
+            version = req.readline().decode().strip()
             versionNum = self.version_to_num(version)
-            if versionNum != app_version_num or not os.path.exists(Configures.changelog):
+            if versionNum != self.changelogVersionNum:
                 with open(Configures.changelog, 'w') as f:
                     content = req.read().decode()
-                    content = version + content
+                    content = '%s\n%s'%(version, content)
                     f.write(content)
+                    f.close()
                 self.changeLogText.clear()
                 self.fill_changelog_text()
                 if self.changeLogText.isHidden():
                     self.changeLogText.show()
-                f.close()
             if versionNum > app_version_num :
-                self.newestVersionLabel.setText('最新版本：' + version)
-                self.newestVersion = version[1:]
+                self.newestVersion = version
+                self.newestVersionLabel.setText('最新版本：%s' %self.newestVersion)
                 self.updateButton.show()
             else:
-                self.newestVersionLabel.setText('最新版本：已是最新版')
-        except:pass
+                self.newestVersionLabel.setText('已是最新版，谢谢使用！')
+        except:
+                 self.newestVersionLabel.setText('联网出错，检查新版本失败！')
     
     def update(self):
-        url = 'https://github.com/Zheng-Yejian/xyplayer-package/blob/master/xyplayer_%s_all.deb?raw=true'%self.newestVersion
-        debLocal = Configures.debsDir + '/xyplayer_%s_all.deb'%self.newestVersion
+        versionOnly = self.newestVersion[1:]
+        print(versionOnly)
+        url = 'https://github.com/Zheng-Yejian/xyplayer-package/blob/master/xyplayer_%s_all.deb?raw=true'%versionOnly
+        debLocal =  '%s/xyplayer_%s_all.deb'%(Configures.debsDir, versionOnly)
         if not os.path.exists(debLocal):
             fail = self.download_package(url, debLocal)
             if fail:
+                self.updatingStateChanged.emit(Configures.UpdateFailed)
                 return
+        self.updatingStateChanged.emit(Configures.UpdateStarted)
         os.system('gdebi-gtk %s'%debLocal)
-        from xyplayer import app_version
+        from xyplayer.__init__ import app_version
+        print(app_version, self.newestVersion)
         if app_version == self.newestVersion:
             self.updateButton.hide()
             self.newestVersionLabel.setText('已完成更新，请重启播放器!')
             self.updateState.setText("完成更新")
+            self.updatingStateChanged.emit(Configures.UpdateSucceed)
         else:
             self.updateState.setText("放弃更新")
+            self.updatingStateChanged.emit(Configures.UpdateDropped)
 
     def download_package(self, url, debLocal):
         try:
             self.progressBar.show()
             self.updateState.show()
-            self.newestVersionLabel.hide()
-            self.updateButton.hide()
             res = request.urlopen(url)
             if res.status == 200 and  res.reason == 'OK':
                 totalLength = int(res.getheader('Content-Length'))
@@ -184,8 +197,8 @@ class AboutPage(QWidget):
                 pkgContent = res.read(20480)
                 with open(debLocal, 'ab+') as f:
                     f.write(pkgContent)
+                    f.close()
             res.close()
-            f.close()
             failFlag = 0
         except:
             if os.path.exists(debLocal):
@@ -193,8 +206,6 @@ class AboutPage(QWidget):
             failFlag = 1
         self.progressBar.hide()
         self.updateState.hide()
-        self.newestVersionLabel.show()
-        self.updateButton.show()   
         return failFlag    
         
 

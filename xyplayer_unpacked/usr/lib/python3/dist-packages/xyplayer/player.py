@@ -9,15 +9,14 @@ from PyQt5.QtCore import Qt, QTime, QUrl, QPoint
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from xyplayer import Configures
 from xyplayer.mythreads import DownloadLrcThread
-from xyplayer.urldispose import SearchOnline
+from xyplayer.urlhandle import SearchOnline
 from xyplayer.util import read_music_info, parse_lrc, trace_to_keep_time
 from xyplayer.player_ui import PlayerUi
 
 class Player(PlayerUi):
     def __init__(self, parent = None):
         super(Player, self).__init__(parent)
-#        self.initial_phonon()
-        self.initial_player_back()
+        self.initial_mediaplayer()
         self.initial_parameters()
         self.create_connections()
         
@@ -71,15 +70,17 @@ class Player(PlayerUi):
         self.managePage.lyricLabel.clicked.connect(self.show_mainstack_1)
 
         self.settingFrame.pathsetFrame.downloadDirChanged.connect(self.set_new_downloaddir)
+        self.settingFrame.aboutPage.updatingStateChanged.connect(self.updating_state_changed)
         self.settingFrame.timeoutDialog.time_out_signal.connect(self.close)
         self.settingFrame.changeVolume.connect(self.mediaPlayer.setVolume)
         self.settingFrame.changeMuting.connect(self.mediaPlayer.setMuted)
 
-    def initial_player_back(self):
+    def initial_mediaplayer(self):
         self.mediaPlayer = QMediaPlayer()
         self.mediaPlayer.setNotifyInterval(500)
 
     def initial_parameters(self):
+        self.forceCloseFlag = False    #跳过确认窗口强制关闭程序的标志
         self.widgets = []
         self.widgetIndex = 0
         self.dragPosition = QPoint(0, 0)
@@ -95,7 +96,6 @@ class Player(PlayerUi):
         self.files = []
         self.toPlaySongs = []
         self.lyricDict = {}
-#        self.info = ''
         self.j = -5
         self.deleteLocalfilePermit = False
         try:
@@ -521,11 +521,9 @@ class Player(PlayerUi):
         
     def syc_lyric(self, currentTime):
         if len(self.lyricDict) and self.playbackPage.document.blockCount():
-            self.t = sorted(self.lyricDict.keys())
             if currentTime-self.lyricOffset <= self.t[1]:
                 self.managePage.lyricLabel.setText('歌词同步显示于此！')
-#                return        
-            for i in range(1, len(self.t) - 1):
+            for i in range(len(self.t) - 1):
                 if self.t[i] < currentTime-self.lyricOffset and self.t[i + 1] > currentTime-self.lyricOffset and i!= self.j:
                     if self.lyricDict[self.t[i]]:
                         self.managePage.lyricLabel.setText(self.lyricDict[self.t[i]])
@@ -543,22 +541,23 @@ class Player(PlayerUi):
                 self.playbackPage.desktopLyric.setGeometry(x + (old_width - width) / 2, y, width, height)
     
     def state_changed(self, newState):
-        self.managePage.listsFrame.manageTable.setToolTip('当前播放列表：\n    %s'%self.playTable)
-        self.managePage.listsFrame.musicTable.setToolTip('当前播放列表：\n    %s\n'%self.playTable + '当前曲目：\n  %s'%self.model.record(self.currentSourceRow).value("title"))        
-        if not self.model.rowCount():
-            return        
-        if not self.musicTable.currentIndex:
-            self.musicTable.selectRow(self.currentSourceRow)
-        iconPath = ''
-        if newState == QMediaPlayer.PlayingState:
-            iconPath = ':/iconSources/icons/pause.png'
-        elif newState in [QMediaPlayer.StoppedState, QMediaPlayer.PausedState]:
-            iconPath = ':/iconSources/icons/play.png'
-        icon = QIcon(iconPath)
-        self.playAction.setIcon(icon)
-        try:
-            self.widgets[self.currentSourceRow].playButton.setIcon(icon)
-        except IndexError:pass
+        if newState in [QMediaPlayer.PlayingState, QMediaPlayer.PausedState, QMediaPlayer.StoppedState]:
+            self.managePage.listsFrame.manageTable.setToolTip('当前播放列表：\n    %s'%self.playTable)
+            self.managePage.listsFrame.musicTable.setToolTip('当前播放列表：\n    %s\n'%self.playTable + '当前曲目：\n  %s'%self.model.record(self.currentSourceRow).value("title"))        
+            if not self.model.rowCount():
+                return        
+            if not self.musicTable.currentIndex:
+                self.musicTable.selectRow(self.currentSourceRow)
+            iconPath = ''
+            if newState == QMediaPlayer.PlayingState:
+                iconPath = ':/iconSources/icons/pause.png'
+            elif newState in [QMediaPlayer.StoppedState, QMediaPlayer.PausedState]:
+                iconPath = ':/iconSources/icons/play.png'
+            icon = QIcon(iconPath)
+            self.playAction.setIcon(icon)
+            try:
+                self.widgets[self.currentSourceRow].playButton.setIcon(icon)
+            except IndexError:pass
 
     def source_changed(self):  
         if not self.model.rowCount():
@@ -651,11 +650,9 @@ class Player(PlayerUi):
         else:
             self.managePage.lyricLabel.setText("歌词同步显示于此！")
             self.lyricOffset, self.lyricDict = parse_lrc(lyric)
-            self.lyricDict[-1] = '欢迎使用xyplayer！'
-            self.lyricDict[3000000] = 'The End'
+            self.lyricDict[3000000] = ''
+            self.t = sorted(self.lyricDict.keys())
             self.playbackPage.set_lyric_offset(self.lyricOffset, self.lyricDict, self.lrcPath)
-#        if not self.lyricDict:
-#            self.show_music_table()
     
     def lyric_offset_changed(self, offset):
         self.lyricOffset = offset
@@ -775,9 +772,10 @@ class Player(PlayerUi):
             self.mediaPlayer.pause()
 
     def music_table_clicked(self, index):
-        self.managePage.listsFrame.musicTable.selectRow(index.row())
+        row = index.row()
+        self.managePage.listsFrame.musicTable.selectRow(row)
         if self.managePage.listsFrame.model.tableName() == self.playTable:
-            self.decide_to_play_or_pause(index.row())
+            self.decide_to_play_or_pause(row)
         else:
             playTableOld = self.playTable
             self.playTable = self.managePage.listsFrame.model.tableName()
@@ -785,7 +783,7 @@ class Player(PlayerUi):
             self.managePage.listsFrame.stateLabel.setText("当前播放列表：%s"%self.playTable)
             self.model.initial_model(self.managePage.listsFrame.model.tableName())
             self.musicTable.initial_view(self.model)
-            self.media_sources_seted(index.row())
+            self.media_sources_seted(row)
             self.allPlaySongs = []
             self.playbackPage.musicTable.clear_new_music_table()
             self.widgets.clear()
@@ -793,7 +791,8 @@ class Player(PlayerUi):
                 self.allPlaySongs.append(self.model.record(i).value("paths"))  
                 title = self.model.record(i).value("title")
                 self.playback_musictable_add_widget(title)
-            self.playbackPage.musicTable.selectRow(index.row())
+            self.playbackPage.musicTable.selectRow(row)
+            self.widgets[row].playButton.setIcon(QIcon(":/iconSources/icons/pause.png"))
     
     def playback_page_to_listen(self, title):
         for i in range(len(self.widgets)):
@@ -931,7 +930,6 @@ class Player(PlayerUi):
         if not self.model.rowCount():
             return
         self.stop_music()
-#        self.mediaObject.clearQueue()
         if self.playmodeIndex == 1:
             if self.currentSourceRow - 1 >= 0:
                 self.media_sources_seted(self.currentSourceRow - 1)
@@ -959,7 +957,6 @@ class Player(PlayerUi):
         if not self.model.rowCount():
             return
         self.stop_music()
-#        self.mediaObject.clearQueue()
         if self.playmodeIndex == 1:
             if  self.currentSourceRow + 1 < self.model.rowCount():
                 self.media_sources_seted(self.currentSourceRow + 1)
@@ -987,10 +984,32 @@ class Player(PlayerUi):
     def media_status_changed(self, status):
         if status == QMediaPlayer.EndOfMedia:
             self.music_finished()
+    
+    def music_table_select_current_row(self):
+        """当点击播放页面的"歌单"时，歌单选中到当前正在播放的那首歌。"""
+        if self.playbackPage.musicTable.rowCount():
+            self.playbackPage.musicTable.selectRow(self.currentSourceRow)
 
-
-
-
+    def updating_state_changed(self, updateState):
+        """处理不同的软件更新状态。"""
+        if updateState == Configures.UpdateStarted:
+            self.mediaPlayer.stop()
+            self.settingFrame.close()
+            self.hide()
+        else:
+            closeFlag = False
+            if updateState == Configures.UpdateSucceed:
+                closeFlag = True
+                tips = '更新成功，请重新打开播放器！'
+            elif updateState == Configures.UpdateDropped:
+                tips = '更新已被放弃！'
+            elif updateState == Configures.UpdateFailed:
+                tips = '更新失败，请检查是否成功下载新的软件包！'
+            QMessageBox.information(self, '提示', tips)
+            if closeFlag:
+                self.force_close()
+            else:
+                self.show()
 
 
 

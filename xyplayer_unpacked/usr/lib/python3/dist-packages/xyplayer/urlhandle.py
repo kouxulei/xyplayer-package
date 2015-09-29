@@ -10,7 +10,7 @@ from xyplayer.util import parse_songs_wrap, parse_quote, url_open
 reqCache = {}
 songLinkCache = {}
     
-class SearchOnline():
+class SearchOnline(object):
 
     def search_songs(searchByType, keyword, page, rn = 15):
         url = ''.join([

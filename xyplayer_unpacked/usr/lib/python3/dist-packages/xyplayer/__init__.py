@@ -6,10 +6,10 @@ import os
 
 __doc__ = '''This is a simple musicplayer that can search, play, download musics from the Internet.'''
 
-app_version = '0.8.2-1'
-app_version_num = 821
+app_version = 'v0.8.2-2'
+app_version_num = 822
 
-class Configures():
+class Configures(object):
 #    INSTALLPATH = '/usr/lib/python3/dist-packages/xyplayer'
     FILE_LENGTH_MB = 1000000
     LINE_HEIGHT = 28.11
@@ -19,6 +19,10 @@ class Configures():
     TYPEERROR = -3
     PATHERROR = -4
     NONETERROR = -5
+    UpdateSucceed = 0
+    UpdateStarted = 1
+    UpdateDropped = 2
+    UpdateFailed = 3
     homeDir = os.path.expanduser('~')
     cacheDir = os.path.join(homeDir, '.xyplayer')
     musicsDir = os.path.join(cacheDir, 'downloads')
@@ -31,17 +35,15 @@ class Configures():
     changelog = os.path.join(cacheDir, 'changelog')
     #urlCache = os.path.join(cacheDir, 'urlcache.json')
     
-    def check_dirs(self):
-        dirs = [self.musicsDir, self.imagesDir, self.lrcsDir, self.artistInfosDir, self.debsDir]
-        if not os.path.exists(self.cacheDir):
-            os.makedirs(self.cacheDir)
+    @classmethod
+    def check_dirs(cls):
+        dirs = [cls.musicsDir, cls.imagesDir, cls.lrcsDir, cls.artistInfosDir, cls.debsDir]
+        if not os.path.exists(cls.cacheDir):
+            os.makedirs(cls.cacheDir)
         for dir in dirs:
             if not os.path.exists(dir):
                 os.mkdir(dir)
-        #if not os.path.exists(self.urlCache):
-            #with open(self.urlCache, 'w') as f:
-                #f.close()
-        if not os.path.exists(self.settingFile):
-            with open(self.settingFile, 'w') as f:
-                f.write(self.musicsDir)
+        if not os.path.exists(cls.settingFile):
+            with open(cls.settingFile, 'w') as f:
+                f.write(cls.musicsDir)
                 f.close()

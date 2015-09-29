@@ -4,7 +4,7 @@ import json
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from xyplayer.urldispose import SearchOnline
+from xyplayer.urlhandle import SearchOnline
 from xyplayer.mytables import NewMusicTable
 from xyplayer.mywidgets import NewLabel, MyTextEdit
 from xyplayer.mypages import desktop_lyric
@@ -390,24 +390,9 @@ class PlaybackPage(QWidget):
         self.lyricOffset = lyricOffset
         self.lyric_offset_changed_signal.emit(self.lyricOffset)
     
-#    def fill_lyricText(self, lyricDict):
-#        for k in range(7):
-#            if k == 4:
-#                self.lyricText.append("欢迎使用xyplayer！")
-#                continue
-#            self.lyricText.append(' ')
-#        print("playback_page fill_lyricText %s %s"%(self.lyricText.width(), self.lyricText.height()))
-#        
-#        for k in sorted(lyricDict.keys()):
-#            line = lyricDict[k]
-#            self.lyricText.append(line)  
-    
     def set_html(self, index, lyricDict, t):
         htmlList = ['<body><center>']
-        for k in range(7):
-#            if k == 5:
-#                htmlList.append("<p style = 'color:green;font-size:25px;'>欢迎使用xyplayer！</p>")
-#            else:
+        for k in range(10):
             htmlList.append("<br></br>")
         for i in range(len(t)):
             if i == index:
@@ -495,19 +480,19 @@ class PlaybackPage(QWidget):
         self.lyricOffsetSButton.setFocus()
     
     def show_lyric_text(self):
-        oldIndex = self.stackedWidget.currentIndex()
-        self.change_button_stylesheet(oldIndex,  0)
-        self.stackedWidget.setCurrentIndex(0)
+        self.stacked_widget_change_index(0)
     
     def show_artist_info(self):
-        oldIndex = self.stackedWidget.currentIndex()
-        self.change_button_stylesheet(oldIndex,  1)
-        self.stackedWidget.setCurrentIndex(1)
+        self.stacked_widget_change_index(1)
     
     def show_music_table(self):
-        oldIndex = self.stackedWidget.currentIndex()
-        self.change_button_stylesheet(oldIndex,  2)
-        self.stackedWidget.setCurrentIndex(2)
+        self.stacked_widget_change_index(2)
+    
+    def stacked_widget_change_index(self, givenIndex):
+        if self.stackedWidget.currentIndex() != givenIndex:
+            oldIndex = self.stackedWidget.currentIndex()
+            self.change_button_stylesheet(oldIndex,  givenIndex)
+            self.stackedWidget.setCurrentIndex(givenIndex)
     
     def change_button_stylesheet(self,  from_,  to_):
         self.buttonList[from_].setStyleSheet("border:0px;background:transparent;color:white")
@@ -517,7 +502,6 @@ class PlaybackPage(QWidget):
         if self.lyricOperateWidget.isHidden():
             self.lyricOperateWidget.show()
             self.dtcWidget.show()
-            
         else:
             self.lyricOperateWidget.hide()
             self.dtcWidget.hide()

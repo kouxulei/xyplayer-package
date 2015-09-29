@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from xyplayer import Configures
 from xyplayer.mytables import SearchTable, TableModel
 from xyplayer.mythreads import DownloadLrcThread
-from xyplayer.urldispose import SearchOnline
+from xyplayer.urlhandle import SearchOnline
 
 class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()

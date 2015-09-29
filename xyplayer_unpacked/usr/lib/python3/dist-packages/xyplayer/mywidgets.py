@@ -247,8 +247,8 @@ class NewLabel(QWidget):
     def __init__(self, parent = None):
         super(NewLabel, self).__init__(parent)
         self.myTimerId = 0
-        self.timer_interval = 250
-        self.step = 2
+        self.timer_interval = 300
+        self.step = 3
         self.init_pos = 15
         self.setText('')
 
@@ -304,7 +304,6 @@ class NewLabel(QWidget):
     
     def start_timer(self):
         self.myTimerId = self.startTimer(self.timer_interval)
-
 
 
 

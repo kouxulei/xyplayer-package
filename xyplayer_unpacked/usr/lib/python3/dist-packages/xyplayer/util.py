@@ -40,28 +40,39 @@ def list_to_seconds(timeTuple):
 def parse_lrc(text):
     lines = text.split('\n')
     lrcHandled = {-2:''}
-    screen = re.compile('\[([0-9]{2}):([0-9]{2})(\.[0-9]{1,3})?\]')
+    pattern = re.compile('\[([0-9]{2}):([0-9]{2})(\.[0-9]{1,3})?\]')
     for line in lines:
         offset = 0
-        match = screen.match(line)
+        match = pattern.search(line)
         timeTags = []
-        while match:
-            currentTime = list_to_seconds(match.groups())
-            timeTags.append(currentTime)
-            offset = match.end()
-            match = screen.match(line, offset)
-        content = line[offset:].strip()
-        if not content:
-            content = '...'
-        for tag in timeTags:
-            lrcHandled[tag] = content
+        while True:
+            while match:
+                currentTime = list_to_seconds(match.groups())
+                timeTags.append(currentTime)
+                offset = match.end()
+                match = pattern.match(line, offset)
+            content = line[offset:].strip()
+            breakFlag = True
+            if not content:
+                content = '...'
+            else:
+                match = pattern.search(content)
+                if match:
+                    content = content[:match.start()]
+                    breakFlag = False
+            for tag in timeTags:
+                lrcHandled[tag] = content
+            if breakFlag:
+                break
+            else:
+                timeTags =[]
     c = re.match('offset\=(\-?\d+)',lines[-1])
     if c:
-        offset = int(c.group(1))
-        print('parse_lrc: %s'%offset)
+        lrcOffset = int(c.group(1))
+        print('parse_lrc: %s'%lrcOffset)
     else:
-        offset = 0
-    return offset, lrcHandled
+        lrcOffset = 0
+    return lrcOffset, lrcHandled
     
 def write_tags(musicPath, title, album):
     audio = MP3(musicPath, ID3 = EasyID3)

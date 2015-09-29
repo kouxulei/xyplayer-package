@@ -4,7 +4,7 @@ import socket
 import threading
 from urllib import request
 from xyplayer.util import write_tags
-from xyplayer.urldispose import SearchOnline
+from xyplayer.urlhandle import SearchOnline
 
 class DownloadThread(threading.Thread):     
     def __init__(self, model, row):

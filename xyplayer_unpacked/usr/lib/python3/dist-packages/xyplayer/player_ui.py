@@ -15,7 +15,7 @@ class PlayerUi(QDialog):
     def __init__(self, parent = None):
         super(PlayerUi, self).__init__(parent)
         self.sql = SqlOperate()
-        Configures().check_dirs()
+        Configures.check_dirs()
         self.create_actions()
         self.setup_ui()
         self.managePage.ui_initial()
@@ -40,12 +40,6 @@ class PlayerUi(QDialog):
 #        self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.setFixedWidth(370)
         self.setAttribute(Qt.WA_QuitOnClose,True)
-        
-#        desktop = QApplication.desktop()
-#        screenRec = desktop.screenGeometry()
-#        desktopWidth = screenRec.width()
-#        self.setGeometry((self.playbackPage.desktopLyric.desktopWidth - 370)//2, 40, 370, 660)       
-#        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
 #title_widgets
         self.titleIconLabel = QLabel()
@@ -79,10 +73,6 @@ class PlayerUi(QDialog):
 
 #设置菜单页面
         self.settingFrame = setting_frame.SettingFrame()
-#        self.audioOutput.setVolume(0)
-
-##spacerItem
-#        spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
 #3个主按键
         self.globalBackButton = QPushButton(clicked = self.global_back)
@@ -133,7 +123,6 @@ class PlayerUi(QDialog):
         mainLayout.setContentsMargins(3, 6, 3, 8)
         mainLayout.addWidget(self.mainStack)
         mainLayout.addWidget(self.globalFrame)
-#        mainLayout.addWidget(self.settingFrame)
         self.show_mainstack_0()
 
 #创建托盘图标
@@ -225,10 +214,15 @@ class PlayerUi(QDialog):
                 self.settingFrame.close()
         return False
     
+    def force_close(self):
+        """用于程序成功更新之后跳过确认窗口强制关闭。"""
+        self.forceCloseFlag = True
+        self.close()
+
     def closeEvent(self, event):
         if not self.settingFrame.isHidden():
             self.settingFrame.hide()
-        if self.settingFrame.mountoutDialog.countoutMode and not self.settingFrame.mountoutDialog.remainMount or self.settingFrame.timeoutDialog.timeoutFlag:
+        if self.settingFrame.mountoutDialog.countoutMode and not self.settingFrame.mountoutDialog.remainMount or self.settingFrame.timeoutDialog.timeoutFlag or self.forceCloseFlag:
             self.handle_before_close()
             event.accept()
         else:
@@ -366,8 +360,6 @@ class PlayerUi(QDialog):
                 self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
     
     def ui_initial(self):
-        self.mediaObject.stop()
-        self.mediaObject.clear()
         self.totalTime = '00:00'
         self.playAction.setIcon(QIcon(":/iconSources/icons/play.png"))
         self.managePage.ui_initial()
