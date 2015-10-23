@@ -1,57 +1,10 @@
 import os
-from PyQt5.QtWidgets import (QApplication, QMenu, QAction, QAbstractItemView, QStyle, 
-            QTableView, QTableWidget, QTableWidgetItem, QItemDelegate, QStyleOptionProgressBar)
+from PyQt5.QtWidgets import (QMenu, QAction, QAbstractItemView, 
+            QTableView, QTableWidget, QTableWidgetItem)
 from PyQt5.QtCore import QPoint, Qt
-from PyQt5.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
+from PyQt5.QtSql import QSqlTableModel
 from xyplayer import Configures
-#from xyplayer.mywidgets import NewListWidget
 
-class SqlOperate():
-    def __init__(self):
-        self.createConnection()
-        self.createTables()
-        self.createTable("在线试听")
-        self.createTable("默认列表")
-        self.createTable("喜欢歌曲")
-        self.createTable("我的下载")
-        
-    def createConnection(self):
-        db = QSqlDatabase.addDatabase("QSQLITE")
-        db.setDatabaseName(Configures.db)
-        db.open()
-#        query = QSqlQuery()
-#        query.exec_("%s, 'PRAGMA synchronous = OFF;', 0, 0, 0"%Configures.db)
-#        if not db.open():
-#            QMessageBox.warning(0, "连接数据库错误!", db.lastError().text())
-        
-    def createTable(self, tableName):
-        query = QSqlQuery()
-        query.exec_("create table %s (id integer primary key autoincrement, title varchar(50), length varchar(10), album varchar(40), paths varchar(65), size varchar(20), \
-        frequency integer, spare1 varchar, spare2 varchar, spare3 varchar, spare4 varchar, spare5 varchar)"%tableName)
-        query.exec_("commit")
-    
-    def renameTable(self, oldName, newName):
-        query = QSqlQuery()
-        query.exec_("alter table %s rename to %s"%(oldName, newName))
-        query.exec_("commit")
-    
-    def dropTable(self, tableDeleted):
-        query = QSqlQuery()
-        query.exec_("drop table %s"%tableDeleted)
-        query.exec_("commit")
-    
-    def createTables(self):
-        query = QSqlQuery()
-        query.exec_("create table tablesManage (id integer primary key autoincrement, tableName varchar(50), spare1 varchar, spare2 varchar, spare3 varchar, spare4 varchar, spare5 varchar, spare6 varchar)")
-        query.exec_("create table downloadTable (id integer primary key autoincrement, title varchar(50), progress varchar(20), size varchar(20), remain varchar(20), album varchar(20), songLink varchar(30), musicPath varchar(30),netSpeed varchar(30),\
-        musicId varchar(10), spare1 varchar, spare2 varchar, spare3 varchar, spare4 varchar, spare5 varchar)" )
-        query.exec_("insert into tablesManage values(0, '在线试听', Null, Null, Null, Null, Null, Null)")
-        query.exec_("insert into tablesManage values(1, '默认列表', Null, Null, Null, Null, Null, Null)")
-        query.exec_("insert into tablesManage values(2, '喜欢歌曲', Null, Null, Null, Null, Null, Null)")
-        query.exec_("insert into tablesManage values(3, '我的下载', Null, Null, Null, Null, Null, Null)")
-        query.exec_("commit")
-
-    
 class TableModel(QSqlTableModel):
     def __init__(self, parent = None):
         super(TableModel, self).__init__(parent)
@@ -59,22 +12,34 @@ class TableModel(QSqlTableModel):
 
     def initial_model(self, tableName):
         self.setTable(tableName)
-#        self.setHeaderData(1, Qt.Horizontal, "歌手._.曲目")
-#        self.setHeaderData(2, Qt.Horizontal, "时长")
-#        self.setHeaderData(3, Qt.Horizontal, "专辑")
-#        self.setHeaderData(4, Qt.Horizontal, "路径")
         self.select()
     
-    def add_record(self, title, length, album, paths, size):
+    def add_record(self, title, length, album, paths, size, musicId=Configures.LocalMusicId):
         rowNum = self.rowCount()
         self.insertRow(rowNum)
+        self.setData(self.index(rowNum, 0), paths) 
         self.setData(self.index(rowNum, 1), title)
         self.setData(self.index(rowNum, 2), length)
         self.setData(self.index(rowNum, 3), album)
-        self.setData(self.index(rowNum, 4), paths) 
-        self.setData(self.index(rowNum, 5), size)
-        self.setData(self.index(rowNum, 6), 0)
+        self.setData(self.index(rowNum, 4), size)
+        self.setData(self.index(rowNum, 5), 0)
+        self.setData(self.index(rowNum, 6), musicId)
         self.submitAll()      
+    
+    def get_record_paths(self, row):
+        return self.record(row).value("paths")
+    
+    def get_record_musicId(self, row):
+        return self.record(row).value('musicId')
+    
+    def get_record_title(self, row):
+        return self.record(row).value('title')
+
+    def get_record_album(self, row):
+        return self.record(row).value('album')
+
+    def get_record_length(self, row):
+        return self.record(row).value('length')
     
     def delete_selecteds(self, selecteds):
         for index in selecteds:
@@ -120,18 +85,19 @@ class TableView(QTableView):
 
     def initial_view(self, model):
         self.setModel(model)    
-        for i in range(12):
-            if i != 1:
-                self.hideColumn(i)
-        self.setColumnWidth(1, 300)
+        self.hideColumn(0)
+        for i in range(3, 12):
+            self.hideColumn(i)
+        self.setColumnWidth(1, 270)
+        self.setColumnWidth(2, 80)
         
     def create_contextmenu(self):
         self.listMenu  =  QMenu()
         self.addMusicAction  =  QAction("添加歌曲", self)
-        self.markSelectedAsFavoriteAction  =  QAction("标记选中项为喜欢", self)
+        self.markSelectedAsFavoriteAction  =  QAction("添加到“我的收藏”", self)
         self.downloadAction = QAction("下载", self)
-        self.deleteSelectedsAction = QAction("移除选中项", self)
-        self.deleteAction = QAction("移除并删除文件", self)
+        self.deleteSelectedsAction = QAction("移除歌曲", self)
+        self.deleteAction = QAction("移除歌曲并删除本地文件", self)
         self.clearTheListAction  =  QAction("清空列表", self)
         self.switchToSearchPageAction = QAction("切换到搜索页面", self)
         self.songSpecAction = QAction("歌曲信息", self)
@@ -143,6 +109,7 @@ class TableView(QTableView):
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.deleteSelectedsAction)
         self.listMenu.addAction(self.deleteAction)
+        self.listMenu.addSeparator()
         self.listMenu.addAction(self.clearTheListAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.songSpecAction)
@@ -187,8 +154,7 @@ class ManageTableView(QTableView):
         self.manageMenu = QMenu()
         self.addTableAction = QAction("添加列表", self)
         self.addMusicHereAction = QAction("添加歌曲到此列表", self)
-#        self.addTableAction.setIcon(QIcon(":/iconSources/icons/playmode.png"))
-        self.renameTableAction = QAction("修改列表名", self)
+        self.renameTableAction = QAction("重命名列表", self)
         self.deleteTableAction = QAction("删除列表", self)
         self.switchToSearchPageAction = QAction("切换到搜索页面", self)
         self.manageMenu.addAction(self.addTableAction)
@@ -234,6 +200,7 @@ class SearchTable(QTableWidget):
     def add_record(self, score, music, artist, album, musicRid):
             countRow  =  self.rowCount()
             scoreItem = QTableWidgetItem(score)
+            scoreItem.setTextAlignment(Qt.AlignCenter)
             musicItem  =  QTableWidgetItem(music)
             artistItem  =  QTableWidgetItem(artist)
             albumItem =  QTableWidgetItem(album)            
@@ -255,10 +222,10 @@ class SearchTable(QTableWidget):
    
     def create_contextmenu(self):
         self.listMenu  =  QMenu()
-        self.listenOnlineAction = QAction('试听', self)
-        self.addBunchToListAction = QAction('添加到‘在线试听’', self)
+        self.listenOnlineAction = QAction('立即试听', self)
+        self.addBunchToListAction = QAction('添加到试听列表', self)
         self.downloadAction  =  QAction('下载', self)
-        self.switchToOnlineListAction = QAction("切换到试听列表", self)
+        self.switchToOnlineListAction = QAction('切换到试听列表', self)
         self.listMenu.addAction(self.listenOnlineAction)
         self.listMenu.addAction(self.addBunchToListAction)
         self.listMenu.addSeparator()
@@ -272,38 +239,49 @@ class SearchTable(QTableWidget):
         pos += QPoint(0, 30)
         self.listMenu.exec_(self.mapToGlobal(pos))
 
-class DownloadModel(QSqlTableModel):
+class DownloadWorksModel(QSqlTableModel):
     def __init__(self, parent = None):
-        super(DownloadModel, self).__init__(parent)
+        super(DownloadWorksModel, self).__init__(parent)
         self.setEditStrategy(QSqlTableModel.OnManualSubmit)
+        self.initial_model()
+        self.columnNames = ['title', 'downloadedsize', 'size', 'album', 'songLink', 'musicPath', 'musicId', 'status']
+        self.workInfoContains = ['songLink', 'musicPath', 'title', 'album', 'musicId', 'size']
 
     def initial_model(self):
-        self.setTable('downloadTable')
-        self.setHeaderData(1, Qt.Horizontal, "下载曲目")
-        self.setHeaderData(2, Qt.Horizontal, "进度")
-        self.setHeaderData(3, Qt.Horizontal, "大小")
-        self.setHeaderData(4, Qt.Horizontal, "剩余")
-        self.setHeaderData(5, Qt.Horizontal, "专辑")
-        self.setHeaderData(6, Qt.Horizontal, "网址")
-        self.setHeaderData(7, Qt.Horizontal, "路径")
-        self.setHeaderData(8, Qt.Horizontal, "网速")
-        self.setHeaderData(9, Qt.Horizontal, "musicId")
+        self.setTable(Configures.DownloadWorksTable)
         self.select()
     
-    def add_record(self, title, progress, size, remain, album, songLink, musicPath, musicId):
+    def add_record(self, title, downloadedsize, size, album, songLink, musicPath, musicId, status=Configures.DownloadPaused):
         rowNum = self.rowCount()
         self.insertRow(rowNum)
         self.setData(self.index(rowNum, 1), title)
-        self.setData(self.index(rowNum, 2), progress)
+        self.setData(self.index(rowNum, 2), downloadedsize)
         self.setData(self.index(rowNum, 3), size)
-        self.setData(self.index(rowNum, 4), remain) 
-        self.setData(self.index(rowNum, 5), album)
-        self.setData(self.index(rowNum, 6), songLink)
-        self.setData(self.index(rowNum, 7), musicPath)
-        self.setData(self.index(rowNum, 8), 0)
-        self.setData(self.index(rowNum, 9), musicId)
+        self.setData(self.index(rowNum, 4), album)
+        self.setData(self.index(rowNum, 5), songLink)
+        self.setData(self.index(rowNum, 6), musicPath)
+        self.setData(self.index(rowNum, 7), musicId)
+        self.setData(self.index(rowNum, 8), status) 
         self.submitAll()      
-        
+    
+    def get_a_record_at_row(self, row):
+        values = []
+        for name in self.columnNames:
+            values.append(self.get_value(row, name))
+        return values
+    
+    def get_work_info_at_row(self, row):
+        workInfoList = []
+        for name in self.workInfoContains:
+            value = self.get_value(row, name)
+            if name == 'size':
+                value = int(value)
+            workInfoList.append(value)
+        return workInfoList
+    
+    def get_value(self, row, name):
+        return self.record(row).value(name)
+    
     def clear_table(self):
         self.removeRows(0, self.rowCount())
         self.submitAll()
@@ -314,169 +292,21 @@ class DownloadModel(QSqlTableModel):
             if index.column() == 0:
                 self.removeRow(row)
         self.submitAll()
-    
-    def delete_localfiles(self, selecteds):
-        for index in selecteds:
-            row = index.row()
-            if index.column() == 0:
-                title = self.record(row).value("title")
-                with open(Configures.settingFile, 'r') as f:
-                    downloadDir = f.read()
-                path = downloadDir + '/' + title + '.mp3'
-                if os.path.exists(path):
-                    os.remove(path)
-
-class DownloadTable(QTableView):
-    def __init__(self, parent = None):
-        super(DownloadTable, self).__init__(parent)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-#        self.setSelectionMode(QAbstractItemView.SingleSelection)
-        self.setSelectionBehavior(QAbstractItemView.SelectRows)
-#        self.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
-#        self.horizontalHeader().setStretchLastSection(True)
-        self.horizontalHeader().setVisible(False)
-        self.create_contextmenu()
-    
-    def initial_view(self, model):
-        self.setModel(model)
-        self.hideColumn(0)
-        self.hideColumn(3)
-        for i in range(5, 15):
-            self.hideColumn(i)
-        self.setColumnWidth(1, 170)
-        self.setColumnWidth(2, 100)
-        
-    def create_contextmenu(self):
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.listMenu = QMenu()
-        self.listMenu1 = QMenu("下载控制")
-        self.playAction = QAction("添加到“我的下载”", self)
-#        self.addBunchAction = QAction("添加到“我的下载”", self)
-        self.pauseDownloadAction = QAction("暂停", self)
-        self.stopDownloadAction = QAction("取消下载", self)
-        self.startDownloadAction = QAction("开始", self)
-        self.pauseAllAction = QAction("暂停全部", self)
-        self.startAllAction = QAction("开始全部", self)
-        self.stopAllAction = QAction("取消全部", self)
-        self.removeRowsAction = QAction("移除选中项", self)
-        self.deleteAction = QAction("移除并删除文件", self)
-        self.clearTableAction = QAction("清空列表", self)
-        self.listMenu1.addAction(self.startDownloadAction)
-        self.listMenu1.addAction(self.startAllAction)
-        self.listMenu1.addSeparator()
-        self.listMenu1.addAction(self.pauseDownloadAction)
-        self.listMenu1.addAction(self.pauseAllAction)
-        self.listMenu1.addSeparator()
-        self.listMenu1.addAction(self.stopDownloadAction)
-#        self.listMenu.addAction(self.stopAllAction)
-        self.listMenu.addAction(self.playAction)
-#        self.listMenu.addAction(self.addBunchAction)
-        self.listMenu.addSeparator()
-        self.listMenu.addMenu(self.listMenu1)
-        self.listMenu.addSeparator()
-        self.listMenu.addAction(self.removeRowsAction)
-        self.listMenu.addAction(self.deleteAction)
-        self.listMenu.addAction(self.clearTableAction)
-        
-
-class MyDelegate(QItemDelegate):
-    def paint(self,painter,option,index):
-        if index.column() == 2:
-            progress = int(index.model().data(index, Qt.DisplayRole))
-            progressBarOption = QStyleOptionProgressBar()
-            progressBarOption.state = QStyle.State_Enabled
-            progressBarOption.direction = QApplication.layoutDirection()
-            progressBarOption.rect = option.rect
-            progressBarOption.fontMetrics = QApplication.fontMetrics()
-            progressBarOption.textVisible = True
-            progressBarOption.textAlignment = Qt.AlignCenter
-            progressBarOption.minimum = 0
-            row = index.row()
-            maximum = index.model().record(row).value('size')
-            if maximum == '未知':
-                progressBarOption.maximum = 10000000
-                progressBarOption.text = '0%'
-                progressBarOption.progress = 0
-            else:
-                progressBarOption.maximum = int(maximum)
-                progressBarOption.progress = progress
-                ratio = int(progress*100/int(maximum))
-                progressBarOption.text = '%s'%ratio+'%'
-            QApplication.style().drawControl(QStyle.CE_ProgressBar,progressBarOption,painter)
-        elif index.column() == 3:
-            if index.model().data(index) != '未知':
-                length = int(index.model().data(index, Qt.EditRole))
-                lengthMB = length/(1024*1024)
-                size = round(lengthMB, 1)
-                text = '%s'%size+'M'
-                QApplication.style().drawItemText(painter, option.rect, Qt.AlignLeft and Qt.AlignVCenter, QApplication.palette(), True, text)
-            else:
-                return QItemDelegate.paint(self,painter,option,index)
-        elif index.column() == 4 :
-            if index.model().data(index) not in ["已完成", "已取消", "等待", "已暂停", "出错"]:
-                remainSeconds = float(index.model().data(index))
-                hours = int(remainSeconds/3600)
-                minutes = int((remainSeconds%3600)/60)
-                seconds = round((remainSeconds)%3600%60, 1)
-                if remainSeconds >= 3600:
-                    remainTime = '%sh%sm%ss'%(hours, minutes, int(seconds))
-                elif  remainSeconds < 3600 and remainSeconds >= 60:
-                    remainTime = '%sm%ss'%(minutes, int(seconds))
-                else:
-                    remainTime = '%ss'%seconds
-                text = remainTime
-                QApplication.style().drawItemText(painter, option.rect, Qt.AlignLeft and Qt.AlignVCenter, QApplication.palette(), True, text)
-            else:
-                return QItemDelegate.paint(self,painter,option,index)
-        else:
-            return QItemDelegate.paint(self,painter,option,index)
-
-    
-        
-  #playback_page页面的歌单
-class NewMusicTable(QTableWidget):
-    def __init__(self, parent = None):
-        super(NewMusicTable, self).__init__(parent)
-        self.setStyleSheet("QHeaderView{background:transparent;font-family:'微软雅黑';font-size:16px;color:white;}")
-        self.setRowCount(0)
-        self.setColumnCount(1)
-        self.horizontalHeader().setVisible(False)
-        self.verticalHeader().setVisible(False)
-        self.setShowGrid(False)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-#        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        
-    def add_widget(self, widget):
-            countRow  =  self.rowCount()
-            self.insertRow(countRow)
-            self.setColumnWidth(0, 340)
-            self.setRowHeight(countRow, 85)
-            self.setCellWidget(countRow, 0, widget)
-        
-    def clear_new_music_table(self):
-        while self.rowCount():
-            self.removeRow(0)
             
-#managePage主页面中我的歌单
 class MyListTable(QTableWidget):
-    def __init__(self, parent = None):
+    """managePage主页面中我的歌单。"""
+    def __init__(self, parent=None):
         super(MyListTable, self).__init__(parent)
         self.horizontalHeader().setVisible(False)
-#        self.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent}")
         self.verticalHeader().setVisible(False)
         self.setShowGrid(False)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setRowCount(0)    
         self.setColumnCount(1)
-#        header = ("我的歌单", "")
-#        self.setHorizontalHeaderLabels(header)
-        self.setFixedWidth(170)
+        self.setFixedWidth(172)
         self.horizontalHeader().setFixedHeight(36)
-        self.setColumnWidth(0, 170)
+        self.setColumnWidth(0, 172)
     
     def add_widget(self, widget):
         countRow  =  self.rowCount()
@@ -484,7 +314,42 @@ class MyListTable(QTableWidget):
         self.setRowHeight(countRow, 43)
         self.setCellWidget(countRow, 0, widget)
 
+class WorksList(QTableWidget):
+    """用于管理下载任务的列表以及playbackPage中我的歌单的列表。"""
+    def __init__(self, parent=None):
+        super(WorksList, self).__init__(parent)
+        self.setRowCount(0)
+        self.setColumnCount(1)
+        self.horizontalHeader().setVisible(False)
+        self.verticalHeader().setVisible(False)
+        self.setShowGrid(False)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.allListItems = []
+        
+    def add_item(self, item, rowHeight):
+        countRow  =  self.rowCount()
+        self.insertRow(countRow)
+        self.setColumnWidth(0, 350)
+        self.setRowHeight(countRow, rowHeight)
+        self.setCellWidget(countRow, 0, item)
+        self.allListItems.append(item)
+    
+    def remove_item_at_row(self, row):
+        self.removeRow(row)
+        del self.allListItems[row]
+            
+    def clear_list(self):
+        while self.rowCount():
+            self.removeRow(0)
+            del self.allListItems[0]
 
+    def row_of_item(self, ident):
+        i = -1
+        for i in range(len(self.allListItems)):
+            if self.allListItems[i].ident == ident:
+                return i
 
 
 

@@ -1,5 +1,4 @@
 import os
-import sys
 import socket
 from urllib import request
 from PyQt5.QtGui import *
@@ -7,6 +6,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from xyplayer import app_version, app_version_num
 from xyplayer import Configures
+from xyplayer.utils import version_to_num
 
 class AboutPage(QWidget):
     updatingStateChanged = pyqtSignal(int)
@@ -31,6 +31,7 @@ class AboutPage(QWidget):
         specText = QTextEdit()
         specText.setReadOnly(True)
         specs = ("<p>xyplayer项目旨在设计一个能实现基本播放以及在线搜索播放媒体资源功能的MP3播放器。谢谢您的使用，如果发现问题，还请与我交流。</p>"
+                        "<p>遵循协议： GPLv3</p>"
                         "<p>当前版本： %s</p>"
                         "<p>特别操作说明：</p>"
                         "<p>1. 主界面右键长按拖动窗口；</p>"
@@ -40,19 +41,27 @@ class AboutPage(QWidget):
 #感谢页面   
         thanks = ("<p>谢谢<a style = 'color:green;' href=https://github.com/LiuLang/kwplayer>github.com/LiuLang/kwplayer</a>"
                         "项目的作者，程序中kuwo的网络API使用、歌词的解码解析以及项目流程的管理都是从您的项目中学来的。</p>"
-                        "<p>播放器的图标大部分从网上找来的，谢谢这些素材的作者。</p>")
+                        "<p>播放器的图标大部分从网上下载来修改的，谢谢这些素材的作者。</p>")
         thanksText = QTextEdit()
         thanksText.setReadOnly(True)
         thanksText.setText(thanks)
 
+#软件协议
+        licenseText = QTextEdit()
+        licenseText.setReadOnly(True)
+        with open(Configures.LicenseFile, 'r') as f:
+            licenseText.append(f.read())
+        cur = licenseText.textCursor()
+        cur.setPosition(0, QTextCursor.MoveAnchor)
+        licenseText.setTextCursor(cur)
+
 #更新页面
-        currentVersion = QLabel('当前版本：' + app_version)
+        currentVersion = QLabel('当前版本：%s'%app_version)
         self.newestVersionLabel = QLabel('最新版本：未检查')
-        self.versionNum = app_version_num
         self.checkUpdateButton = QPushButton("检查更新")
-        self.checkUpdateButton.setFixedWidth(70)
+        self.checkUpdateButton.setFixedSize(70, 30)
         self.updateButton = QPushButton('在线更新')
-        self.updateButton.setFixedWidth(70)
+        self.updateButton.setFixedSize(70, 30)
         self.updateButton.hide()
         self.changeLogText = QTextEdit()
         self.changeLogText.setReadOnly(True)
@@ -65,7 +74,7 @@ class AboutPage(QWidget):
         self.changelogVersionNum = 0
         if os.path.exists(Configures.changelog):
             changelogVersion = self.fill_changelog_text()
-            self.changelogVersionNum = self.version_to_num(changelogVersion)
+            self.changelogVersionNum = version_to_num(changelogVersion)
             if self.changelogVersionNum > app_version_num:
                 self.newestVersionLabel.setText('最新版本：存在%s或更高版本'%changelogVersion )
             else:
@@ -85,13 +94,14 @@ class AboutPage(QWidget):
         
 #tab页
         self.tabWidget = QTabWidget()
-        self.tabWidget.addTab(specText, '说明')
+        self.tabWidget.addTab(specText, '简介')
         self.tabWidget.addTab(thanksText, '鸣谢')
         self.tabWidget.addTab(updatePage, '更新')
+        self.tabWidget.addTab(licenseText, '软件协议')
         
         mainLayout = QVBoxLayout(self)
-        mainLayout.setSpacing(0)
-        mainLayout.setContentsMargins(3, 3, 3, 3)
+        mainLayout.setSpacing(3)
+        mainLayout.setContentsMargins(3, 0, 3, 0)
         mainLayout.addWidget(self.authorLabel)
         mainLayout.addWidget(self.emailLabel)
         mainLayout.addWidget(self.addressLabel)
@@ -119,24 +129,12 @@ class AboutPage(QWidget):
         self.changeLogText.setTextCursor(cur)
         return version
     
-    def version_to_num(self, version):
-        m = ''
-        for c in version:
-            try:
-                int(c)
-                m += c
-            except ValueError:
-                continue
-        if not m:
-            return app_version_num
-        return int(m)
-    
     def check_update(self):
         url = 'https://raw.githubusercontent.com/Zheng-Yejian/xyplayer-package/master/changelog'
         try:
             req = request.urlopen(url)
             version = req.readline().decode().strip()
-            versionNum = self.version_to_num(version)
+            versionNum = version_to_num(version)
             if versionNum != self.changelogVersionNum:
                 with open(Configures.changelog, 'w') as f:
                     content = req.read().decode()

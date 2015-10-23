@@ -1,336 +1,187 @@
-import os
-import threading
-from PyQt5.QtWidgets import QWidget, QMessageBox, QHBoxLayout, QPushButton,QVBoxLayout, QLabel
-from PyQt5.QtGui import QIcon, QCursor, QDesktopServices
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QPoint, QUrl, QSize
-from PyQt5 import QtSql
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton,QVBoxLayout, QLabel
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
 from xyplayer import Configures
-from xyplayer.mywidgets import LabelButton
-from xyplayer.mytables import DownloadTable, DownloadModel, MyDelegate
-from xyplayer.mythreads import DownloadThread, DownloadLrcThread
+from xyplayer.iconshub import IconsHub
+from xyplayer.mywidgets import LabelButton, DownloadListItem
+from xyplayer.mytables import WorksList, DownloadWorksModel
+from xyplayer.mythreads import DownloadThread
 
 class DownloadPage(QWidget):
     back_to_main_signal = pyqtSignal()
-    listen_online_signal = pyqtSignal(str, str, str)
-    listen_local_signal = pyqtSignal(bool)
+    work_complete_signal = pyqtSignal()    #下载任务完成时，用于通 知主程序刷新显示“我的下载”歌单
     def __init__(self, parent = None):
         super(DownloadPage, self).__init__(parent)
         self.setup_ui()
-        self.create_connections()
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_datas)
-        self.deletePermit = False
+        self.initial_params()
+        self.initial_timer()
         
     def setup_ui(self):
-#返回按键
-        self.backButton = QPushButton(clicked = self.back_to_main_signal.emit)
-        self.backButton.setStyleSheet("font-size:15px")
-        self.backButton.setFixedSize(25, 33)
-        self.backButton.setIcon(QIcon(":/iconSources/icons/back.png"))
-        self.backButton.setIconSize(QSize(20, 20))
-        
-        self.titleLabel = LabelButton("下载任务")
-        self.titleLabel.setFixedWidth(70)
+        self.titleLabel = LabelButton('下载任务(0/0)')
+        self.titleLabel.setFixedSize(110, 33)
         self.titleLabel.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         
-#        self.openDir = QPushButton("下载目录")
-#        self.openDir.setIcon(QIcon(":/iconSources/icons/openDir.png"))
-#        self.openDir.setStyleSheet("font-size:15px")
-#        self.openDir.setFixedHeight(33)
-#        self.openDir.setIconSize(QSize(20, 20))
+#返回按键
+        self.backButton = QPushButton(clicked = self.back_to_main_signal.emit)
+        self.backButton.setFocusPolicy(Qt.NoFocus)
+        self.backButton.setStyleSheet("font-size:15px")
+        self.backButton.setFixedSize(25, 33)
+        self.backButton.setIcon(QIcon(IconsHub.Back))
+        self.backButton.setIconSize(QSize(20, 20))
         
-        self.netSpeedInfo = QLabel("当前网速：0.0 kB/s")
-#        self.netSpeedInfo.setFixedWidth(135)
+        self.netSpeedInfo = QLabel('0.00 KB/s')
+        self.netSpeedInfo.setFixedWidth(135)
         self.netSpeedInfo.setStyleSheet("background:transparent;color:white")
-        self.netSpeedInfo.setAlignment(Qt.AlignRight and Qt.AlignVCenter)
-        self.downloadModel = DownloadModel()
-        self.downloadModel.initial_model()
+        self.netSpeedInfo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
-        self.downloadTable = DownloadTable()
-        self.downloadTable.initial_view(self.downloadModel)
-        self.downloadTable.selectRow(0)
-        self.myDelegate = MyDelegate()
-        self.downloadTable.setItemDelegate(self.myDelegate)
-        
-#        spacerItem  =  QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         firstLayout = QHBoxLayout()
         firstLayout.addWidget(self.backButton)
         firstLayout.addWidget(self.titleLabel)
         firstLayout.addStretch()
-#        firstLayout.addItem(spacerItem)
         firstLayout.addWidget(self.netSpeedInfo)
-#        firstLayout.addWidget(self.openDir)
+        
+        self.downloadList = WorksList()
         
         mainLayout = QVBoxLayout(self)
         mainLayout.setContentsMargins(0, 0, 0, 0)
-#        mainLayout.setSpacing(4)
         mainLayout.addLayout(firstLayout)
-        mainLayout.addWidget(self.downloadTable)
+        mainLayout.addWidget(self.downloadList)
         
     def create_connections(self):
-        self.downloadTable.installEventFilter(self)
-
-        self.titleLabel.clicked.connect(self.open_downloaddir)
-        self.downloadTable.playAction.triggered.connect(self.add_to_my_downloads)
-        self.downloadTable.startDownloadAction.triggered.connect(self.start_download)
-        self.downloadTable.startAllAction.triggered.connect(self.start_all)
-        self.downloadTable.pauseDownloadAction.triggered.connect(self.pause_download)
-        self.downloadTable.stopDownloadAction.triggered.connect(self.stop_download)
-        self.downloadTable.pauseAllAction.triggered.connect(self.pause_all)
-        self.downloadTable.removeRowsAction.triggered.connect(self.remove_these_rows)
-        self.downloadTable.deleteAction.triggered.connect(self.delete_localfiles)
-        self.downloadTable.clearTableAction.triggered.connect(self.clear_table)
-        
-        self.downloadTable.clicked.connect(self.show_title)
-        self.downloadTable.doubleClicked.connect(self.begin_to_listen)
-        self.downloadTable.customContextMenuRequested.connect(self.music_table_menu)
+        pass
     
-    def show_title(self, index):
-        tips = self.downloadModel.record(index.row()).value("title")
-        self.downloadTable.setToolTip(tips)
+    def initial_timer(self):
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_progress)
     
-    def music_table_menu(self, pos):
-        pos  += QPoint(20, 33)
-        self.downloadTable.listMenu.exec_(self.mapToGlobal(pos))
-    
-    def add_to_my_downloads(self):
-        if not self.downloadModel.rowCount():
-            return
-        selections = self.downloadTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        self.valid = []
-        for index in selecteds:
-            if index.column() == 0:
-                state = self.downloadModel.record(index.row()).value("remain")
-                musicPath = self.downloadModel.record(index.row()).value("musicPath")
-                if state == "已完成" and os.path.exists(musicPath):
-                    self.valid.append(musicPath)
-        cnt = len(self.valid)
-        if cnt:
-            self.listen_local_signal.emit(False)
-            QMessageBox.information(self, "提示", "已添加%s首歌曲到我的下载，其他歌曲未完成下载，建议您在线播放（双击即可）！"%cnt)
-        else:
-            QMessageBox.information(self, "提示", "选中歌曲均未完成下载，建议您在线播放（双击即可）！")
-            
-    def begin_to_listen(self, index):
-        musicPath = self.downloadModel.record(index.row()).value("musicPath")
-        if self.downloadModel.record(index.row()).value("remain") != "已完成":
-            ok = QMessageBox.question(self, '注意', '下载未完成，您是否要在线试听？', QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-            if ok == QMessageBox.Yes:
-                title = self.downloadModel.record(index.row()).value("title")
-                album = self.downloadModel.record(index.row()).value("album")
-                musicId = self.downloadModel.record(index.row()).value("musicId")
-                songLink = self.downloadModel.record(index.row()).value("songLink")
-                songLinkwrap = songLink + '~' + '~' + musicId
-                self.listen_online_signal.emit(title, album, songLinkwrap)
-        elif not os.path.exists(musicPath):
-            ok = QMessageBox.warning(self, '注意', '歌曲不存在，您是否要重新下载？', QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-            if ok == QMessageBox.Yes:
-                self.start_one(index.row())
-        else:
-            self.valid = [musicPath]
-            self.listen_local_signal.emit(True)
-    
-    def add_to_downloadtable(self, songLink, musicPath, title, album, musicId):
-        for t in threading.enumerate():
-            if t.name == musicPath:
-                return
-        k = -1
-        for i in range(self.downloadModel.rowCount()):
-            if musicPath == self.downloadModel.record(i).value("musicPath"):
-                k = i
-                break
-        if k != -1:
-            self.downloadTable.selectRow(k)
-            self.start_download()
-        else:
-            self.downloadModel.add_record(title, 0, '未知', '等待', album, songLink, musicPath, musicId)
-            row = self.downloadModel.rowCount()-1
-            self.downloadTable.selectRow(row)
-            downloadThread1 = DownloadThread(self.downloadModel, row)
-            downloadThread1.setDaemon(True)
-            downloadThread1.setName(musicPath)
-            downloadThread1.start()
-            
-            lrcName = title + '.lrc'
-            lrcPath = os.path.join(Configures.lrcsDir, lrcName)
-            if os.path.exists(lrcPath):
-                os.remove(lrcPath)
-            path_item_temp = songLink + '~' + musicId
-            list_temp = [(title, path_item_temp)]
-            thread = DownloadLrcThread(list_temp)
-            thread.setDaemon(True)
-            thread.setName('downloadLrc')
-            thread.start()
-            
-            if not self.timer.isActive():
-                self.timer.start(700)
-    
-    def update_datas(self):
-        totalSpeed = 0
-        for i in range(self.downloadModel.rowCount()):
-            temp = float(self.downloadModel.record(i).value("netSpeed"))
-            totalSpeed  += temp
-        totalSpeed = round(totalSpeed, 2)
-        self.netSpeedInfo.setText('当前网速：%s kB/s'%totalSpeed)
-        i = 0
-        for t in threading.enumerate():
-            if t.name == "downloadLrc" or t.name == "volumeThread" or t == threading.main_thread():
-                continue
-            i  += 1
-        if i == 0:
-            self.netSpeedInfo.setText('当前网速：0.0 kB/s')
-            row = self.downloadTable.currentIndex().row()
-            self.downloadModel.submitAll()
-            self.downloadTable.selectRow(row)
-            self.timer.stop()
-    
-    def open_downloaddir(self):
-        with open(Configures.settingFile, 'r') as f:
-            downloadDir = f.read()
-        QDesktopServices.openUrl(QUrl('file://'+downloadDir))
-    
-    def start_download(self):
-        selections = self.downloadTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        for index in selecteds:
-            if index.column() == 0:
-                row = index.row()
-                self.start_one(row)
-    
-    def start_all(self):
-        for i in range(self.downloadModel.rowCount()):
-#            if self.downloadModel.data(self.downloadModel.index(i, 3)) in ["已取消", "已暂停"]:
-            self.start_one(i)
-    
-    def start_one(self, row):
-        if not self.downloadModel.rowCount():
-            return
-        state = self.downloadModel.data(self.downloadModel.index(row, 4))
-        musicPath = self.downloadModel.data(self.downloadModel.index(row, 7))
-#        tempfile = musicPath + '.temp'
-        if state in ["已取消", "已暂停", '等待'] or not os.path.exists(self.downloadModel.data(self.downloadModel.index(row, 7))):
-            for t in threading.enumerate():
-                if t.name == musicPath:
-                    return
-            downloadThread1 = DownloadThread(self.downloadModel, row)
-            downloadThread1.setDaemon(True)
-            downloadThread1.setName(self.downloadModel.data(self.downloadModel.index(row, 7)))
-            downloadThread1.start()
-            if not self.timer.isActive():
-                self.timer.start(700)
-            
-    def pause_download(self):
-        selections = self.downloadTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        if not len(selecteds):
-            return
-        for index in selecteds:
-            if index.column() == 0:
-                row = index.row()
-                downloadState = self.downloadModel.record(row).value("remain")
-                if downloadState not in ["已完成", "已取消", "已暂停"]:
-                    musicPath = self.downloadModel.record(row).value("musicPath")
-                    for t in threading.enumerate():
-                        if t.name == musicPath:
-                            t.pause()
-                            break
-    
-    def stop_download(self):
-        selections = self.downloadTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        if not len(selecteds):
-            return
-        for index in selecteds:
-            if index.column() == 0:
-                row = index.row()
-                downloadState = self.downloadModel.record(row).value("remain")
-                if downloadState not in ["已完成", "已取消"]:
-                    musicPath = self.downloadModel.record(row).value("musicPath")
-                    tempfileName = musicPath + '.temp'
-                    if os.path.exists(tempfileName):
-                        os.remove(tempfileName)
-                    self.downloadModel.setData(self.downloadModel.index(row, 4), "已取消")
-                    self.downloadModel.setData(self.downloadModel.index(row, 2), 0)
-                    for t in threading.enumerate():
-                        if t.name == musicPath:
-                            t.stop()
-                            break
-        self.downloadModel.submitAll()
-        self.downloadTable.selectRow(selecteds[0].row())
-
-    def pause_all(self):
-        if threading.active_count() == 1:
-            return
-#        ok = QMessageBox.question(self, '注意', '所有正在下载任务将被暂停，您是否继续？', QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-#        if ok == QMessageBox.Yes:
-        for t in threading.enumerate():
-            if t.name == "downloadLrc" or t.name == "volumeThread" or t == threading.main_thread():
-                continue
-            t.pause()
-    
-#    def stopAll(self):
-#        if threading.active_count() == 1:
-#            return
-#        ok = QMessageBox.question(self, '注意', '所有正在下载任务将被取消，您是否继续？', QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-#        if ok == QMessageBox.Yes:
-#            for t in threading.enumerate():
-#                if t != threading.main_thread():
-#                    t.stop()
-
-    def delete_localfiles(self):
-        self.deletePermit = True
-        self.remove_these_rows()
+    def initial_params(self):
         self.deletePermit = False
+        self.timeSpan = 600    #更新网速的时间间隔，单位为ms
+        self.allDownloadWorks = {}    #线程的索引表，key为线程名，value为线程
+        self.runWorksCount = 0    #当前正在进行的任务数
+        self.allWorksCount =len(self.allDownloadWorks)    #管理器中的所有任务数
     
-    def remove_these_rows(self):
-        if not self.downloadModel.rowCount():
-            return
-        selections = self.downloadTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        if not len(selecteds):
-            return
-        if self.deletePermit:
-            text_tmp = "选中项将被移除列表，同时会删除对应的本地文件，请确认！"
+    def download_status_changed(self, ident, isPaused):
+        """暂停或重启一个任务。"""
+        work = self.allDownloadWorks[ident][0]
+        if isPaused:
+            if work.downloadStatus != Configures.DownloadCompleted:
+                work.pause()
         else:
-            text_tmp = "您确定要移除选中项？"
-        ok = QMessageBox.warning(self, '注意', text_tmp, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-        if ok == QMessageBox.Yes:
-            self.setCursor(QCursor(Qt.BusyCursor))
-            if self.deletePermit:
-                self.downloadModel.delete_localfiles(selecteds)
-            self.downloadModel.delete_selecteds(selecteds)
-            self.setCursor(QCursor(Qt.ArrowCursor))
-            
-    def clear_table(self):
-        if not self.downloadModel.rowCount():
+            args = [work.title, work.album, work.songLink, work.musicPath, work.musicId, work.length, work.lock]
+            newDownloadWork = DownloadThread(*args)
+            newDownloadWork.setName(ident)
+            newDownloadWork.setDaemon(True)
+            self.allDownloadWorks[ident][0] = newDownloadWork
+            newDownloadWork.start()
+            if not self.timer.isActive():
+                self.timer.start(self.timeSpan)
+    
+    def add_a_download_work(self, songLink, musicPath, title, album, musicId, size, lock):
+        """开始一个下载任务。"""
+        if musicPath in self.allDownloadWorks:
+            print('下载任务已存在%s'%musicPath)
             return
-        ok = QMessageBox.warning(self, '注意', '当前列表将被清空，当前下载也将被取消！\n您是否继续？', QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-        if ok == QMessageBox.Yes:
-            self.setCursor(QCursor(Qt.BusyCursor))
-            self.netSpeedInfo.setText('当前网速：0.0 kB/s')
-            for t in threading.enumerate():
-                if t != threading.main_thread():
-                    t.stop()
-#            os.system("rm -f *.temp")
+        downloadWork = DownloadThread(title, album, songLink, musicPath, musicId, size, lock)
+        downloadWork.setDaemon(True)
+        downloadWork.setName(musicPath)
+        downloadListItem = DownloadListItem(musicPath, title, self.timeSpan)
+        downloadListItem.downloadStatusChanged.connect(self.download_status_changed)
+        downloadListItem.killWork.connect(self.kill_a_download_work)
+        self.downloadList.add_item(downloadListItem, 86)
+        self.allDownloadWorks[musicPath] = [downloadWork, downloadListItem]
+        downloadWork.start()
+        if not self.timer.isActive():
+            self.timer.start(self.timeSpan)
+    
+    def update_progress(self):
+        """更新各个下载任务的进度信息。"""
+        self.completedWorkNames = []
+        aliveThreadExists, netSpeed, runWorks = self.get_state_infos_from_every_works()
+        if self.runWorksCount != runWorks or self.allWorksCount != len(self.allDownloadWorks):
+            self.runWorksCount = runWorks
+            self.allWorksCount = len(self.allDownloadWorks)
+            self.titleLabel.set_text('下载任务(%s/%s)'%(self.runWorksCount, self.allWorksCount))
+        if aliveThreadExists:
+            self.netSpeedInfo.setText("%.2f KB/s"%netSpeed)
+        else:
             self.timer.stop()
-            q = QtSql.QSqlQuery()
-            q.exec_("drop table downloadTable")
-            q.exec_("commit")
-            q.exec_("create table downloadTable (title varchar(50), progress varchar(20), size varchar(20), remain varchar(20), album varchar(20), songLink varchar(30), musicPath varchar(30),netSpeed varchar(30),musicId varchar(10))")
-            q.exec_("commit")
-            self.downloadModel.initial_model()
-            self.downloadTable.initial_view(self.downloadModel)
-            self.setCursor(QCursor(Qt.ArrowCursor))
-        
-    def eventFilter(self, target, event):
-        if target == self.downloadTable:
-            if threading.active_count() == 1:
-#                self.downloadTable.setSelectionMode(QAbstractItemView.ExtendedSelection)     
-                self.downloadTable.removeRowsAction.setVisible(True)
-                self.downloadTable.deleteAction.setVisible(True)
+            self.get_state_infos_from_every_works()    #时钟停止后还要再最后 确认更新一次界面的信息
+            self.netSpeedInfo.setText("0.00 KB/s")
+            self.titleLabel.set_text('下载任务(0/%s)'%len(self.allDownloadWorks))
+        if len(self.completedWorkNames):
+#            self.add_downloaded_to_download_table(self.completedWorkNames)
+            self.work_complete_signal.emit()
+    
+    def remove_work_from_download_list(self, completedWorkNames):
+        for i in sorted(range(self.downloadList.rowCount()), reverse=True):
+            if self.downloadList.allListItems[i].ident in completedWorkNames:
+                self.downloadList.remove_item_at_row(i)
+        for name in completedWorkNames:
+            del self.allDownloadWorks[name]
+        self.update_progress()
+    
+    def get_state_infos_from_every_works(self):
+        """遍历各个任务，计算需要显示的值。"""
+        aliveThreadExists = False    #用于标记是否活动的下载线程
+        netSpeed = 0
+        runWorks = 0
+        for name in self.allDownloadWorks:
+            listItem = self.allDownloadWorks[name][1]
+            work = self.allDownloadWorks[name][0]
+            downloadStatus = work.downloadStatus
+            if downloadStatus == Configures.Downloading:
+                listItem.update_progress(work.currentLength, work.length)
             else:
-                self.downloadTable.removeRowsAction.setVisible(False)
-                self.downloadTable.deleteAction.setVisible(False)
-#                self.downloadTable.setSelectionMode(QAbstractItemView.SingleSelection)
-        return False
+                if listItem.statusLabel.text() not in ['已暂停', '已取消', '下载出错', '已完成']:
+                    if downloadStatus == Configures.DownloadPaused:
+                        listItem.set_pause_state(True, '已暂停')
+                    elif downloadStatus == Configures.DownloadCancelled:
+                        listItem.set_pause_state(True, '已取消')
+                    elif downloadStatus == Configures.DownloadError:
+                        listItem.set_pause_state(True, '下载出错')
+                    elif downloadStatus == Configures.DownloadCompleted:
+                        work.join()
+                        listItem.download_completed()
+                        self.completedWorkNames.append(name)
+            if work.is_alive():
+                if not aliveThreadExists:
+                    aliveThreadExists = True
+                netSpeed += listItem.get_net_speed()
+                runWorks += 1
+        return aliveThreadExists, netSpeed, runWorks
+    
+    def kill_a_download_work(self, ident):
+        """当下载任务项的取消按键被按下时，移除对应的下载任务。"""
+        work = self.allDownloadWorks[ident][0]
+        work.stop()
+        work.join()    #等待线程执行结束
+        self.remove_work_from_download_list([ident])        
+    
+    def reload_works_from_database(self, lock):
+        """在程序启动时，读取数据库中的下载任务信息，并启动"""
+        print('reloading works from database ...')
+        downloadWorksModel = DownloadWorksModel()
+        for row in range(downloadWorksModel.rowCount()):
+            args = downloadWorksModel.get_work_info_at_row(row)
+            args.append(lock)
+            self.add_a_download_work(*args)
+        downloadWorksModel.clear_table()
+    
+    def record_works_into_database(self):
+        """程序结束时，把未完成的任务记录到数据库中"""
+        print('recording infos of download works ...')
+        downloadWorksModel = DownloadWorksModel()
+        for name in self.allDownloadWorks:
+            work = self.allDownloadWorks[name][0]
+            downloadWorksModel.add_record(*self.get_infos_from_a_work(work))
+        
+    def get_infos_from_a_work(self, work):
+        title = work.title
+        downloadedsize = work.currentLength
+        size = work.length
+        album = work.album
+        songLink = work.songLink
+        musicPath = work.musicPath
+        musicId = work.musicId
+        return [title , downloadedsize, size, album, songLink, musicPath, musicId]

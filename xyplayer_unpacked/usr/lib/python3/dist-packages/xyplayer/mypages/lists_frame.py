@@ -2,6 +2,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtSql import QSqlTableModel
+from xyplayer import Configures
+from xyplayer.iconshub import IconsHub
 from xyplayer.mywidgets import LabelButton
 from xyplayer.mytables import TableModel, TableView, ManageTableView
 
@@ -14,19 +16,20 @@ class ListsFrame(QWidget):
     def setup_ui(self):
 #返回按键
         self.backButton = QPushButton(clicked = self.back_to_main_signal.emit)
+        self.backButton.setFocusPolicy(Qt.NoFocus)
         self.backButton.setStyleSheet("font-size:15px")
         self.backButton.setFixedSize(25, 33)
-        self.backButton.setIcon(QIcon(":/iconSources/icons/back.png"))
+        self.backButton.setIcon(QIcon(IconsHub.Back))
         self.backButton.setIconSize(QSize(20, 20))
  #标签 
         self.titleLabel = LabelButton("列表管理")
-        self.titleLabel.setMinimumWidth(70)
+        self.titleLabel.setFixedSize(100, 33)
         self.titleLabel.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.stateLabel = QLabel( "当前播放列表：默认列表")
         self.stateLabel.setStyleSheet("background:transparent;color:white")
  
         self.manageModel = QSqlTableModel()
-        self.manageModel.setTable("tablesManage")
+        self.manageModel.setTable(Configures.PlaylistsManageTable)
         self.manageModel.setHeaderData(1, Qt.Horizontal, "*所有列表*")
         self.manageModel.select()
         
@@ -35,7 +38,7 @@ class ListsFrame(QWidget):
         self.manageTable.setFixedWidth(90)
         
         self.model = TableModel()
-        self.model.initial_model("默认列表")
+        self.model.initial_model(Configures.PlaylistDefault)
         self.musicTable = TableView()
 #        self.musicTable.verticalHeader().setStyleSheet("QHeaderView::section{background:transparent;}")
         self.musicTable.initial_view(self.model)
@@ -54,7 +57,7 @@ class ListsFrame(QWidget):
         hbox1.addWidget(self.backButton)
         hbox1.addWidget(self.titleLabel)
         hbox1.addStretch()
-        hbox1.addWidget(self.stateLabel)
+#        hbox1.addWidget(self.stateLabel)
         
         hbox2 = QHBoxLayout()
         hbox2.addWidget(self.manageTable)

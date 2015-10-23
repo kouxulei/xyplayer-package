@@ -4,85 +4,99 @@ import json
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from xyplayer import Configures, app_version
+from xyplayer.iconshub import IconsHub
 from xyplayer.urlhandle import SearchOnline
-from xyplayer.mytables import NewMusicTable
+from xyplayer.mytables import WorksList
 from xyplayer.mywidgets import NewLabel, MyTextEdit
 from xyplayer.mypages import desktop_lyric
-from xyplayer import app_version
 
 class PlaybackPage(QWidget):
     lyric_offset_changed_signal = pyqtSignal(int)
     desktop_lyric_state_changed_signal = pyqtSignal(bool)
+    select_current_row_signal = pyqtSignal()
+    playmode_changed_signal = pyqtSignal(int, int)
     def __init__(self):
         super(PlaybackPage, self).__init__()
         self.setup_ui()
         self.create_connections()
+        self.playmode = Configures.PlaymodeRandom    #播放模式指示器
     
     def setup_ui(self):
         self.setStyleSheet(
             "QStackedWidget,QTextEdit,QTableView,QTableWidget{background:transparent}"
+            "QLabel{color:yellow;}"
             )
 
 #桌面歌词标签
         self.desktopLyric = desktop_lyric.DesktopLyric()
         
 #歌单
-        self.musicTable = NewMusicTable()
-        self.musicTable.setFixedHeight(430)
+        self.musicList = WorksList()
+#        self.musicList.setFixedHeight(430)
+        self.musicList.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         
 #spacerItem
         spacerItem = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         
 #五个基本按键
-        self.playmodeButton = QToolButton(self)
+        self.playmodeButton = QToolButton(self, clicked=self.change_playmode)
+        self.playmodeButton.setFocusPolicy(Qt.NoFocus)
         self.playmodeButton.setStyleSheet("QToolButton{background:transparent}"
                                                         "QToolButton:hover{border:0px solid yellow;border-radius:30px;background:yellow}")
-#        self.playmodeButton.setFixedSize(QSize(36, 36))
-        self.playmodeButton.setIcon(QIcon(":/iconSources/icons/playmode2.png"))
+        self.playmodeButton.setIcon(QIcon(IconsHub.PlaymodeRandom))
         self.playmodeButton.setIconSize(QSize(28, 28))
+        self.playmodeButton.setToolTip('随机播放')
         
         self.favoriteButton = QToolButton(self)
+        self.favoriteButton.setFocusPolicy(Qt.NoFocus)
         self.favoriteButton.setStyleSheet("QToolButton{background:transparent}"
                                                         "QToolButton:hover{border:0px solid yellow;border-radius:30px;background:yellow}")
-#        self.favoriteButton.setFixedSize(QSize(36, 36))
-        self.favoriteButton.setIcon(QIcon(":/iconSources/icons/favorite.png"))
+        self.favoriteButton.setToolTip('收藏')
+        
+        self.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
         self.favoriteButton.setIconSize(QSize(25, 25))
-#        self.favoriteButton.setEnabled(False)
 
         self.previousButton = QToolButton(self)
+        self.previousButton.setFocusPolicy(Qt.NoFocus)
         self.previousButton.setStyleSheet("QToolButton{background:transparent}"
                                                         "QToolButton:hover{border:0px solid yellow;border-radius:35px;background:yellow}")
         self.previousButton.setIconSize(QSize(45, 45))
         self.previousButton.setShortcut(QKeySequence("Ctrl + Left"))
 
         self.playButton = QToolButton(self)
+        self.playButton.setFocusPolicy(Qt.NoFocus)
         self.playButton.setStyleSheet("QToolButton{background:transparent}"
                                                         "QToolButton:hover{border:0px solid yellow;border-radius:40px;background:yellow}")
-#        self.playButton.setIcon(QIcon(":/iconSources/icons/play.png"))
+
         self.playButton.setIconSize(QSize(64, 64))
         self.playButton.setShortcut(QKeySequence("Ctrl + Down"))
 
         self.nextButton = QToolButton(self)
+        self.nextButton.setFocusPolicy(Qt.NoFocus)
         self.nextButton.setStyleSheet("QToolButton{background:transparent}"
                                                         "QToolButton:hover{border:0px solid yellow;border-radius:35px;background:yellow}")
         self.nextButton.setIconSize(QSize(45, 45))
+        self.nextButton.setFocusPolicy(Qt.NoFocus)
         self.nextButton.setShortcut(QKeySequence("Ctrl + Right"))
         
         self.seekSlider = QSlider(Qt.Horizontal, self)
+        self.seekSlider.setFocusPolicy(Qt.NoFocus)
         self.seekSlider.setRange(0, 0)
         
         #时间标签
-        self.timeLabel1 = QLabel("00:00", self)
-        self.timeLabel2 = QLabel("00:00", self)
+        self.timeLabel1 = QLabel(Configures.ZeroTime, self)
+        self.timeLabel2 = QLabel(Configures.ZeroTime, self)
         self.timeLabel1.setAlignment(Qt.AlignRight and Qt.AlignVCenter)
         self.timeLabel2.setAlignment(Qt.AlignLeft and Qt.AlignVCenter)
         self.timeLabel1.setFixedSize(QSize(40, 25))
         self.timeLabel2.setFixedSize(QSize(40, 25)) 
-        self.timeLabel1.setStyleSheet("font-family:'微软雅黑';font-size:13px;color: white")
-        self.timeLabel2.setStyleSheet("font-family:'微软雅黑';font-size:13px;color: white")
+        self.timeLabel1.setStyleSheet("font-family:'微软雅黑';font-size:15px;color: white")
+        self.timeLabel2.setStyleSheet("font-family:'微软雅黑';font-size:15px;color: white")
         
         self.backButton = QPushButton(self)
-        self.backButton.setIcon(QIcon(":/iconSources/icons/back.png"))
+        self.backButton.setFocusPolicy(Qt.NoFocus)
+        self.backButton.setIcon(QIcon(IconsHub.Back))
         self.backButton.setFixedSize(35, 30)
         self.backButton.setIconSize(QSize(25, 25))
         self.backButton.setStyleSheet("QPushButton:hover{border:2px solid lightgray;border-color:white;background:rgb(210,240,240)}"
@@ -90,13 +104,14 @@ class PlaybackPage(QWidget):
                                                         )
         
         self.musicNameLabel = NewLabel(self)
-        self.musicNameLabel.setMinimumWidth(230)
-        self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:28px;color: white")
+        self.musicNameLabel.setMinimumWidth(220)
+        self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:28px;color: cyan")
 #        self.musicNameLabel.setParameters(300, 50, 100)
         
         self.buttonList = []
         for text in ["歌词", "歌手", "歌单"]:
             button = QPushButton(text, self)
+            button.setFocusPolicy(Qt.NoFocus)
             button.setFixedSize(30, 25)
             button.setStyleSheet("font-family:'微软雅黑'; font-size:15px;color:white")
             self.buttonList.append(button)
@@ -109,8 +124,7 @@ class PlaybackPage(QWidget):
         self.artistHeadLabel = QLabel(artistInfoFrame)
         self.artistHeadLabel.setGeometry(0, 0, 90, 90)
         self.artistHeadLabel.setScaledContents(True)
-        self.artistName = QLabel("未知", artistInfoFrame)
-        self.artistName.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.artistName = NewLabel(artistInfoFrame, True)
         self.artistName.setGeometry(0, 90, 90, 30)
         self.artistGender = QLabel("性别：未知", artistInfoFrame)
         self.artistGender.setGeometry(100, 0, 110, 30)
@@ -123,32 +137,40 @@ class PlaybackPage(QWidget):
         self.artistBirthplace = QLabel("出生地：未知", artistInfoFrame)
         self.artistBirthplace.setGeometry(100, 90, 210, 30)
         self.artistDetail = MyTextEdit(artistInfoFrame)
-        self.artistDetail.setGeometry(0, 120, 360, 310)
+        self.artistDetail.setGeometry(0, 120, 352, 300)
         self.artistDetail.setStyleSheet("font-family:微软雅黑;font-size:18px;color:black;")
         
         #刷新歌手信息缓存按键
-        self.refreshBtn = QPushButton('刷新', artistInfoFrame)
-        self.refreshBtn.setStyleSheet("background:rgb(210,240,240);color:blue;")
-        self.refreshBtn.setGeometry(315, 85, 40, 30)
+        self.refreshBtn = QToolButton(artistInfoFrame)
+        self.refreshBtn.setFocusPolicy(Qt.NoFocus)
+        self.refreshBtn.setIcon(QIcon(IconsHub.Refresh))
+        self.refreshBtn.setIconSize(QSize(40, 40))
+        self.refreshBtn.setToolTip("刷新歌手信息")
+        self.refreshBtn.setStyleSheet("background:transparent;")
+        self.refreshBtn.setGeometry(315, 80, 40, 40)
         
 #歌词各控件
         self.lyricOperateButton = QPushButton(clicked = self.show_lyric_operate_widget)
         self.lyricOperateButton.setStyleSheet("QPushButton:hover{border:2px solid lightgray;border-color:white;background:rgb(210,240,240)}"
                                                             "QPushButton{border:2px;background:transparent}")
-        self.lyricOperateButton.setIcon(QIcon(":/iconSources/icons/setting.png"))
+        self.lyricOperateButton.setIcon(QIcon(IconsHub.Settings))
+        self.lyricOperateButton.setFocusPolicy(Qt.NoFocus)
         self.lyricOperateButton.setIconSize(QSize(25, 25))
         
         self.desktopLyricButton = QPushButton(clicked = self.show_desktop_lyric)
+        self.desktopLyricButton.setFocusPolicy(Qt.NoFocus)
         self.desktopLyricButton.setStyleSheet("QPushButton:hover{border:2px solid lightgray;border-color:white;background:rgb(210,240,240)}"
                                                             "QPushButton{border:2px;background:transparent}")
-        self.desktopLyricButton.setIcon(QIcon(":/iconSources/icons/desktopLyric.png"))
+        self.desktopLyricButton.setIcon(QIcon(IconsHub.DesktopLyric))
         self.desktopLyricButton.setIconSize(QSize(25, 25))
 
         self.lyricOffsetSButton = QPushButton()
+        self.lyricOffsetSButton.setFocusPolicy(Qt.NoFocus)
         self.lyricOffsetSButton.setFixedSize(25, 25)
         self.lyricOffsetSButton.setText('S')
         
         self.lyricOffsetCombo = QComboBox()
+        self.lyricOffsetCombo.setFocusPolicy(Qt.NoFocus)
 #        self.lyricOffsetCombo.setStyleSheet("font-size:15px;color:blue")
         self.lyricOffsetCombo.setFixedSize(70, 25)
         self.lyricOffsetCombo.insertItem(0, '提前')
@@ -157,6 +179,7 @@ class PlaybackPage(QWidget):
         self.lyricOffsetCombo.setCurrentIndex(2)
         
         self.lyricOffsetSlider = QSlider(Qt.Horizontal)
+        self.lyricOffsetSlider.setFocusPolicy(Qt.NoFocus)
         self.lyricOffsetSlider.setMinimumWidth(130)
         self.lyricOffsetSlider.setPageStep(1)
         self.lyricOffsetSlider.setRange(0, 0)
@@ -198,15 +221,8 @@ class PlaybackPage(QWidget):
         hbox_dtc.addWidget(label_b)
         hbox_dtc.addWidget(self.colorSpins[2])
         
-        
-
 #歌词文本框
-#        self.lyricText = QTextEdit()
-##        self.lyricText.setLineWrapMode(QTextEdit.FixedPixelWidth)
-##        self.lyricText.setLineWrapColumnOrWidth(358)
-#        self.lyricText.setContextMenuPolicy(Qt.NoContextMenu)
         self.lyricText = MyTextEdit()
-        self.lyricText.setFixedSize(360, 430)
         self.document = self.lyricText.document()
         self.lyricText.setAlignment(Qt.AlignHCenter)
         self.lyricText.setStyleSheet("font-family:'微软雅黑';font-size:23px;color:black;")
@@ -239,13 +255,15 @@ class PlaybackPage(QWidget):
         self.stackedWidget = QStackedWidget(self)
         self.stackedWidget.addWidget(self.lyricText)
         self.stackedWidget.addWidget(artistInfoFrame)
-        self.stackedWidget.addWidget(self.musicTable)
+        self.stackedWidget.addWidget(self.musicList)
 
 #综合布局
         hbox2 = QHBoxLayout()
         hbox2.setContentsMargins(13, 15, 13, 11)
         hbox2.addWidget(self.timeLabel1)
+        hbox2.addSpacing(3)
         hbox2.addWidget(self.seekSlider)
+        hbox2.addSpacing(8)
         hbox2.addWidget(self.timeLabel2)
         
         widget1 = QWidget(self)
@@ -259,17 +277,17 @@ class PlaybackPage(QWidget):
         
         mainLayout = QVBoxLayout(widget1)
         mainLayout.setSpacing(0)
-        mainLayout.setContentsMargins(2, 2, 2, 2)
+        mainLayout.setContentsMargins(6, 2, 6, 6)
         mainLayout.addLayout(hbox3)
         mainLayout.addWidget(self.stackedWidget)
         mainLayout.addLayout(hbox2)
 
-        widget1.setGeometry(0, 0, 365, 520)
-        self.playmodeButton.setGeometry(0, 520, 60, 60)
-        self.previousButton.setGeometry(65, 515, 70, 70)
-        self.playButton.setGeometry(140, 510, 80, 80)
-        self.nextButton.setGeometry(225, 515, 70, 70)
-        self.favoriteButton.setGeometry(300, 520, 60, 60)
+        widget1.setGeometry(0, 0, 364, 520)
+        self.playmodeButton.setGeometry(0, 515, 60, 60)
+        self.previousButton.setGeometry(65, 510, 70, 70)
+        self.playButton.setGeometry(140, 505, 80, 80)
+        self.nextButton.setGeometry(225, 510, 70, 70)
+        self.favoriteButton.setGeometry(300, 515, 60, 60)
     
     def create_connections(self):
         self.desktopLyric.hide_desktop_lyric_signal.connect(self.show_desktop_lyric)
@@ -285,11 +303,14 @@ class PlaybackPage(QWidget):
         self.desktopLyric.set_color(self.colorSpins[0].value(), self.colorSpins[1].value(), self.colorSpins[2].value())
     
     def set_artist_info(self, artist):
+        errorHanppen = False
         try:
             infoPath = SearchOnline.get_artist_info_path(artist)
             if infoPath:
                 with open(infoPath, 'r+') as f:
                     info = f.read()
+                if not info:
+                    errorHanppen = True
                 infoList = json.loads(info)
                 name = infoList['name']
                 birthday = infoList['birthday']
@@ -311,7 +332,6 @@ class PlaybackPage(QWidget):
                 if not constellation:
                     constellation = '神马座'
                 info = infoList['info']
-                infos = info.split('<br>')
                 self.artistName.setText(name)
                 self.artistBirthday.setText('生日：' + birthday)
                 self.artistBirthplace.setText('出生地：' + birthplace)
@@ -320,32 +340,34 @@ class PlaybackPage(QWidget):
                 self.artistGender.setText('性别：' + gender)
                 self.artistConstellation.setText('星座：' + constellation)
                 self.artistDetail.clear()
-                if infos:
-                    for line in infos:
-                        self.artistDetail.append(line)
-                else:
-                    self.artistDetail.setText("未找到歌手的详细信息")
+                if not info:
+                    info = "未找到歌手的详细信息"
                 cur = self.artistDetail.textCursor()
                 cur.setPosition(0, QTextCursor.MoveAnchor)
                 self.artistDetail.setTextCursor(cur)
             else:
-                self.artistName.setText(aritist)
-                self.artistBirthday.setText('生日：' + '不是今天')
-                self.artistBirthplace.setText('出生地：' + '地球')
-#                self.artistCountry.setText('国籍：' + country)
-                self.artistLanguage.setText('语言：' + '地球语')
-                self.artistGender.setText('性别：' + '男/女')
-                self.artistConstellation.setText('星座：' + '神马座')
-                self.artistDetail.clear()
-                self.artistDetail.setText("未找到歌手的详细信息")
-                self.artistDetail.setAlignment(Qt.AlignHCenter)
+                errorHanppen = True
             imagePath = SearchOnline.get_artist_image_path(artist)
             if imagePath:
                 pixmap = QPixmap(imagePath)
             else:
-                pixmap = QPixmap(":/iconSources/icons/anonymous.png")
+                pixmap = QPixmap(IconsHub.Anonymous)
         except:
-            pixmap = QPixmap(":/iconSources/icons/anonymous.png")
+            print('load artistinfo failed')
+            pixmap = QPixmap(IconsHub.Anonymous)
+            errorHanppen = True
+        if errorHanppen:
+            self.artistName.setText(artist)
+            self.artistBirthday.setText('生日：' + '不是今天')
+            self.artistBirthplace.setText('出生地：' + '地球')
+#                self.artistCountry.setText('国籍：' + country)
+            self.artistLanguage.setText('语言：' + '地球语')
+            self.artistGender.setText('性别：' + '男/女')
+            self.artistConstellation.setText('星座：' + '神马座')
+            self.artistDetail.clear()
+            info  = "未找到歌手的详细信息"
+            self.artistDetail.setAlignment(Qt.AlignHCenter)
+        self.artistDetail.setHtml(self.get_artist_detail_style_text(info))
         self.artistHeadLabel.setPixmap(pixmap)
         return pixmap
     
@@ -390,29 +412,28 @@ class PlaybackPage(QWidget):
         self.lyricOffset = lyricOffset
         self.lyric_offset_changed_signal.emit(self.lyricOffset)
     
-    def set_html(self, index, lyricDict, t):
+    def set_html(self, index, lyricDict, t, extraBlocks=10):
         htmlList = ['<body><center>']
-        for k in range(10):
+        for k in range(extraBlocks):
             htmlList.append("<br></br>")
         for i in range(len(t)):
             if i == index:
-                size = '36'
-                color = 'yellow'
+                size = '20'
+                color = 'white'
             else:
-                size = '23'
+                size = '16'
                 color = 'black'
             htmlList.append("<p style = 'color:%s;font-size:%spx;'>%s</p>"%(color, size, lyricDict[t[i]]))
-        for i in range(3):
+        for i in range(6):
             htmlList.append("<br></br>")
         htmlList.append('</body></center>')
-        html = "".join(htmlList)
+        html = ''.join(htmlList)
         self.lyricText.setHtml(html)
-#        print('blockcount %i'%self.playbackPage.document.textWidth())
         self.jump_to_line(index)
         
     def jump_to_line(self, index):
         block = self.document.findBlockByLineNumber(index)
-        print('%s %i'%(block.text(), block.blockNumber()))
+        #print('%s %i'%(block.text(), block.blockNumber()))
         lines =  (block.layout().lineCount() - 1) / 2
         pos = block.position()
         cur = self.lyricText.textCursor()
@@ -421,27 +442,20 @@ class PlaybackPage(QWidget):
         self.lyricText.setTextCursor(cur)
         vscrollbar = self.lyricText.verticalScrollBar()
 #        print('scrollbar %i'%vscrollbar.value())
-        vscrollbar.setValue(vscrollbar.value() + 48 * (4 + lines))
+        vscrollbar.setValue(vscrollbar.value() + 49 * (4 + lines))
     
     def no_matched_lyric(self):
         self.lyricText.clear()
-        self.lyricText.setAlignment(Qt.AlignHCenter)
-        for k in range(7):
-            if k == 3:
-                self.lyricText.append('搜索不到匹配的歌词！')
-            else:
-                self.lyricText.append(' ')
-        
+        self.lyricText.setHtml(self.get_lyric_style_text('搜索不到匹配的歌词！'))
+        self.lyricText.setAlignment(Qt.AlignHCenter)        
     
     def url_error_lyric(self):
         self.lyricText.clear()
+        self.lyricText.setHtml(self.get_lyric_style_text('网络连接错误！'))
         self.lyricText.setAlignment(Qt.AlignHCenter)
-        for k in range(7):
-            if k == 3:
-                self.lyricText.append('网络连接错误！')
-            else:
-                self.lyricText.append(' ')
-        
+    
+    def get_lyric_style_text(self, text):
+        return "<p style = 'color:white;font-size:20px;'><br><br><br><br><br><br><br>%s</p>"%text
             
     def lyric_offset_type(self, index):
         self.lyricOffsetIndex = index
@@ -487,6 +501,7 @@ class PlaybackPage(QWidget):
     
     def show_music_table(self):
         self.stacked_widget_change_index(2)
+        self.select_current_row_signal.emit()
     
     def stacked_widget_change_index(self, givenIndex):
         if self.stackedWidget.currentIndex() != givenIndex:
@@ -507,32 +522,36 @@ class PlaybackPage(QWidget):
             self.dtcWidget.hide()
     
     def ui_initial(self):
-        self.musicNameLabel.setText("未知")
-        self.artistHeadLabel.setPixmap(QPixmap(":/iconSources/icons/anonymous.png"))
+        self.musicNameLabel.setText("XYPLAYER")
+        self.artistHeadLabel.setPixmap(QPixmap(IconsHub.HeadIcon))
         self.artistName.setText("Zheng-Yejian")
         self.artistBirthday.setText("生日：1992.10.18")
         self.artistBirthplace.setText("出生地：福建")
         self.artistLanguage.setText("语言：国语")
         self.artistGender.setText("性别：男")
         self.artistConstellation.setText("星座：天秤座")
-        self.artistDetail.setText("大家好，我是作者！！！")
-        textsList = ["作者：Zheng-Yejian",
-                            " ",
-                            "电联： <1035766515@qq.com>",
-                            " ",
-                            "声明：Use of this source code is governed by GPLv3 license that can be found in the LICENSE file. ",
-                            " ", 
-                            "版本: %s "%app_version,
-                            " ", 
-                            "简介: This is a simple musicplayer that can search, play, download musics from the Internet."]
+        self.artistDetail.setHtml(self.get_artist_detail_style_text('大家好，我是作者！！！'))
+        authorInfo = ("<p style='color:white;font-size:20px;'>作者：Zheng-Yejian"
+                            "<br /><br />"
+                            "邮箱： 1035766515@qq.com"
+                            "<br /><br />"
+                            "声明：Use of this source code is governed by GPLv3 license that can be found in the LICENSE file. "
+                            "<br /><br />"
+                            "版本: %s "
+                            "<br /><br />"
+                            "简介: This is a simple musicplayer that can search, play, download musics from the Internet.</p>"%app_version)
         self.lyricText.clear()
-        for line in textsList:
-            self.lyricText.append(line)
+        self.musicList.clear_list()
+        self.lyricText.setHtml(authorInfo)
         cur = self.lyricText.textCursor()
         cur.setPosition(0, QTextCursor.MoveAnchor)
         self.lyricText.setTextCursor(cur)
         self.seekSlider.setRange(0, 0)
-        self.favoriteButton.setIcon(QIcon(":/iconSources/icons/favorite.png"))
+        self.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
+        self.favoriteButton.setToolTip('收藏')
+    
+    def get_artist_detail_style_text(self, text):
+        return "<p style='color:white;font-size:18px;'>%s</p>"%text
         
     def show_desktop_lyric(self):
         if self.desktopLyric.isHidden():
@@ -545,4 +564,32 @@ class PlaybackPage(QWidget):
             self.desktopLyric.hide()
 #            self.desktopLyricButton.setToolTip('开启桌面歌词')        
         self.desktop_lyric_state_changed_signal.emit(beToOff)
-        
+    
+    def change_playmode(self):
+        oldPlaymode = self.playmode
+        if self.playmode == Configures.PlaymodeRandom:
+            self.set_new_playmode(Configures.PlaymodeOrder)
+        elif self.playmode == Configures.PlaymodeOrder:
+            self.set_new_playmode(Configures.PlaymodeSingle)
+        elif self.playmode == Configures.PlaymodeSingle:
+            self.set_new_playmode(Configures.PlaymodeRandom)
+        self.playmode_changed_signal.emit(oldPlaymode, self.playmode)
+
+    def set_new_playmode(self, playmode):
+        self.playmode = playmode
+        if playmode == Configures.PlaymodeRandom:
+            iconPath = IconsHub.PlaymodeRandom
+            toolTip = Configures.PlaymodeRandomText
+        elif playmode == Configures.PlaymodeOrder:
+            iconPath = IconsHub.PlaymodeOrder
+            toolTip = Configures.PlaymodeOrderText
+        else:
+            iconPath = IconsHub.PlaymodeSingle
+            toolTip = Configures.PlaymodeSingleText
+        self.playmodeButton.setIcon(QIcon(iconPath))
+        self.playmodeButton.setToolTip(toolTip)
+            
+            
+            
+            
+            

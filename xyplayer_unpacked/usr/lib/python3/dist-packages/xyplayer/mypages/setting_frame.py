@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *  
 from PyQt5.QtCore import *  
+from xyplayer.iconshub import IconsHub
 from xyplayer.mypages import time_out, mount_out, pathset_frame, about_page
 from xyplayer.mywidgets import ToolButton, LabelButton
   
@@ -9,15 +10,13 @@ class SettingFrame(QLabel):
     changeMuting = pyqtSignal(bool)
     def __init__(self, parent = None):  
         super(SettingFrame, self).__init__(parent)  
-        self.setAttribute(Qt.WA_QuitOnClose,False)
+        self.setAttribute(Qt.WA_QuitOnClose, False)
         self.setup_ui()
         self.create_connections()
         self.dragPosition=None  
     
     def setup_ui(self):
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setStyleSheet("QTabWidget{background:transparent;}"
-                                        "QLabel{font-family:'微软雅黑';font-size:15px;color:white;}")
+        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
         
 #定时退出页面
         self.timeoutDialog = time_out.TimeoutDialog()
@@ -35,21 +34,24 @@ class SettingFrame(QLabel):
         self.playerMuted  = False
         self.muteButton = QToolButton(clicked=self.mute_clicked)
         self.muteButton.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
-        self.volumeSlider = QSlider(Qt.Horizontal, sliderMoved=self.changeVolume)
+        self.volumeSlider = QSlider(Qt.Horizontal, valueChanged=self.changeVolume)
+        self.volumeSlider.setFocusPolicy(Qt.NoFocus)
         self.volumeSlider.setRange(0, 100)
         self.volumeSlider.setValue(75)
         self.volumeSlider.setFixedSize(QSize(270, 25))
          
-        self.downloadPathButton = ToolButton(":/iconSources/icons/download_path.png", "下载路径")
-        self.mountoutExitButton = ToolButton(":/iconSources/icons/mountout_exit.png", "计数退出")
-        self.timeoutExitButton = ToolButton(":/iconSources/icons/timeout_exit.png", "定时退出")
-        self.aboutButton = ToolButton(":/iconSources/icons/info.png", "关于")
+        self.downloadPathButton = ToolButton(IconsHub.DownloadPath, "下载路径")
+        self.mountoutExitButton = ToolButton(IconsHub.ExitmodeCountout, "计数退出")
+        self.timeoutExitButton = ToolButton(IconsHub.ExitmodeTimeout, "定时退出")
+        self.aboutButton = ToolButton(IconsHub.Info, "关于")
 
 #标题栏标签
         self.titleLabel = QLabel('个人设置')
-        self.titleLabel.setFixedWidth(60)
+        self.titleLabel.setFixedWidth(70)
+        self.titleLabel.setStyleSheet('color:cyan;')
         self.titlePic = LabelButton()
-        pixmap = QPixmap(":/iconSources/icons/more_functions.png")
+        self.titlePic.setStyleSheet('background:transparent')
+        pixmap = QPixmap(IconsHub.Preference)
         self.titlePic.setFixedSize(15, 15)
         self.titlePic.setScaledContents(True)
         self.titlePic.setPixmap(pixmap)
@@ -57,12 +59,11 @@ class SettingFrame(QLabel):
 #状态栏标签
         self.stateLabel = QLabel()
         self.stateLabel.setFixedHeight(25)
-#        self.stateLabel.setAlignment(Qt.AlignVCenter | Qt.AlignHCenter)
         self.stateLabel.setStyleSheet("font-family:'微软雅黑';font-size:14px;color:red")
-#        self.stateLabel.setStyleSheet("background:transparent")
 
 #返回按键
         self.backButton = QPushButton()
+        self.backButton.setFocusPolicy(Qt.NoFocus)
         self.backButton.setFixedSize(50, 30)
         
 #综合布局
@@ -90,20 +91,15 @@ class SettingFrame(QLabel):
         self.mainStack = QStackedWidget()
         self.mainStack.setFixedWidth(354)
         self.mainStack.addWidget(buttonWidget)
-#        self.mainStack.setStyleSheet('background:black')
         self.mainStack.addWidget(self.mountoutDialog)
         self.mainStack.addWidget(self.timeoutDialog)
         self.mainStack.addWidget(self.pathsetFrame)
         self.mainStack.addWidget(self.aboutPage)
 
         mainLayout = QVBoxLayout(self)
-  #      mainLayout.setSpacing(6)
-        mainLayout.setContentsMargins(0, 3, 0, 3)
+        mainLayout.setContentsMargins(0, 6, 0, 5)
         mainLayout.addLayout(titleLayout)
-#        mainLayout.addWidget(self.stateLabel)
-        #mainLayout.addSpacing(3)
         mainLayout.addWidget(self.mainStack)
-       # mainLayout.addSpacing(0)
         mainLayout.addLayout(hbox_vlmsld)
         mainLayout.addSpacing(21)
     
@@ -131,15 +127,17 @@ class SettingFrame(QLabel):
     
     def mousePressEvent(self,event):  
         if event.button()==Qt.RightButton:  
-            if self.mainStack.currentIndex() != 0:
-                self.show_main()
-            else:
-                self.close()  
+            self.go_back()
+    
+    def go_back(self):
+        self.show_main() 
 
     def show_main(self):
         if self.mainStack.currentIndex() != 0:
             self.mainStack.setCurrentIndex(0)
             self.titleLabel.setText("个人设置")
+        else:
+            self.hide()
         
     def show_mountout_dialog(self):
         self.mainStack.setCurrentIndex(1)

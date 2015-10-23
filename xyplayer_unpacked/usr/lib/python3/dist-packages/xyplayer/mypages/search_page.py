@@ -1,5 +1,4 @@
 import os
-import time
 import threading
 from PyQt5.QtWidgets import (
     QWidget, QMessageBox,QHBoxLayout, QComboBox, QPushButton, 
@@ -7,6 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QCursor
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from xyplayer import Configures
+from xyplayer.iconshub import IconsHub
 from xyplayer.mytables import SearchTable, TableModel
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
@@ -14,7 +14,7 @@ from xyplayer.urlhandle import SearchOnline
 class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()
     add_bunch_to_list_succeed = pyqtSignal()
-    listen_online_signal = pyqtSignal(str, str, str)
+    listen_online_signal = pyqtSignal(str, str, str, str)
     listen_local_signal = pyqtSignal(str)
     add_to_download_signal = pyqtSignal()
     back_to_main_signal = pyqtSignal()
@@ -23,7 +23,6 @@ class SearchFrame(QWidget):
         super(SearchFrame, self).__init__(parent)
         self.setup_ui()
         self.create_connections()
-        self.jumpPageFlag = 0
     
     def setup_ui(self):
         self.searchTable = SearchTable()
@@ -32,33 +31,35 @@ class SearchFrame(QWidget):
         self.searchTable.setColumnWidth(2, 100)
         self.searchTable.setColumnWidth(3, 100)
         self.searchButton = QPushButton(clicked = self.search_musics)
+        self.searchButton.setFocusPolicy(Qt.NoFocus)
         self.searchButton.setFixedSize(QSize(33, 33))
         self.searchButton.setIconSize(QSize(20, 20))
-        self.searchButton.setIcon(QIcon(":/iconSources/icons/search.png"))
+        self.searchButton.setIcon(QIcon(IconsHub.Search))
 
 #返回按键
         self.backButton = QPushButton(clicked = self.back_to_main_signal.emit)
+        self.backButton.setFocusPolicy(Qt.NoFocus)
         self.backButton.setStyleSheet("font-size:15px")
         self.backButton.setFixedSize(25, 33)
-        self.backButton.setIcon(QIcon(":/iconSources/icons/back.png"))
+        self.backButton.setIcon(QIcon(IconsHub.Back))
         self.backButton.setIconSize(QSize(20, 20))
 
 #搜索框的3个部件
-        self.lineEdit = QLineEdit()                
-#        self.lineEdit.setStyleSheet("font-size:16px")
+        self.lineEdit = QLineEdit()    
         self.lineEdit.setFixedHeight(33)
-        self.lineEdit.setFocusPolicy(Qt.ClickFocus)
+        self.lineEdit.setFocusPolicy(Qt.StrongFocus)
         self.clearButton = QToolButton(clicked = self.lineEdit.clear)
         self.clearButton.setCursor(Qt.ArrowCursor)
         self.clearButton.setFixedSize(32, 32)
-        self.clearButton.setIcon(QIcon(":/iconSources/icons/delete.png"))
+        self.clearButton.setFocusPolicy(Qt.NoFocus)
+        self.clearButton.setIcon(QIcon(IconsHub.Delete))
         self.clearButton.setIconSize(QSize(20, 20))
         self.clearButton.hide()
         
         self.searchComboBox = QComboBox()
-        musicIcon = QIcon(":/iconSources/icons/music.png")
-        artistIcon = QIcon(":/iconSources/icons/artist.png")
-        albumIcon = QIcon(":/iconSources/icons/album.png")       
+        musicIcon = QIcon(IconsHub.SearchMusictitle)
+        artistIcon = QIcon(IconsHub.SearchArtist)
+        albumIcon = QIcon(IconsHub.SearchAlbum)       
         self.searchComboBox.setIconSize(QSize(20, 20))
         self.searchComboBox.insertItem(0, musicIcon, "歌曲")
         self.searchComboBox.insertItem(1, artistIcon, "歌手")
@@ -67,22 +68,30 @@ class SearchFrame(QWidget):
         self.searchComboBox.setCursor(Qt.ArrowCursor)
         
         self.firstPageButton = QPushButton("首页", clicked = self.jump_to_first_page)
+        self.firstPageButton.setFocusPolicy(Qt.NoFocus)
         self.firstPageButton.setFixedHeight(31)
         self.lastPageButton = QPushButton("末页", clicked = self.jump_to_last_page)
+        self.lastPageButton.setFocusPolicy(Qt.NoFocus)
         self.lastPageButton.setFixedHeight(31)
         
         self.previousPageButton = QPushButton("上一页")
+        self.previousPageButton.setFocusPolicy(Qt.NoFocus)
         self.previousPageButton.setFixedHeight(31)
         
         self.nextPageButton = QPushButton('下一页')
+        self.nextPageButton.setFocusPolicy(Qt.NoFocus)
         self.nextPageButton.setFixedHeight(31)
         
         self.jumpNum = QLineEdit('0')
-        self.jumpNum.setStyleSheet("font-size:16px")
+        self.jumpNum.setFocusPolicy(Qt.StrongFocus)
+        self.jumpNum.setStyleSheet("font-size:15px")
         self.jumpNum.setFixedSize(84, 31)
         self.jumpNum.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
         self.pageNum = QLabel("/ 0")
+        self.pageNum.setStyleSheet(
+            "QLabel:hover{color:green;font-size:15px}" 
+            "QLabel{background:rgb(210,240,240);color:blue;font-size:15px}")
         self.pageNum.setFixedSize(45, 31)
         self.pageNum.setAlignment(Qt.AlignLeft | Qt.AlignVCenter )
 
@@ -147,9 +156,8 @@ class SearchFrame(QWidget):
         
         self.previousPageButton.clicked.connect(self.previous_page)
         self.nextPageButton.clicked.connect(self.next_page)
-        self.jumpNum.returnPressed.connect(self.return_pressed_go_to_page)
-        
-        self.lineEdit.returnPressed.connect(self.return_pressed_search_musics)
+        self.jumpNum.returnPressed.connect(self.go_to_page)
+        self.lineEdit.returnPressed.connect(self.search_musics)
         self.searchComboBox.currentIndexChanged.connect(self.searchtype_changed)
 
         self.searchTable.switchToOnlineListAction.triggered.connect(self.switch_to_online_list)
@@ -158,17 +166,6 @@ class SearchFrame(QWidget):
         self.searchTable.listenOnlineAction.triggered.connect(self.listen_online)
         self.searchTable.downloadAction.triggered.connect(self.download)
         self.searchTable.addBunchToListAction.triggered.connect(self.add_bunch_to_list)
-    
-#    def eventFilter(self, target, event):
-#        if target == self.searchTable:
-#            if event.type() == QEvent.Resize:
-#                width = self.searchTable.width()
-#                widthTemp = (width-35)/3
-#                self.searchTable.setColumnWidth(0, 35)
-#                self.searchTable.setColumnWidth(1, widthTemp)
-#                self.searchTable.setColumnWidth(2, widthTemp)
-#                self.searchTable.setColumnWidth(3, widthTemp)
-#        return False
     
     def show_tooltip(self, row):
         mark = self.searchTable.item(row, 0).text()
@@ -183,7 +180,12 @@ class SearchFrame(QWidget):
     def listen_online(self):
         if not self.searchTable.rowCount():
             return
-        self.searchtable_clicked(self.searchTable.currentRow())
+        selections = self.searchTable.selectionModel()
+        selecteds = selections.selectedIndexes()
+        if not len(selecteds):
+            return
+        row = selecteds[0].row()
+        self.searchtable_clicked(row)
             
     def searchtable_clicked(self, row):
         musicName = self.searchTable.item(row, 1).text()
@@ -194,37 +196,29 @@ class SearchFrame(QWidget):
         songLink = SearchOnline.get_song_link(musicId)
         if not songLink:
             return
-        songLinkWrap = songLink + '~' + musicId
-        thread = DownloadLrcThread([title, songLinkWrap])
+        thread = DownloadLrcThread([title, musicId])
         thread.setDaemon(True)
         thread.setName('downloadLrc')
         thread.start()
-        self.listen_online_signal.emit(title, album, songLinkWrap)
+        self.listen_online_signal.emit(title, album, songLink, musicId)
     
     def add_bunch_to_list(self):
+        """向“在线试听”列表批量添加歌曲。"""
         selections = self.searchTable.selectionModel()
         selecteds = selections.selectedIndexes()
         if not len(selecteds):
             return
         model = TableModel()
-        model.initial_model("在线试听")
-        songsInOnlineList = []
+        model.initial_model(Configures.PlaylistOnline)
+        musicIdsInOnlineList = []
         self.added_items = []
-        t1 = time.time()
         for i in range(model.rowCount()):
-            songsInOnlineList.append(model.record(i).value("paths"))
-        t2 = time.time()
-        print(t2-t1)
-        self.setCursor(QCursor(Qt.BusyCursor))
+            musicIdsInOnlineList.append(model.get_record_musicId(i))
         for index in selecteds:
             if index.column() == 0:
                 row = index.row()
                 musicId = self.searchTable.item(row, 4).text()
-                songLink = SearchOnline.get_song_link(musicId)
-                if not songLink:
-                    continue
-                songLinkWrap = songLink + '~' + musicId
-                if songLinkWrap  not in songsInOnlineList:
+                if musicId  not in musicIdsInOnlineList:
                     musicName = self.searchTable.item(row, 1).text()
                     artist = self.searchTable.item(row, 2).text()
                     title = artist + '._.' + musicName
@@ -233,26 +227,20 @@ class SearchFrame(QWidget):
                     lrcPath = os.path.join(Configures.lrcsDir, lrcName)
                     if os.path.exists(lrcPath):
                         os.remove(lrcPath)
-                    self.added_items.append([title, songLinkWrap])
-#                    SearchOnline.get_lrc_path(title, musicId)
-                    model.add_record(title, '未知', album, songLinkWrap, '0M')
+                    self.added_items.append([title, musicId])
+                    model.add_record(title, Configures.ZeroTime, album, Configures.NoLink, 0, musicId)
         if len(self.added_items):
             thread = DownloadLrcThread(self.added_items)
             thread.setDaemon(True)
             thread.setName("downloadLrc")
             thread.start()
             self.add_bunch_to_list_succeed.emit()
-        self.setCursor(QCursor(Qt.ArrowCursor))
-        print(time.time()-t2)
-        print("Success")
             
     def download(self):
         if not self.searchTable.rowCount():
             return
-#        t1 = time.time()
         hasExisted = []
-        linkError = []
-        self.toBeEmited = []
+        self.readyToDownloadSongs = []
         selections = self.searchTable.selectionModel()
         selecteds = selections.selectedIndexes()
         if  not len(selecteds):
@@ -276,26 +264,14 @@ class SearchFrame(QWidget):
                         continue
                 album = self.searchTable.item(row, 3).text()
                 musicId = self.searchTable.item(row, 4).text()
-                songLink = SearchOnline.get_song_link(musicId)
-                if not songLink:
-                    linkError.append(title)
-                    continue
-        #            QMessageBox.critical(self, '错误','链接错误，无法下载该歌曲！')
-        #            return
-#                songInfo = '->'.join([songLink, musicPath, title , album, musicId])
-                self.toBeEmited.append([songLink, musicPath, title , album, musicId])
-#        songInfos = json.dumps(toBeEmited)
+                songLink = Configures.NoLink
+                self.readyToDownloadSongs.append([songLink, musicPath, title , album, musicId])
         self.add_to_download_signal.emit()
         self.setCursor(QCursor(Qt.ArrowCursor))
-#        print('searchPageWidget.py searchFrame.download timecost = %s'%(time.time()-t1))
         if len(hasExisted):
             hasExistFiles = '\n'.join(hasExisted)
             self.show()
             QMessageBox.information(self, '提示','以下歌曲已在下载目录中，将不再进行下载！\n%s'%hasExistFiles)
-        if len(linkError):
-            linkErrorFiles = '\n'.join(linkError)
-            self.show()
-            QMessageBox.critical(self, '错误','以下歌曲链接出错，无法下载！\n%s'%linkErrorFiles)
     
     def searchtype_changed(self, index):
         if index == 0:
@@ -306,7 +282,6 @@ class SearchFrame(QWidget):
             self.searchByType = 'album'
         self.search_musics()
         
-    
     def go_to_page(self):
         if not self.currentKeyword:
             self.jumpNum.setText('%s'%self.currentPage)
@@ -330,15 +305,7 @@ class SearchFrame(QWidget):
             return
         self.show_musics(self.searchByType, self.currentKeyword, page - 1)    
         self.currentPage = page - 1
-        print("hahahhahahhahahahahh")
         self.pageNum.setFocus()
-    
-    def return_pressed_search_musics(self):
-        self.searchButton.setFocus()
-    
-    def return_pressed_go_to_page(self):
-        self.jumpPageFlag = 1
-        self.nextPageButton.setFocus()
     
     def search_musics(self):
         keyword = self.lineEdit.text()
@@ -366,15 +333,11 @@ class SearchFrame(QWidget):
         self.jumpNum.setText('%s'%(self.currentPage + 1))
         
     def next_page(self):
-        if not self.jumpPageFlag:
-            if self.currentPage  +  1 >= self.pages:
-                return
-            self.currentPage  += 1
-            self.show_musics(self.searchByType, self.currentKeyword, self.currentPage)
-            self.jumpNum.setText('%s'%(self.currentPage + 1))
-        else:
-            self.go_to_page()
-            self.jumpPageFlag = 0
+        if self.currentPage  +  1 >= self.pages:
+            return
+        self.currentPage  += 1
+        self.show_musics(self.searchByType, self.currentKeyword, self.currentPage)
+        self.jumpNum.setText('%s'%(self.currentPage + 1))
             
     def show_musics(self, searchByType, keyword, page):    
         self.searchTable.clear_search_table()

@@ -1,17 +1,15 @@
-from PyQt5.QtWidgets import QApplication,  QLabel, QMenu, QAction
+from PyQt5.QtWidgets import QLabel, QMenu, QAction
 from PyQt5.QtGui import QCursor, QPalette, QFont, QColor, QPainter, QLinearGradient, QPen
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint
+from xyplayer import desktopSize
 
 class DesktopLyric(QLabel):
     hide_desktop_lyric_signal = pyqtSignal()
-    
     def __init__(self):
         super(DesktopLyric, self).__init__()
         self.setAttribute(Qt.WA_QuitOnClose,False)
-        desktop = QApplication.desktop()
-        screenRec = desktop.screenGeometry()
-        self.desktopWidth = screenRec.width()
-        self.desktopHeight = screenRec.height()
+        self.desktopWidth = desktopSize.width()
+        self.desktopHeight = desktopSize.height()
         self.setGeometry((self.desktopWidth - 500)//2, self.desktopHeight-90, 500, 60)
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
