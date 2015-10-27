@@ -25,6 +25,19 @@ def format_position_to_mmss(value):
         return QTime(hours, minutes, seconds).toString('hh:mm:ss')
     return QTime(0, minutes, seconds).toString('mm:ss')
 
+def connect_as_title(artist, musicname):
+    return '%s%s%s'%(artist, Configures.Hyphen, musicname)
+
+def get_artist_and_musicname_from_title(title):
+    try:
+        l = title.split(Configures.Hyphen)
+        artist = l[0].strip()
+        musicName = l[1].strip()
+    except IndexError:
+        artist = '未知'
+        musicName = title.strip()
+    return artist, musicName
+
 def read_music_info(path):
     """读取歌曲的tag信息。"""
     audio = MP3(path)
@@ -41,7 +54,7 @@ def read_music_info(path):
     if not artist:
         title = musicname
     else:
-        title = artist + '._.' + musicname
+        title = connect_as_title(artist, musicname)
     return title,album, totalTime
 
 def list_to_seconds(timeTuple):
@@ -92,10 +105,9 @@ def parse_lrc(text):
 def write_tags(musicPath, title, album):
     audio = MP3(musicPath, ID3 = EasyID3)
     audio.clear()
-    songName = title.split('._.')[1]
-    artist = title.split('._.')[0]
-    audio['title'] = songName.strip()
-    audio['artist'] = artist.strip()
+    artist, musicname = get_artist_and_musicname_from_title(title)
+    audio['title'] = musicname
+    audio['artist'] = artist
     audio['album'] = album.strip()
     audio.save()
 
@@ -123,3 +135,6 @@ def convert_B_to_MB(bytes):
     """单位转换：B转到单位MB。"""
     mb = bytes / (1024 * 1024)
     return mb
+
+def get_full_music_name_from_title(title, musicType=Configures.MusicMp3):
+    return '%s.%s'%(title, musicType)

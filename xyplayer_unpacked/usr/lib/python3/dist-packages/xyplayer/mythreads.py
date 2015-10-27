@@ -23,7 +23,7 @@ class DownloadLrcThread(threading.Thread):
         while i < cnt and self.runPermit:
             title = self.list[i][0]
             try:
-                artist = title.split('._.')[0].strip()
+                artist = title.split(Configures.Hyphen)[0].strip()
                 SearchOnline.get_artist_image_path(artist)
             except:
                 pass
@@ -167,7 +167,7 @@ class DownloadThread(threading.Thread):
     def download_lrc_and_artistinfo(self, title, musicId):
         """下载歌曲的同时去下载对应的歌词、歌手信息等内容。"""
         lrcName = title + '.lrc'
-        lrcPath = os.path.join(Configures.lrcsDir, lrcName)
+        lrcPath = os.path.join(Configures.LrcsDir, lrcName)
         if os.path.exists(lrcPath):
             os.remove(lrcPath)
         list_temp = [(title, musicId)]

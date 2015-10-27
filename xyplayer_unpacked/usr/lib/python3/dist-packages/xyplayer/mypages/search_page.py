@@ -10,6 +10,7 @@ from xyplayer.iconshub import IconsHub
 from xyplayer.mytables import SearchTable, TableModel
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
+from xyplayer.utils import connect_as_title, get_full_music_name_from_title
 
 class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()
@@ -190,7 +191,7 @@ class SearchFrame(QWidget):
     def searchtable_clicked(self, row):
         musicName = self.searchTable.item(row, 1).text()
         artist = self.searchTable.item(row, 2).text()
-        title = artist + '._.' + musicName
+        title = connect_as_title(artist, musicName)
         album = self.searchTable.item(row, 3).text()
         musicId = self.searchTable.item(row, 4).text()
         songLink = SearchOnline.get_song_link(musicId)
@@ -221,10 +222,10 @@ class SearchFrame(QWidget):
                 if musicId  not in musicIdsInOnlineList:
                     musicName = self.searchTable.item(row, 1).text()
                     artist = self.searchTable.item(row, 2).text()
-                    title = artist + '._.' + musicName
+                    title = connect_as_title(artist, musicName)
                     album = self.searchTable.item(row, 3).text()
                     lrcName = title + '.lrc'
-                    lrcPath = os.path.join(Configures.lrcsDir, lrcName)
+                    lrcPath = os.path.join(Configures.LrcsDir, lrcName)
                     if os.path.exists(lrcPath):
                         os.remove(lrcPath)
                     self.added_items.append([title, musicId])
@@ -245,7 +246,7 @@ class SearchFrame(QWidget):
         selecteds = selections.selectedIndexes()
         if  not len(selecteds):
             return
-        with open(Configures.settingFile,  'r') as f:
+        with open(Configures.SettingFile,  'r') as f:
             downloadDir = f.read()
         self.setCursor(QCursor(Qt.BusyCursor))
         for index in selecteds:
@@ -253,8 +254,8 @@ class SearchFrame(QWidget):
                 row = index.row()
                 songName = self.searchTable.item(row, 1).text()
                 artist = self.searchTable.item(row, 2).text()
-                title = artist + '._.' + songName
-                musicName = title + '.mp3'
+                title = connect_as_title(artist, songName)
+                musicName = get_full_music_name_from_title(title)
                 musicPath = os.path.join(downloadDir, musicName)
                 if os.path.exists(musicPath):
                     hasExisted.append(title)
@@ -314,7 +315,7 @@ class SearchFrame(QWidget):
             return
         self.currentKeyword = keyword
         self.hit  =  self.show_musics(self.searchByType, self.currentKeyword, 0)
-        if self.hit == Configures.URLERROR:
+        if self.hit == Configures.UrlError:
             return
         self.currentPage = 0
         if self.hit:
@@ -342,9 +343,9 @@ class SearchFrame(QWidget):
     def show_musics(self, searchByType, keyword, page):    
         self.searchTable.clear_search_table()
         songs, hit = SearchOnline.search_songs(searchByType, keyword, page)
-        if hit == Configures.URLERROR:
+        if hit == Configures.UrlError:
             QMessageBox.critical(None, "错误", "联网出错！\n请检查网络连接是否正常！")     
-            return Configures.URLERROR
+            return Configures.UrlError
         if not songs or hit == 0:
             return hit
         for song in songs:

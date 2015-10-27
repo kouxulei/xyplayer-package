@@ -6,7 +6,7 @@ import zlib
 import base64
 from urllib import request, parse
 from xyplayer import Configures
-from xyplayer.utils import trace_to_keep_time
+from xyplayer.utils import trace_to_keep_time, get_artist_and_musicname_from_title
 
 reqCache = {}
 songLinkCache = {}
@@ -23,8 +23,8 @@ class SearchOnline(object):
         ])
         if url not in reqCache:    
             reqContent = SearchOnline.url_open(url)
-            if reqContent ==  Configures.URLERROR:
-                return (None, Configures.URLERROR)
+            if reqContent ==  Configures.UrlError:
+                return (None, Configures.UrlError)
             if not reqContent:
                 return (None, 0)    
             reqCache[url] = reqContent
@@ -34,9 +34,9 @@ class SearchOnline(object):
     def get_song_link(musicId):
         if musicId in songLinkCache:
             return songLinkCache[musicId][0]
-        url = 'http://antiserver.kuwo.cn/anti.s?response=url&type=convert_url&format=mp3&rid=MUSIC_%s'%musicId
+        url = 'http://antiserver.kuwo.cn/anti.s?response=url&type=convert_url&format=%s&rid=MUSIC_%s'%(Configures.MusicMp3, musicId)
         reqContent = SearchOnline.url_open(url)
-        if reqContent == Configures.URLERROR:
+        if reqContent == Configures.UrlError:
             print('联网出错')
 #            QMessageBox.critical(None, "错误", "联网出错！\n请检查网络连接是否正常！")     
             return None
@@ -51,7 +51,7 @@ class SearchOnline(object):
     
     def get_local_artist_info_path(artist):
         infoName = artist+'.info'
-        infoPath = os.path.join(Configures.artistInfosDir, infoName)
+        infoPath = os.path.join(Configures.ArtistinfosDir, infoName)
         return infoPath
     
     def get_artist_info_path(artist):
@@ -65,7 +65,7 @@ class SearchOnline(object):
         SearchOnline.parse_quote(artist)
         ])
         reqContent = SearchOnline.url_open(url)
-        if reqContent ==  Configures.URLERROR:
+        if reqContent ==  Configures.UrlError:
             return None
 #        if not reqContent:
 #            return None
@@ -81,7 +81,7 @@ class SearchOnline(object):
 
     def get_artist_image_path(artist):
         imageName = artist+'.jpg'
-        imagePath = os.path.join(Configures.imagesDir, imageName)
+        imagePath = os.path.join(Configures.ImagesDir, imageName)
         if os.path.exists(imagePath):
             return imagePath          
         infoPath = SearchOnline.get_artist_info_path(artist)
@@ -123,7 +123,7 @@ class SearchOnline(object):
     
     def is_lrc_path_exists(title):
         lrcName = title + '.lrc'
-        lrcPath = os.path.join(Configures.lrcsDir, lrcName)
+        lrcPath = os.path.join(Configures.LrcsDir, lrcName)
         if os.path.exists(lrcPath):
             return lrcPath
         return None
@@ -131,7 +131,7 @@ class SearchOnline(object):
     def  get_lrc_path(title, musicId):
         """获取歌词。"""
         lrcName = title+'.lrc'
-        lrcPath = os.path.join(Configures.lrcsDir, lrcName)
+        lrcPath = os.path.join(Configures.LrcsDir, lrcName)
         if musicId != Configures.LocalMusicId:
             lrcContent = SearchOnline.get_lrc_from_musicid(musicId)
         else:
@@ -139,8 +139,8 @@ class SearchOnline(object):
         with open(lrcPath, 'w') as f:
             if not lrcContent:
                 f.write('None')
-            elif lrcContent == Configures.URLERROR:
-                f.write('Configures.URLERROR')
+            elif lrcContent == Configures.UrlError:
+                f.write('Configures.UrlError')
             else:
                 f.write(lrcContent)
         return lrcPath
@@ -150,8 +150,7 @@ class SearchOnline(object):
 
     def get_lrc_from_title(title):
         try:
-            artist = title.split('._.')[0].strip()
-            songName = title.split('._.')[1].strip()
+            artist, songName = get_artist_and_musicname_from_title(title)
             print('searchOnline_%s'%artist)
             url = ''.join([
                 'http://search.kuwo.cn/r.s?ft=music&rn=1', '&newsearch=1&primitive=0&cluster=0&itemset=newkm&rformat=xml&encoding=utf8&artist=', 
@@ -161,15 +160,13 @@ class SearchOnline(object):
                 '&pn=0'
             ])
             reqContent = SearchOnline.url_open(url)
-            if reqContent ==  Configures.URLERROR:
-                return Configures.URLERROR
+            if reqContent ==  Configures.UrlError:
+                return Configures.UrlError
             if not reqContent:
                 return None
             songs, hit = SearchOnline.parse_songs_wrap(reqContent)
         except:
             return None
-#        if hit == Configures.URLERROR:
-#            return Configures.URLERROR
         if hit == 0 or  not songs:
             return None
         try:
@@ -177,10 +174,6 @@ class SearchOnline(object):
             if not musicId:
                 return None
             lrcContent = SearchOnline.get_lrc_from_musicid(musicId)
-#            if not lrcPath1: 
-#                return None
-#            if lrcPath1 == Configures.URLERROR:
-#                return Configures.URLERROR
             return lrcContent
         except:
             return None
@@ -214,7 +207,7 @@ class SearchOnline(object):
                 retries -= 1
                 time.sleep(0.05)
                 continue
-        return Configures.URLERROR
+        return Configures.UrlError
 
     def get_lrc_from_musicid(musicId):
         url = ('http://newlyric.kuwo.cn/newlyric.lrc?' + 
@@ -223,12 +216,12 @@ class SearchOnline(object):
         try:
             req = request.urlopen(url)
         except:
-            return Configures.URLERROR
+            return Configures.UrlError
         if req.status != 200 or req.reason != 'OK':
-            return Configures.URLERROR
+            return Configures.UrlError
         reqContent = req.read()
-        if reqContent ==  Configures.URLERROR:
-            return Configures.URLERROR
+        if reqContent ==  Configures.UrlError:
+            return Configures.UrlError
         if not reqContent:
             return None
         try:

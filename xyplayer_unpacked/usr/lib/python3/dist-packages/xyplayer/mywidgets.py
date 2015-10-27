@@ -5,7 +5,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QI
 from PyQt5.QtCore import pyqtSignal, Qt, QSize
 from xyplayer import Configures
 from xyplayer.iconshub import IconsHub
-from xyplayer.utils import convert_B_to_MB
+from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
@@ -84,7 +84,7 @@ class ToolButton(QToolButton):
 
         self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
 
-        self.setStyleSheet("background:transparent;color:black;")
+        self.setStyleSheet("background:transparent;color:black;font-size:16px")
         self.mouse_over  = False#鼠标是否移过
         self.mouse_press = False#鼠标是否按下
 
@@ -204,14 +204,9 @@ class NewListWidget(QWidget):
         self.setStyleSheet("QToolButton{background:transparent}"
                                     "QToolButton:hover{border:0px solid yellow;border-radius:18px;background:yellow}")
         self.setFocusPolicy(Qt.NoFocus)
-        try:
-            artistName = title.split('._.')[0]
-            musicName = title.split('._.')[1]
-        except:
-            artistName = '未知'
-            musicName = title
+        artistName, musicName = get_artist_and_musicname_from_title(title)
         imageName = artistName + '.jpg'
-        self.imagePath = os.path.join(Configures.imagesDir, imageName)
+        self.imagePath = os.path.join(Configures.ImagesDir, imageName)
         self.artistPicture = QLabel(self)
         self.artistPicture.setScaledContents(True)
         if os.path.exists(self.imagePath):

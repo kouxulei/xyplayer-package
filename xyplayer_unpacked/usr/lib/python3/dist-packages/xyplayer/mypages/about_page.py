@@ -25,7 +25,7 @@ class AboutPage(QWidget):
             '<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
             '<a style = "color:yellow;" href=https://github.com/Zheng-Yejian/xyplayer-package>deb包下载</a>'
             '<span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
-            '<a style = "color:yellow;" href="http://forum.ubuntu.org.cn/viewtopic.php?f=74&t=465335">软件发布</a>')
+            '<a style = "color:yellow;" href="http://forum.ubuntu.org.cn/viewtopic.php?f=74&t=465335">版本说明</a>')
 
 #使用说明
         specText = QTextEdit()
@@ -72,7 +72,7 @@ class AboutPage(QWidget):
         self.updateState.hide()
         
         self.changelogVersionNum = 0
-        if os.path.exists(Configures.changelog):
+        if os.path.exists(Configures.Changelog):
             changelogVersion = self.fill_changelog_text()
             self.changelogVersionNum = version_to_num(changelogVersion)
             if self.changelogVersionNum > app_version_num:
@@ -118,7 +118,7 @@ class AboutPage(QWidget):
         QDesktopServices.openUrl(QUrl(url))
     
     def fill_changelog_text(self):
-        with open(Configures.changelog, 'r+') as f:
+        with open(Configures.Changelog, 'r+') as f:
             version = f.readline().strip()
             content = f.read()
         f.close()
@@ -136,7 +136,7 @@ class AboutPage(QWidget):
             version = req.readline().decode().strip()
             versionNum = version_to_num(version)
             if versionNum != self.changelogVersionNum:
-                with open(Configures.changelog, 'w') as f:
+                with open(Configures.Changelog, 'w') as f:
                     content = req.read().decode()
                     content = '%s\n%s'%(version, content)
                     f.write(content)
@@ -158,7 +158,7 @@ class AboutPage(QWidget):
         versionOnly = self.newestVersion[1:]
         print(versionOnly)
         url = 'https://github.com/Zheng-Yejian/xyplayer-package/blob/master/xyplayer_%s_all.deb?raw=true'%versionOnly
-        debLocal =  '%s/xyplayer_%s_all.deb'%(Configures.debsDir, versionOnly)
+        debLocal =  '%s/xyplayer_%s_all.deb'%(Configures.DebsDir, versionOnly)
         if not os.path.exists(debLocal):
             fail = self.download_package(url, debLocal)
             if fail:

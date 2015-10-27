@@ -32,7 +32,7 @@ class PlayerUi(QDialog):
         self.setObjectName('xyplayer')
         self.setStyleSheet("#xyplayer{border-image: url(%s);background:transparent}"%IconsHub.Background)
         self.setWindowFlags(Qt.MSWindowsFixedSizeDialogHint | Qt.FramelessWindowHint)
-        self.setFixedWidth(370)
+        self.setFixedSize(370, 660)
         self.setGeometry((desktopSize.width() - 370)//2, 40, 370, 660)
         self.setAttribute(Qt.WA_QuitOnClose,True)
 

@@ -11,7 +11,7 @@ class PathsetFrame(QWidget):
         super(PathsetFrame, self).__init__(parent)
         label = QLabel("歌曲下载到：")
         label.setFixedHeight(35)
-        with open(Configures.settingFile,  'r') as f:
+        with open(Configures.SettingFile,  'r') as f:
             self.oldDir = f.read()
         self.lineEdit = QLineEdit("%s"%self.oldDir)
         self.settedPathLabel = QLabel("当前设置："+self.oldDir)
@@ -43,7 +43,7 @@ class PathsetFrame(QWidget):
     
     def select_dir(self):
         f = QFileDialog()
-        newDir = f.getExistingDirectory(self, "选择下载文件夹", Configures.homeDir, QFileDialog.ShowDirsOnly)
+        newDir = f.getExistingDirectory(self, "选择下载文件夹", Configures.HomeDir, QFileDialog.ShowDirsOnly)
         if newDir:
             self.lineEdit.setText(newDir)
     
@@ -57,7 +57,7 @@ class PathsetFrame(QWidget):
         if newDir != self.oldDir:
             if not os.path.exists(newDir):
                 os.mkdir(newDir)
-            with open(Configures.settingFile, 'w') as f:
+            with open(Configures.SettingFile, 'w') as f:
                 f.write(newDir)
             self.oldDir = newDir
             self.settedPathLabel.setText("当前设置："+newDir)
@@ -67,4 +67,4 @@ class PathsetFrame(QWidget):
         self.lineEdit.setText(self.oldDir)
     
     def default(self):
-        self.lineEdit.setText(Configures.musicsDir)
+        self.lineEdit.setText(Configures.MusicsDir)

@@ -10,7 +10,8 @@ from xyplayer import Configures, sqlOperator
 from xyplayer.iconshub import IconsHub
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
-from xyplayer.utils import read_music_info, parse_lrc, trace_to_keep_time, format_position_to_mmss
+from xyplayer.utils import (read_music_info, parse_lrc, trace_to_keep_time, get_full_music_name_from_title,
+    format_position_to_mmss, get_artist_and_musicname_from_title)
 from xyplayer.player_ui import PlayerUi
 
 class Player(PlayerUi):
@@ -97,10 +98,10 @@ class Player(PlayerUi):
         self.j = -5
         self.deleteLocalfilePermit = False
         try:
-            with open(Configures.settingFile, 'r') as f:
+            with open(Configures.SettingFile, 'r') as f:
                 self.downloadDir = f.read()
         except:
-            self.downloadDir = Configures.musicsDir
+            self.downloadDir = Configures.MusicsDir
         self.model.initial_model(Configures.PlaylistFavorite)
         self.lovedSongs = []  
         for i in range(0, self.model.rowCount()):
@@ -130,7 +131,7 @@ class Player(PlayerUi):
 
     def open_download_dir(self, name):
         """点击下载任务标题栏打开下载目录。"""
-        with open(Configures.settingFile, 'r') as f:
+        with open(Configures.SettingFile, 'r') as f:
             downloadDir = f.read()
         print(downloadDir)
         QDesktopServices.openUrl(QUrl.fromLocalFile(downloadDir))
@@ -150,12 +151,7 @@ class Player(PlayerUi):
         album = model.record(row).value("album")
         timeLength = model.record(row).value("length")
         path = model.record(row).value("paths")
-        try:
-            artist = title.split('._.')[0]
-            musicName = title.split('._.')[1]
-        except IndexError:
-            artist = '未知'
-            musicName = title
+        artist, musicName = get_artist_and_musicname_from_title(title)
         if musicName:
             information = "歌手：%s\n曲名：%s\n时长：%s\n专辑：%s\n路径：%s"%(artist, musicName, timeLength, album, path)
         else:
@@ -319,9 +315,9 @@ class Player(PlayerUi):
         path = record.value("paths")
         title = record.value("title")
         if self.playTable == Configures.PlaylistOnline:
-            musicName = title + '.mp3'
+            musicName = get_full_music_name_from_title(title)
             musicPath = os.path.join(self.downloadDir, musicName)
-            musicPathO = os.path.join(Configures.musicsDir, musicName)
+            musicPathO = os.path.join(Configures.MusicsDir, musicName)
             if not os.path.exists(musicPath) and not os.path.exists(musicPathO):
                 QMessageBox.information(self, '提示', '请先下载该歌曲再添加喜欢！')
                 return
@@ -413,9 +409,9 @@ class Player(PlayerUi):
                 title = self.managePage.listsFrame.model.get_record_title(row)
                 musicId = self.managePage.listsFrame.model.get_record_musicId(row)
                 album = self.managePage.listsFrame.model.get_record_album(row)
-                musicName = title + '.mp3'
+                musicName = get_full_music_name_from_title(title)
                 musicPath = os.path.join(self.downloadDir, musicName)
-                musicPathO = os.path.join(Configures.musicsDir, musicName)
+                musicPathO = os.path.join(Configures.MusicsDir, musicName)
                 if  os.path.exists(musicPath):
                     isExistsSongs.append('%s : %s'%(title, musicPath))
                     continue
@@ -598,12 +594,7 @@ class Player(PlayerUi):
             pass
         self.playbackPage.musicList.selectRow(self.currentSourceRow)
         title = self.model.get_record_title(self.currentSourceRow)
-        try:
-            artistName = title.split('._.')[0].strip()
-            musicName = title.split('._.')[1].strip()
-        except:
-            artistName = '未知'
-            musicName = title
+        artistName, musicName = get_artist_and_musicname_from_title(title)
         self.playAction.setText(musicName)
         self.playbackPage.musicNameLabel.setText(musicName)
         self.managePage.artistNameLabel.setText(artistName)
@@ -636,11 +627,11 @@ class Player(PlayerUi):
             self.lrcPath = SearchOnline.get_lrc_path(title, musicId)
         with open(self.lrcPath, 'r+') as f:
             lyric = f.read()
-        if lyric == 'Configures.URLERROR':
+        if lyric == 'Configures.UrlError':
             self.lrcPath = SearchOnline.get_lrc_path(title, musicId)
             with open(self.lrcPath, 'r+') as f:
                 lyric = f.read()
-            if lyric == 'Configures.URLERROR':
+            if lyric == 'Configures.UrlError':
                 self.managePage.lyricLabel.setText("网络出错，无法搜索歌词！")
                 self.playbackPage.desktopLyric.setText("网络出错，无法搜索歌词！")
                 self.lyricDict.clear()
@@ -857,11 +848,11 @@ class Player(PlayerUi):
             self.managePage.listsFrame.musicTable.selectRow(row)
         sourcePath = self.model.get_record_paths(row)
         title = self.model.get_record_title(row)
-        musicName = title + '.mp3'
-        musicPathO = os.path.join(Configures.musicsDir, musicName)
+        musicName = get_full_music_name_from_title(title)
+        musicPathO = os.path.join(Configures.MusicsDir, musicName)
         musicPath = os.path.join(self.downloadDir, musicName)
         isAnUrl = False
-        errorType = Configures.NOERROR
+        errorType = Configures.NoError
         isAnUrl = False
         if  os.path.exists(musicPath):
             sourcePath = musicPath
@@ -880,21 +871,21 @@ class Player(PlayerUi):
                     self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
                     self.managePage.listsFrame.musicTable.selectRow(row)
                 else:
-                    errorType = Configures.URLERROR
+                    errorType = Configures.UrlError
             isAnUrl = True
         else:
             if os.path.exists(self.model.get_record_paths(row)):
                 sourcePath=self.model.get_record_paths(row)
             else:
                 self.noError = 0
-                errorType = Configures.PATHERROR
+                errorType = Configures.PathError
                 sourcePath = "/usr/share/sounds/error_happened.ogg"
-        if errorType != Configures.NOERROR:       
+        if errorType != Configures.NoError:       
             if self.isHidden():
                 self.show()
-            if errorType == Configures.NONETERROR:
+            if errorType == Configures.DisnetError:
                 QMessageBox.critical(self, "错误", "联网出错！\n无法联网播放歌曲'%s'！\n您最好在网络畅通时下载该曲目！"%self.model.get_record_title(row))
-            elif errorType == Configures.PATHERROR:
+            elif errorType == Configures.PathError:
                 QMessageBox.information(self, "提示", "路径'%s'无效，请尝试重新下载并添加对应歌曲！"%self.model.get_record_paths(row))
             self.noError = 1 
             return

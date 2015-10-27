@@ -3,9 +3,14 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 class TimeoutDialog(QDialog):
+    """
+    定时退出的页面。
+    
+    @signal time_out_signal() 定时的时间已到发射信号通知主程序强制退出
+    ＠signal state_message_signal(str) 发射信号通知SettingFrame更新界面上显示的剩余时间
+    """
     time_out_signal = pyqtSignal()
-    state_message_signal = pyqtSignal(str, int)
-#    back_to_main_signal = pyqtSignal()
+    state_message_signal = pyqtSignal(str)
     def __init__(self, parent = None):
         super(TimeoutDialog, self).__init__(parent)
         self.timeoutFlag = 0
@@ -34,7 +39,6 @@ class TimeoutDialog(QDialog):
         
         self.startButton = QPushButton("开始", clicked = self.start_timer)
         self.cancelButton = QPushButton("取消", clicked = self.cancel_timer)
-#        self.backButton = QPushButton("返回", clicked = self.back_to_main_signal.emit)
         
         hbox_boxes = QHBoxLayout()
         hbox_boxes.addWidget(self.spinBoxes[0])
@@ -44,28 +48,12 @@ class TimeoutDialog(QDialog):
         hbox_boxes.addWidget(self.spinBoxes[2])
         hbox_boxes.addWidget(label3)
         
-#        vbox1 = QVBoxLayout()
-#        vbox1.addWidget(self.stateLabel)
-#        vbox1.addWidget(titleLabel)
-#        vbox1.addLayout(hbox_boxes)
-#        
-#        vbox_buttons = QVBoxLayout()
-#        vbox_buttons.addWidget(self.startButton)
-#        vbox_buttons.addWidget(self.cancelButton)
-#        vbox_buttons.addWidget(self.backButton)
-#        
-#        mainLayout = QHBoxLayout(self)
-#        mainLayout.addLayout(vbox1)
-#        mainLayout.addLayout(vbox_buttons)
         mainLayout = QGridLayout(self)
-#        mainLayout.setRowStretch(0, 4)
         mainLayout.addWidget(self.stateLabel, 1, 0, 1, 2)
         mainLayout.addWidget(titleLabel, 4, 0)
         mainLayout.addWidget(self.startButton, 4, 1)
         mainLayout.addWidget(self.cancelButton, 5, 1)
         mainLayout.addLayout(hbox_boxes, 5, 0)
-#        mainLayout.addWidget(self.backButton, 5, 1)
-#        mainLayout.setRowStretch(6, 1)
     
     def start_timer(self):
         if self.startButton.text() == "开始":
@@ -79,7 +67,7 @@ class TimeoutDialog(QDialog):
                     self.spinBoxes[i].setReadOnly(True)
         else:
             self.timer.stop()
-            self.state_message_signal.emit('', 1)
+            self.state_message_signal.emit('')
             self.startButton.setText("开始")
             self.stateLabel.setText("定时状态：已暂停")
             for i in range(3):
@@ -87,7 +75,7 @@ class TimeoutDialog(QDialog):
         
     def cancel_timer(self):
         self.timer.stop()
-        self.state_message_signal.emit('', 1)
+        self.state_message_signal.emit('')
         self.startButton.setText("开始")
         self.stateLabel.setText("定时状态：已取消")
         for i in range(3):
@@ -114,13 +102,10 @@ class TimeoutDialog(QDialog):
                         for i in range(3):
                             a[i] = 0
         if not a[0]:
-            timeText = "%s分%s秒"%(a[1], a[2])
-        elif not a[0] and not a[1]:
-            timeText = "%s秒"%a[2]
+            remainTime = QTime(0, a[1], a[2]).toString('mm:ss')
         else:
-            timeText = "%s时%s分%s秒"%(a[0], a[1], a[2])
-        state_message = "%s后将退出"%timeText
-        self.state_message_signal.emit(state_message, 1)
+            remainTime = QTime(a[0], a[1], a[2]).toString('hh:mm:ss')
+        self.state_message_signal.emit(remainTime)
         for i in range(3):
             self.spinBoxes[i].setValue(a[i])
     

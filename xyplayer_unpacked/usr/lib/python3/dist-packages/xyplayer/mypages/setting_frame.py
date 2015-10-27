@@ -52,14 +52,9 @@ class SettingFrame(QLabel):
         self.titlePic = LabelButton()
         self.titlePic.setStyleSheet('background:transparent')
         pixmap = QPixmap(IconsHub.Preference)
-        self.titlePic.setFixedSize(15, 15)
+        self.titlePic.setFixedSize(16, 16)
         self.titlePic.setScaledContents(True)
         self.titlePic.setPixmap(pixmap)
-
-#状态栏标签
-        self.stateLabel = QLabel()
-        self.stateLabel.setFixedHeight(25)
-        self.stateLabel.setStyleSheet("font-family:'微软雅黑';font-size:14px;color:red")
 
 #返回按键
         self.backButton = QPushButton()
@@ -71,8 +66,7 @@ class SettingFrame(QLabel):
         titleLayout.addSpacing(3)
         titleLayout.addWidget(self.titlePic)
         titleLayout.addWidget(self.titleLabel)
-        titleLayout.addSpacing(6)
-        titleLayout.addWidget(self.stateLabel)
+        titleLayout.addStretch()
 
         buttonWidget = QWidget()
         buttonsLayout = QGridLayout(buttonWidget)
@@ -97,7 +91,7 @@ class SettingFrame(QLabel):
         self.mainStack.addWidget(self.aboutPage)
 
         mainLayout = QVBoxLayout(self)
-        mainLayout.setContentsMargins(0, 6, 0, 5)
+        mainLayout.setContentsMargins(0, 8, 0, 5)
         mainLayout.addLayout(titleLayout)
         mainLayout.addWidget(self.mainStack)
         mainLayout.addLayout(hbox_vlmsld)
@@ -109,21 +103,21 @@ class SettingFrame(QLabel):
         self.timeoutExitButton.clicked.connect(self.show_timeout_dialog)
         self.downloadPathButton.clicked.connect(self.show_pathset_frame)
         self.aboutButton.clicked.connect(self.show_about_page)
-        self.timeoutDialog.state_message_signal.connect(self.state_message_changed)
-        self.mountoutDialog.state_message_signal.connect(self.state_message_changed)
+        self.timeoutDialog.state_message_signal.connect(self.remain_time_changed)
+        self.mountoutDialog.state_message_signal.connect(self.remain_mount_changed)
     
-    def state_message_changed(self, message, flag):
-        messageList = self.stateLabel.text().split('  ')
-        timeMessage = messageList[0]
-        try:
-            countMessage = messageList[1]
-        except:
-            countMessage = ''
-        if flag == 1:
-            timeMessage = message
-        if flag == 0:
-            countMessage = message
-        self.stateLabel.setText(timeMessage + '  ' + countMessage )
+    def remain_time_changed(self, remainTime):
+        if not remainTime:
+            remainTime = '定时退出'
+        self.timeoutExitButton.setText(remainTime)
+    
+    def remain_mount_changed(self, mount):
+        text = '剩下%s首'%mount
+        if mount == -1:
+            text = '计数退出'
+        elif mount == 0:
+            text = '最后１首'
+        self.mountoutExitButton.setText(text)
     
     def mousePressEvent(self,event):  
         if event.button()==Qt.RightButton:  

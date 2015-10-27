@@ -8,31 +8,32 @@ from PyQt5.QtSql import QSqlDatabase, QSqlQuery
 
 __doc__ = '''This is a simple musicplayer that can search, play, download musics from the Internet.'''
 
-app_version = 'v0.8.3-1'
-app_version_num = 80301
+app_version = 'v0.8.3-2'
+app_version_num = 80302
 
 NDEBUG = True    #调试模式指示器
 
 desktopSize =  QApplication.desktop().screenGeometry()
 
 class Configures(object):
-#    INSTALLPATH = '/usr/lib/python3/dist-packages/xyplayer'
-    LINE_HEIGHT = 28.11
-    LINE_WRAP_WIDTH = 350
-    NOERROR = -1
-    URLERROR = -2
-    TYPEERROR = -3
-    PATHERROR = -4
-    NONETERROR = -5
+    InstallPath = '/usr/lib/python3/dist-packages/xyplayer'
     IconsDir = 'xyplayer/icons/default'
     LicenseFile = 'LICENSE'    #协议文件路径
     if NDEBUG:
-        IconsDir = '/usr/lib/python3/dist-packages/xyplayer/icons/default'
-        LicenseFile = '/usr/lib/python3/dist-packages/xyplayer/LICENSE'
+        IconsDir = os.path.join(InstallPath, 'icons/default')
+        LicenseFile = os.path.join(InstallPath, LicenseFile)
         
     NoLink = 'nolink'    #未获取在线MP3的链接之前用NoLink标记
     LocalMusicId = 'local'    #用于表示本地歌曲的musicId
     ZeroTime = '00:00'    #音乐时段显示的初值
+    Hyphen = '._.'    #歌手名与歌曲名的连字符，三者组成歌曲的标题
+    MusicMp3 = 'mp3'
+
+    #程序中可能产生的几种错误类型
+    NoError = 0
+    UrlError = 1
+    PathError = 2
+    DisnetError = 3
     
     #软件更新的几个状态
     UpdateSucceed = 0
@@ -65,31 +66,31 @@ class Configures(object):
     PlaymodeOrderText = '顺序播放'
     PlaymodeSingleText = '单曲循环'
     
-    homeDir = os.path.expanduser('~')
-    cacheDir = os.path.join(homeDir, '.xyplayer')
-    musicsDir = os.path.join(cacheDir, 'downloads')
-    imagesDir = os.path.join(cacheDir, 'images')
-    artistInfosDir = os.path.join(cacheDir, 'infos')
-    debsDir = os.path.join(cacheDir, 'debs')
-    lrcsDir = os.path.join(cacheDir, 'lrcs')
-    settingFile = os.path.join(cacheDir, 'settings')
-    DataBase = os.path.join(cacheDir, 'xyplayer_083.db')    #sqlite数据库文件
-    changelog = os.path.join(cacheDir, 'changelog')
+    HomeDir = os.path.expanduser('~')
+    CacheDir = os.path.join(HomeDir, '.xyplayer')
+    MusicsDir = os.path.join(CacheDir, 'downloads')
+    ImagesDir = os.path.join(CacheDir, 'images')
+    ArtistinfosDir = os.path.join(CacheDir, 'infos')
+    DebsDir = os.path.join(CacheDir, 'debs')
+    LrcsDir = os.path.join(CacheDir, 'lrcs')
+    SettingFile = os.path.join(CacheDir, 'settings')
+    DataBase = os.path.join(CacheDir, 'xyplayer_083.db')    #sqlite数据库文件
+    Changelog = os.path.join(CacheDir, 'changelog')
     
     @classmethod
     def check_dirs(cls):
-        dirs = [cls.musicsDir, cls.imagesDir, cls.lrcsDir, cls.artistInfosDir, cls.debsDir]
-        if not os.path.exists(cls.cacheDir):
-            os.makedirs(cls.cacheDir)
+        dirs = [cls.MusicsDir, cls.ImagesDir, cls.LrcsDir, cls.ArtistinfosDir, cls.DebsDir]
+        if not os.path.exists(cls.CacheDir):
+            os.makedirs(cls.CacheDir)
         for dir in dirs:
             if not os.path.exists(dir):
                 os.mkdir(dir)
         if not os.path.exists(Configures.DataBase):
             with open(Configures.DataBase, 'w') as f:
                 f.close()
-        if not os.path.exists(cls.settingFile):
-            with open(cls.settingFile, 'w') as f:
-                f.write(cls.musicsDir)
+        if not os.path.exists(cls.SettingFile):
+            with open(cls.SettingFile, 'w') as f:
+                f.write(cls.MusicsDir)
                 f.close()
 
 class SqlOperator(object):

@@ -10,6 +10,7 @@ from xyplayer.urlhandle import SearchOnline
 from xyplayer.mytables import WorksList
 from xyplayer.mywidgets import NewLabel, MyTextEdit
 from xyplayer.mypages import desktop_lyric
+from xyplayer.utils import get_artist_and_musicname_from_title
 
 class PlaybackPage(QWidget):
     lyric_offset_changed_signal = pyqtSignal(int)
@@ -372,11 +373,7 @@ class PlaybackPage(QWidget):
         return pixmap
     
     def update_artist_info(self, title):
-        try:
-            artist = title.split('._.')[0].strip()
-            title.split('._.')[1].strip()
-        except:
-            artist = '未知'
+        artist, musicName = get_artist_and_musicname_from_title(title)
         return self.set_artist_info(artist)
     
     def update_infofile_cached(self):
@@ -551,7 +548,7 @@ class PlaybackPage(QWidget):
         self.favoriteButton.setToolTip('收藏')
     
     def get_artist_detail_style_text(self, text):
-        return "<p style='color:white;font-size:18px;'>%s</p>"%text
+        return "<p style='color:white;font-size:16px;'>%s</p>"%text
         
     def show_desktop_lyric(self):
         if self.desktopLyric.isHidden():

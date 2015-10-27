@@ -3,11 +3,10 @@ from PyQt5.QtCore import pyqtSignal, Qt
 
 class MountoutDialog(QDialog):
     mountSetSignal = pyqtSignal(int)
-    state_message_signal = pyqtSignal(str, int)
-#    back_to_main_signal = pyqtSignal()
+    state_message_signal = pyqtSignal(int)
     def __init__(self, parent = None):
         super(MountoutDialog, self).__init__(parent)
-        label1 = QLabel("系统将在放完")
+        label1 = QLabel("系统将再播放")
         label1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         label1.setFixedHeight(35)
         self.stateLabel = QLabel("计数状态：未计数")
@@ -16,7 +15,7 @@ class MountoutDialog(QDialog):
         self.spinBox = QSpinBox()
         self.spinBox.valueChanged.connect(self.spinbox_value_changed)
         self.spinBox.setFixedWidth(40)
-        label2 = QLabel("首歌曲后退出！")
+        label2 = QLabel("首歌曲退出！")
         label2.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         label2.setFixedHeight(35)
         
@@ -35,13 +34,10 @@ class MountoutDialog(QDialog):
         layout2.addStretch()
         layout2.addWidget(self.cancelButton)
         layout2.addStretch()
-#        layout2.addWidget(self.backButton)
         mainLayout = QVBoxLayout(self)
-#        layout1.addStretch()
         mainLayout.addWidget(self.stateLabel)
         mainLayout.addLayout(layout1)
         mainLayout.addLayout(layout2)
-#        layout1.addStretch()
         
         self.countoutMode = 0
         self.remainMount = 0
@@ -57,13 +53,13 @@ class MountoutDialog(QDialog):
                 self.startButton.setText("暂停")
                 self.spinBox.setReadOnly(True)
                 self.stateLabel.setText("计数状态：正在计数")
-                self.state_message_signal.emit("%s首歌后将退出"%remain, 0)
+                self.state_message_signal.emit(remain)
         else:
             self.countoutMode = 0
             self.startButton.setText("开始")
             self.spinBox.setReadOnly(False)
             self.stateLabel.setText("计数状态：已暂停")
-            self.state_message_signal.emit('', 0)
+            self.state_message_signal.emit(-1)
 
     def cancel(self):
         self.countoutMode = 0
@@ -72,10 +68,10 @@ class MountoutDialog(QDialog):
         self.startButton.setText("开始")
         self.stateLabel.setText("计数状态：已取消")
         self.spinBox.setReadOnly(False)
-        self.state_message_signal.emit('', 0)
+        self.state_message_signal.emit(-1)
     
     def spinbox_value_changed(self, value):
         if self.countoutMode == 1:
-            self.state_message_signal.emit("%s首歌后将退出"%value, 0)
+            self.state_message_signal.emit(value)
     
     
