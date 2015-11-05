@@ -1,10 +1,10 @@
 import os
 import random
-from PyQt5.QtWidgets import QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar
+from PyQt5.QtWidgets import QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QColorDialog
 from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont
 from PyQt5.QtCore import pyqtSignal, Qt, QSize
 from xyplayer import Configures
-from xyplayer.iconshub import IconsHub
+from xyplayer.myicons import IconsHub
 from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title
 
 class MyTextEdit(QTextEdit):
@@ -30,11 +30,9 @@ class PushButton(QPushButton):
         self.btn_height = self.pixmap.height()
         self.setFixedSize(self.btn_width, self.btn_height)
 
-
     def enterEvent(self,event):	
         self.status = 1 
         self.update()
-
 
     def mousePressEvent(self,event):	
 #        if(event.button() == Qt.LeftButton):		
@@ -52,7 +50,6 @@ class PushButton(QPushButton):
     def leaveEvent(self,event):	
         self.status = 0 
         self.update()
-
 
     def paintEvent(self,event):	
         self.painter = QPainter()
@@ -155,6 +152,35 @@ class LabelButton(QLabel):
         if event.button() == Qt.LeftButton:
             self.clicked.emit(self.name)
 
+class ColorButton(QWidget):
+    """选择桌面歌词颜色的按键"""
+    new_color_signal = pyqtSignal(int, QColor)
+    def __init__(self, index=0):
+        super(ColorButton, self).__init__()
+        self.setMinimumHeight(10)
+        self.index = index
+        self.color = QColor(255, 255, 0)
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            color = QColorDialog.getColor(initial=self.color)
+            if color.isValid() and color != self.color:
+                self.set_color(color)
+    
+    def set_color(self, color):
+        self.color = color
+        self.update()
+        self.new_color_signal.emit(self.index, self.color)
+    
+    def set_index(self, index):
+        self.index = index
+    
+    def paintEvent(self, event):
+        painter = QPainter()
+        painter.begin(self)
+        painter.fillRect(self.rect(), self.color)
+        painter.end()
+        
 class SpecialLabel(LabelButton):
     def __init__(self, text = None, height = 36, icon = None):
         super(SpecialLabel, self).__init__(text, height, icon)

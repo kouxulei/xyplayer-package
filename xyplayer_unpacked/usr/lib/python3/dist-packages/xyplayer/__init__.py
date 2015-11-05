@@ -3,17 +3,25 @@
 # in the LICENSE file.
 
 import os
+import shutil
 from PyQt5.QtWidgets import QApplication
+from PyQt5.QtCore import QSettings
 from PyQt5.QtSql import QSqlDatabase, QSqlQuery
 
 __doc__ = '''This is a simple musicplayer that can search, play, download musics from the Internet.'''
 
-app_version = 'v0.8.3-2'
-app_version_num = 80302
+app_name = 'xyplayer'
+app_version = '0.8.4-1'
+app_version_num = 80401
 
 NDEBUG = True    #调试模式指示器
 
 desktopSize =  QApplication.desktop().screenGeometry()
+
+settings = QSettings('xyplayer', 'xysettings')
+settingsFileName = settings.fileName()    #配置文件路径
+print('Using configuration file: ', settingsFileName)
+settingsDir = os.path.split(settingsFileName)[0]    #放置程序配置文件的目录
 
 class Configures(object):
     InstallPath = '/usr/lib/python3/dist-packages/xyplayer'
@@ -66,6 +74,15 @@ class Configures(object):
     PlaymodeOrderText = '顺序播放'
     PlaymodeSingleText = '单曲循环'
     
+    #选项页面的各个分页名
+    SettingsBasicTab = '常规设置'
+    SettingsDownloadTab = '下载设置'
+    SettingsDesktopLyricTab = '桌面歌词'
+    
+    #选项页面常规设置“关闭主面板时”的两种行为
+    SettingsHide = 0
+    SettingsExit = 1
+    
     HomeDir = os.path.expanduser('~')
     CacheDir = os.path.join(HomeDir, '.xyplayer')
     MusicsDir = os.path.join(CacheDir, 'downloads')
@@ -73,12 +90,12 @@ class Configures(object):
     ArtistinfosDir = os.path.join(CacheDir, 'infos')
     DebsDir = os.path.join(CacheDir, 'debs')
     LrcsDir = os.path.join(CacheDir, 'lrcs')
-    SettingFile = os.path.join(CacheDir, 'settings')
-    DataBase = os.path.join(CacheDir, 'xyplayer_083.db')    #sqlite数据库文件
-    Changelog = os.path.join(CacheDir, 'changelog')
+    DataBase = os.path.join(settingsDir, 'xyplayer_083.db')    #sqlite数据库文件
+    Changelog = os.path.join(settingsDir, 'changelog')
     
     @classmethod
     def check_dirs(cls):
+        cls.correct_file_positions()
         dirs = [cls.MusicsDir, cls.ImagesDir, cls.LrcsDir, cls.ArtistinfosDir, cls.DebsDir]
         if not os.path.exists(cls.CacheDir):
             os.makedirs(cls.CacheDir)
@@ -88,10 +105,30 @@ class Configures(object):
         if not os.path.exists(Configures.DataBase):
             with open(Configures.DataBase, 'w') as f:
                 f.close()
-        if not os.path.exists(cls.SettingFile):
-            with open(cls.SettingFile, 'w') as f:
-                f.write(cls.MusicsDir)
+    
+    @classmethod
+    def correct_file_positions(cls):
+        """将原来放在.xyplayer目录下的数据库文件等转移到.config/xyplayer目录中。"""
+        oldDatabasePath = os.path.join(cls.CacheDir, 'xyplayer_083.db')
+        oldChangelogPath = os.path.join(cls.CacheDir, 'changelog')
+        if not os.path.exists(settingsDir):
+            os.makedirs(settingsDir)
+        if os.path.exists(oldDatabasePath):
+            shutil.move(oldDatabasePath, cls.DataBase)
+        if os.path.exists(oldChangelogPath):
+            shutil.move(oldChangelogPath, cls.Changelog)
+    
+    @classmethod
+    def clean_old_settings_file(cls):
+        """读取原来放在.xyplayer目录下的settings文件中的值，然后清理这个文件。"""
+        oldSettingsFile = os.path.join(cls.CacheDir, 'settings')
+        if os.path.exists(oldSettingsFile):
+            with open(oldSettingsFile, 'r') as f:
+                downloadPathSetted = f.read().strip()
                 f.close()
+            os.remove(oldSettingsFile)
+            return downloadPathSetted
+        return cls.MusicsDir
 
 class SqlOperator(object):
     def __init__(self):
@@ -131,6 +168,6 @@ class SqlOperator(object):
                 self.createOnlineListTable()
             else:
                 self.createTable(tableName)
-            
+
 Configures.check_dirs()
 sqlOperator = SqlOperator()

@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from xyplayer import Configures
-from xyplayer.iconshub import IconsHub
+from xyplayer.myicons import IconsHub
 from xyplayer.mywidgets import LabelButton, SpecialLabel, NewLabel
 from xyplayer.mypages import  search_page, download_page, lists_frame
 from xyplayer.mytables import MyListTable
@@ -43,6 +43,7 @@ class ManagePage(QWidget):
 
 
         self.frameBottomWidget = SpecialLabel('', 93)    
+        self.frameBottomWidget.setFixedWidth(352)
 #3个标签
         self.artistHeadLabel = QLabel(self.frameBottomWidget)
         self.artistHeadLabel.setScaledContents(True)
@@ -94,7 +95,7 @@ class ManagePage(QWidget):
             text = self.listsFrame.manageModel.record(i).value('tableName')
             self.add_a_widget_to_table(text)
         
-        self.randomOneButton = LabelButton("随机切歌", 260)
+        self.randomOneButton = LabelButton("随机切歌", 271)
         
         self.addListButton = LabelButton("添加列表")
         self.deleteListButton = LabelButton("删除列表")
@@ -135,7 +136,7 @@ class ManagePage(QWidget):
         hbox_nh.addLayout(vbox_no)
         
         listsLayout = QVBoxLayout()
-        listsLayout.setSpacing(8)
+        listsLayout.setSpacing(7)
         listsLayout.addWidget(self.allListButton)
         listsLayout.addLayout(hbox_om)
         listsLayout.addLayout(hbox_fd)
@@ -143,7 +144,7 @@ class ManagePage(QWidget):
         
         homeWidget = QWidget()
         layout_list = QVBoxLayout(homeWidget)
-        layout_list.setSpacing(8)
+        layout_list.setSpacing(7)
         layout_list.setContentsMargins(0, 0, 0, 0)
         layout_list.addLayout(hbox_sch)
         layout_list.addLayout(listsLayout)
@@ -156,8 +157,8 @@ class ManagePage(QWidget):
         self.stackedWidget.addWidget(self.downloadPage)
 
         mainLayout = QVBoxLayout(self)
-        mainLayout.setContentsMargins(6, 6, 7, 7)
-        mainLayout.setSpacing(8)
+        mainLayout.setContentsMargins(6, 0, 6, 4)
+        mainLayout.setSpacing(7)
         mainLayout.addWidget(self.stackedWidget)
         mainLayout.addWidget(self.frameBottomWidget)
     

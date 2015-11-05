@@ -1,5 +1,6 @@
 import os
 import time
+import socket
 import re
 import json
 import zlib
@@ -196,9 +197,10 @@ class SearchOnline(object):
         return songs_wrap, hit
 
     def url_open(url, retries = 4):
+        socket.setdefaulttimeout(3)
         while retries:
             try:
-                req = request.urlopen(url, timeout = 3)
+                req = request.urlopen(url, timeout=3)
                 req = req.read()
                 reqContent = req.decode()
                 reqContent = reqContent.lstrip()

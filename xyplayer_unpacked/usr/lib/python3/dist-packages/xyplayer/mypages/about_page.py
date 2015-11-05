@@ -32,10 +32,10 @@ class AboutPage(QWidget):
         specText.setReadOnly(True)
         specs = ("<p>xyplayer项目旨在设计一个能实现基本播放以及在线搜索播放媒体资源功能的MP3播放器。谢谢您的使用，如果发现问题，还请与我交流。</p>"
                         "<p>遵循协议： GPLv3</p>"
-                        "<p>当前版本： %s</p>"
+                        "<p>当前版本： v%s</p>"
                         "<p>特别操作说明：</p>"
                         "<p>1. 主界面右键长按拖动窗口；</p>"
-                        "<p>2. 设置页面右键单击返回；</p>"%app_version )
+                        "<p>2. “更多功能”页面右键单击返回；</p>"%app_version )
         specText.setText(specs)
             
 #感谢页面   
@@ -56,7 +56,7 @@ class AboutPage(QWidget):
         licenseText.setTextCursor(cur)
 
 #更新页面
-        currentVersion = QLabel('当前版本：%s'%app_version)
+        currentVersion = QLabel('当前版本：v%s'%app_version)
         self.newestVersionLabel = QLabel('最新版本：未检查')
         self.checkUpdateButton = QPushButton("检查更新")
         self.checkUpdateButton.setFixedSize(70, 30)
@@ -84,6 +84,7 @@ class AboutPage(QWidget):
         updatePage = QWidget()
         updatePage.setStyleSheet('color:black')
         updateLayout = QGridLayout(updatePage)
+        updateLayout.setContentsMargins(8, 3, 8, 2)
         updateLayout.addWidget(currentVersion, 0, 0)
         updateLayout.addWidget(self.checkUpdateButton, 0, 1)
         updateLayout.addWidget(self.newestVersionLabel, 1, 0)
@@ -98,10 +99,11 @@ class AboutPage(QWidget):
         self.tabWidget.addTab(thanksText, '鸣谢')
         self.tabWidget.addTab(updatePage, '更新')
         self.tabWidget.addTab(licenseText, '软件协议')
+#        self.tabWidget.setStyleSheet('QTabWidget::tab-bar{alignment:center}')
         
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(3)
-        mainLayout.setContentsMargins(3, 0, 3, 0)
+        mainLayout.setContentsMargins(2, 0, 4, 0)
         mainLayout.addWidget(self.authorLabel)
         mainLayout.addWidget(self.emailLabel)
         mainLayout.addWidget(self.addressLabel)
@@ -146,8 +148,8 @@ class AboutPage(QWidget):
                 if self.changeLogText.isHidden():
                     self.changeLogText.show()
             if versionNum > app_version_num :
-                self.newestVersion = version
-                self.newestVersionLabel.setText('最新版本：%s' %self.newestVersion)
+                self.newestVersion = version[1:]
+                self.newestVersionLabel.setText('最新版本：v%s' %self.newestVersion)
                 self.updateButton.show()
             else:
                 self.newestVersionLabel.setText('已是最新版，谢谢使用！')
@@ -155,10 +157,8 @@ class AboutPage(QWidget):
                  self.newestVersionLabel.setText('联网出错，检查新版本失败！')
     
     def update(self):
-        versionOnly = self.newestVersion[1:]
-        print(versionOnly)
-        url = 'https://github.com/Zheng-Yejian/xyplayer-package/blob/master/xyplayer_%s_all.deb?raw=true'%versionOnly
-        debLocal =  '%s/xyplayer_%s_all.deb'%(Configures.DebsDir, versionOnly)
+        url = 'https://github.com/Zheng-Yejian/xyplayer-package/blob/master/xyplayer_%s_all.deb?raw=true'%self.newestVersion
+        debLocal =  '%s/xyplayer_%s_all.deb'%(Configures.DebsDir, self.newestVersion)
         if not os.path.exists(debLocal):
             fail = self.download_package(url, debLocal)
             if fail:

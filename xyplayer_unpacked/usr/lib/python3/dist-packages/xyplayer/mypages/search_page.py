@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QCursor
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from xyplayer import Configures
-from xyplayer.iconshub import IconsHub
+from xyplayer.myicons import IconsHub
 from xyplayer.mytables import SearchTable, TableModel
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
@@ -22,6 +22,7 @@ class SearchFrame(QWidget):
 
     def  __init__(self, parent = None):
         super(SearchFrame, self).__init__(parent)
+        self.init_params()
         self.setup_ui()
         self.create_connections()
     
@@ -137,14 +138,11 @@ class SearchFrame(QWidget):
 #        controlLayout.addItem(spacerItem)
         
         mainLayout = QVBoxLayout(self)
+        mainLayout.setSpacing(7)
         mainLayout.setContentsMargins(0, 0, 0, 0)
-#        mainLayout.addSpacing(6)
         mainLayout.addLayout(hbox_sch)
-        mainLayout.addSpacing(2)
         mainLayout.addWidget(self.searchTable)
-        mainLayout.addSpacing(2)
         mainLayout.addWidget(self.controlWidget)
-        mainLayout.addSpacing(2)
         
         self.currentPage = 0
         self.pages = 0
@@ -167,6 +165,12 @@ class SearchFrame(QWidget):
         self.searchTable.listenOnlineAction.triggered.connect(self.listen_online)
         self.searchTable.downloadAction.triggered.connect(self.download)
         self.searchTable.addBunchToListAction.triggered.connect(self.add_bunch_to_list)
+    
+    def init_params(self):
+        self.downloadDir = Configures.MusicsDir
+    
+    def set_download_dir(self, path):
+        self.downloadDir = path
     
     def show_tooltip(self, row):
         mark = self.searchTable.item(row, 0).text()
@@ -246,8 +250,6 @@ class SearchFrame(QWidget):
         selecteds = selections.selectedIndexes()
         if  not len(selecteds):
             return
-        with open(Configures.SettingFile,  'r') as f:
-            downloadDir = f.read()
         self.setCursor(QCursor(Qt.BusyCursor))
         for index in selecteds:
             if index.column() == 0:
@@ -256,7 +258,7 @@ class SearchFrame(QWidget):
                 artist = self.searchTable.item(row, 2).text()
                 title = connect_as_title(artist, songName)
                 musicName = get_full_music_name_from_title(title)
-                musicPath = os.path.join(downloadDir, musicName)
+                musicPath = os.path.join(self.downloadDir, musicName)
                 if os.path.exists(musicPath):
                     hasExisted.append(title)
                     continue

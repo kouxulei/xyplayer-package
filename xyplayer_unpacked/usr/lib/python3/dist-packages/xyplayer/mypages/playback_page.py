@@ -5,12 +5,13 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from xyplayer import Configures, app_version
-from xyplayer.iconshub import IconsHub
+from xyplayer.myicons import IconsHub
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.mytables import WorksList
 from xyplayer.mywidgets import NewLabel, MyTextEdit
 from xyplayer.mypages import desktop_lyric
 from xyplayer.utils import get_artist_and_musicname_from_title
+from xyplayer.mysettings import globalSettings
 
 class PlaybackPage(QWidget):
     lyric_offset_changed_signal = pyqtSignal(int)
@@ -31,10 +32,11 @@ class PlaybackPage(QWidget):
 
 #桌面歌词标签
         self.desktopLyric = desktop_lyric.DesktopLyric()
+        self.desktopLyric.set_color(globalSettings.DesktoplyricColors)
         
 #歌单
         self.musicList = WorksList()
-#        self.musicList.setFixedHeight(430)
+        self.musicList.setFixedHeight(420)
         self.musicList.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         
 #spacerItem
@@ -98,16 +100,15 @@ class PlaybackPage(QWidget):
         self.backButton = QPushButton(self)
         self.backButton.setFocusPolicy(Qt.NoFocus)
         self.backButton.setIcon(QIcon(IconsHub.Back))
-        self.backButton.setFixedSize(35, 30)
+        self.backButton.setFixedSize(35, 28)
         self.backButton.setIconSize(QSize(25, 25))
         self.backButton.setStyleSheet("QPushButton:hover{border:2px solid lightgray;border-color:white;background:rgb(210,240,240)}"
                                                             "QPushButton{border:2px;background:transparent}"
                                                         )
         
         self.musicNameLabel = NewLabel(self)
-        self.musicNameLabel.setMinimumWidth(220)
+        self.musicNameLabel.setFixedSize(QSize(220, 30))
         self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:28px;color: cyan")
-#        self.musicNameLabel.setParameters(300, 50, 100)
         
         self.buttonList = []
         for text in ["歌词", "歌手", "歌单"]:
@@ -188,46 +189,13 @@ class PlaybackPage(QWidget):
         self.lyricOffsetLabel = QLineEdit("0.0秒")
         self.lyricOffsetLabel.setFixedSize(60, 25)
         self.lyricOffsetLabel.setReadOnly(True)
-
-#歌词颜色
-        label_t = QLabel("桌面歌词颜色")
-        label_t.setFixedWidth(90)
-        label_r = QLabel("r")
-        label_g = QLabel("g")
-        label_b = QLabel("b")
-        self.colorSpins = []
-        for i in range(3):
-            spinBox = QSpinBox()
-            spinBox.setRange(0, 255)
-            if i == 0:
-                spinBox.setValue(20)
-            elif i == 1:
-                spinBox.setValue(190)
-            else:
-                spinBox.setValue(240)
-            spinBox.valueChanged.connect(self.desktop_lyric_color_changed)
-            self.colorSpins.append(spinBox)
-        
-        self.dtcWidget = QWidget()
-        self.dtcWidget.hide()
-        self.dtcWidget.setFixedHeight(50)
-        self.dtcWidget.setStyleSheet("font-size:12px;background:rgb(210,230,230);")
-        hbox_dtc = QHBoxLayout(self.dtcWidget)
-        hbox_dtc.addWidget(label_t)
-        hbox_dtc.addSpacing(10)
-        hbox_dtc.addWidget(label_r)
-        hbox_dtc.addWidget(self.colorSpins[0])
-        hbox_dtc.addWidget(label_g)
-        hbox_dtc.addWidget(self.colorSpins[1])
-        hbox_dtc.addWidget(label_b)
-        hbox_dtc.addWidget(self.colorSpins[2])
         
 #歌词文本框
         self.lyricText = MyTextEdit()
+        self.lyricText.setFixedHeight(420)
         self.document = self.lyricText.document()
         self.lyricText.setAlignment(Qt.AlignHCenter)
-        self.lyricText.setStyleSheet("font-family:'微软雅黑';font-size:23px;color:black;")
-        
+        self.lyricText.setStyleSheet("font-family:'微软雅黑';font-size:23px;")
         self.lyricOperateWidget = QWidget()
         self.lyricOperateWidget.setStyleSheet("background:rgb(210,240,240);font-size:15px;color:blue;")
         self.lyricOperateWidget.hide()
@@ -244,7 +212,6 @@ class PlaybackPage(QWidget):
         hbox_lyric.addStretch()
         hbox_lyric.addWidget(self.lyricOperateButton)
         hbox_lyric1 = QHBoxLayout()
-        hbox_lyric1.addWidget(self.dtcWidget)
         hbox_lyric1.addStretch()
         hbox_lyric1.addWidget(self.desktopLyricButton)
         vbox_lyric = QVBoxLayout(self.lyricText)
@@ -260,15 +227,16 @@ class PlaybackPage(QWidget):
 
 #综合布局
         hbox2 = QHBoxLayout()
-        hbox2.setContentsMargins(13, 15, 13, 11)
+        hbox2.setContentsMargins(13, 0, 13, 11)
         hbox2.addWidget(self.timeLabel1)
         hbox2.addSpacing(3)
         hbox2.addWidget(self.seekSlider)
-        hbox2.addSpacing(8)
+        hbox2.addSpacing(6)
         hbox2.addWidget(self.timeLabel2)
         
         widget1 = QWidget(self)
         hbox3 = QGridLayout()
+        hbox3.setContentsMargins(0, 0, 0, 0)
         hbox3.addWidget(self.backButton, 0, 0, 2, 1)
         hbox3.addWidget(self.musicNameLabel, 0, 1, 2, 2)
         hbox3.addItem(spacerItem, 0, 3, 2, 5)
@@ -278,17 +246,17 @@ class PlaybackPage(QWidget):
         
         mainLayout = QVBoxLayout(widget1)
         mainLayout.setSpacing(0)
-        mainLayout.setContentsMargins(6, 2, 6, 6)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.addLayout(hbox3)
         mainLayout.addWidget(self.stackedWidget)
         mainLayout.addLayout(hbox2)
 
-        widget1.setGeometry(0, 0, 364, 520)
-        self.playmodeButton.setGeometry(0, 515, 60, 60)
-        self.previousButton.setGeometry(65, 510, 70, 70)
-        self.playButton.setGeometry(140, 505, 80, 80)
-        self.nextButton.setGeometry(225, 510, 70, 70)
-        self.favoriteButton.setGeometry(300, 515, 60, 60)
+        widget1.setGeometry(6, 0, 352, 503)
+        self.playmodeButton.setGeometry(0, 507, 60, 60)
+        self.previousButton.setGeometry(65, 502, 70, 70)
+        self.playButton.setGeometry(140, 497, 80, 80)
+        self.nextButton.setGeometry(225, 502, 70, 70)
+        self.favoriteButton.setGeometry(300, 507, 60, 60)
     
     def create_connections(self):
         self.desktopLyric.hide_desktop_lyric_signal.connect(self.show_desktop_lyric)
@@ -299,9 +267,6 @@ class PlaybackPage(QWidget):
         self.lyricOffsetCombo.currentIndexChanged.connect(self.lyric_offset_type)
         self.lyricOffsetSlider.valueChanged.connect(self.lyric_offset_changed)
         self.refreshBtn.clicked.connect(self.update_infofile_cached)
-    
-    def desktop_lyric_color_changed(self, value):
-        self.desktopLyric.set_color(self.colorSpins[0].value(), self.colorSpins[1].value(), self.colorSpins[2].value())
     
     def set_artist_info(self, artist):
         errorHanppen = False
@@ -513,10 +478,8 @@ class PlaybackPage(QWidget):
     def show_lyric_operate_widget(self):
         if self.lyricOperateWidget.isHidden():
             self.lyricOperateWidget.show()
-            self.dtcWidget.show()
         else:
             self.lyricOperateWidget.hide()
-            self.dtcWidget.hide()
     
     def ui_initial(self):
         self.musicNameLabel.setText("XYPLAYER")
@@ -534,7 +497,7 @@ class PlaybackPage(QWidget):
                             "<br /><br />"
                             "声明：Use of this source code is governed by GPLv3 license that can be found in the LICENSE file. "
                             "<br /><br />"
-                            "版本: %s "
+                            "版本: v%s "
                             "<br /><br />"
                             "简介: This is a simple musicplayer that can search, play, download musics from the Internet.</p>"%app_version)
         self.lyricText.clear()
@@ -553,13 +516,11 @@ class PlaybackPage(QWidget):
     def show_desktop_lyric(self):
         if self.desktopLyric.isHidden():
             beToOff = True
-#            self.desktopLyricButton.setToolTip('关闭桌面歌词')
             self.desktopLyric.show()
             self.desktopLyric.original_place()
         else:
             beToOff = False
-            self.desktopLyric.hide()
-#            self.desktopLyricButton.setToolTip('开启桌面歌词')        
+            self.desktopLyric.hide()  
         self.desktop_lyric_state_changed_signal.emit(beToOff)
     
     def change_playmode(self):

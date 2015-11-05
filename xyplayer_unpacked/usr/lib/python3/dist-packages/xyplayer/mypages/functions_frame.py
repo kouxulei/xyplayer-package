@@ -1,22 +1,22 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *  
 from PyQt5.QtCore import *  
-from xyplayer.iconshub import IconsHub
-from xyplayer.mypages import time_out, mount_out, pathset_frame, about_page
+from xyplayer.myicons import IconsHub
+from xyplayer.mypages import time_out, mount_out, settings_frame, about_page
 from xyplayer.mywidgets import ToolButton, LabelButton
   
-class SettingFrame(QLabel):  
+class FunctionsFrame(QLabel):  
     changeVolume = pyqtSignal(int)
     changeMuting = pyqtSignal(bool)
     def __init__(self, parent = None):  
-        super(SettingFrame, self).__init__(parent)  
+        super(FunctionsFrame, self).__init__(parent)  
         self.setAttribute(Qt.WA_QuitOnClose, False)
         self.setup_ui()
         self.create_connections()
         self.dragPosition=None  
     
     def setup_ui(self):
-        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
+#        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:15px;}")
         
 #定时退出页面
         self.timeoutDialog = time_out.TimeoutDialog()
@@ -25,7 +25,7 @@ class SettingFrame(QLabel):
         self.mountoutDialog = mount_out.MountoutDialog()
 
 #下载路径设置框
-        self.pathsetFrame = pathset_frame.PathsetFrame()
+        self.settingsFrame = settings_frame.SettingsFrame()
         
 #关于信息
         self.aboutPage = about_page.AboutPage()
@@ -40,18 +40,18 @@ class SettingFrame(QLabel):
         self.volumeSlider.setValue(75)
         self.volumeSlider.setFixedSize(QSize(270, 25))
          
-        self.downloadPathButton = ToolButton(IconsHub.DownloadPath, "下载路径")
+        self.downloadPathButton = ToolButton(IconsHub.Preference, "选项")
         self.mountoutExitButton = ToolButton(IconsHub.ExitmodeCountout, "计数退出")
         self.timeoutExitButton = ToolButton(IconsHub.ExitmodeTimeout, "定时退出")
         self.aboutButton = ToolButton(IconsHub.Info, "关于")
 
 #标题栏标签
-        self.titleLabel = QLabel('个人设置')
+        self.titleLabel = QLabel('更多功能')
         self.titleLabel.setFixedWidth(70)
         self.titleLabel.setStyleSheet('color:cyan;')
         self.titlePic = LabelButton()
         self.titlePic.setStyleSheet('background:transparent')
-        pixmap = QPixmap(IconsHub.Preference)
+        pixmap = QPixmap(IconsHub.Xyplayer)
         self.titlePic.setFixedSize(16, 16)
         self.titlePic.setScaledContents(True)
         self.titlePic.setPixmap(pixmap)
@@ -87,15 +87,15 @@ class SettingFrame(QLabel):
         self.mainStack.addWidget(buttonWidget)
         self.mainStack.addWidget(self.mountoutDialog)
         self.mainStack.addWidget(self.timeoutDialog)
-        self.mainStack.addWidget(self.pathsetFrame)
+        self.mainStack.addWidget(self.settingsFrame)
         self.mainStack.addWidget(self.aboutPage)
 
         mainLayout = QVBoxLayout(self)
-        mainLayout.setContentsMargins(0, 8, 0, 5)
+        mainLayout.setContentsMargins(0, 5, 0, 0)
         mainLayout.addLayout(titleLayout)
         mainLayout.addWidget(self.mainStack)
         mainLayout.addLayout(hbox_vlmsld)
-        mainLayout.addSpacing(21)
+        mainLayout.addSpacing(18)
     
     def create_connections(self):
         self.titlePic.clicked.connect(self.show_main)
@@ -129,7 +129,7 @@ class SettingFrame(QLabel):
     def show_main(self):
         if self.mainStack.currentIndex() != 0:
             self.mainStack.setCurrentIndex(0)
-            self.titleLabel.setText("个人设置")
+            self.titleLabel.setText("更多功能")
         else:
             self.hide()
         
@@ -143,7 +143,7 @@ class SettingFrame(QLabel):
     
     def show_pathset_frame(self):
         self.mainStack.setCurrentIndex(3)
-        self.titleLabel.setText("下载路径")
+        self.titleLabel.setText("选项")
     
     def show_about_page(self):
         self.mainStack.setCurrentIndex(4)

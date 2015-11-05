@@ -1,17 +1,17 @@
 import os
 import random
 import threading
-from functools import wraps
 from PyQt5.QtWidgets import QMessageBox, QLineEdit, QInputDialog, QFileDialog
 from PyQt5.QtGui import QIcon, QCursor, QPixmap, QDesktopServices
 from PyQt5.QtCore import Qt, QTime, QUrl, QPoint
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from xyplayer import Configures, sqlOperator
-from xyplayer.iconshub import IconsHub
+from xyplayer.myicons import IconsHub
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
+from xyplayer.mysettings import globalSettings
 from xyplayer.utils import (read_music_info, parse_lrc, trace_to_keep_time, get_full_music_name_from_title,
-    format_position_to_mmss, get_artist_and_musicname_from_title)
+    format_position_to_mmss, get_artist_and_musicname_from_title, operate_after_check_thread_locked_state)
 from xyplayer.player_ui import PlayerUi
 
 class Player(PlayerUi):
@@ -28,7 +28,7 @@ class Player(PlayerUi):
         self.mediaPlayer.currentMediaChanged.connect(self.source_changed)
         self.mediaPlayer.mediaStatusChanged.connect(self.media_status_changed)
         self.mediaPlayer.durationChanged.connect(self.duration_changed)
-        self.mediaPlayer.mutedChanged.connect(self.settingFrame.set_muted)
+        self.mediaPlayer.mutedChanged.connect(self.functionsFrame.set_muted)
 
         self.playbackPage.seekSlider.valueChanged.connect(self.slider_value_changed)
         self.playbackPage.seekSlider.sliderPressed.connect(self.slider_pressed)
@@ -72,17 +72,27 @@ class Player(PlayerUi):
         self.managePage.frameBottomWidget.clicked.connect(self.show_mainstack_1)
         self.managePage.lyricLabel.clicked.connect(self.show_mainstack_1)
 
-        self.settingFrame.pathsetFrame.downloadDirChanged.connect(self.set_new_downloaddir)
-        self.settingFrame.aboutPage.updatingStateChanged.connect(self.updating_state_changed)
-        self.settingFrame.timeoutDialog.time_out_signal.connect(self.close)
-        self.settingFrame.changeVolume.connect(self.mediaPlayer.setVolume)
-        self.settingFrame.changeMuting.connect(self.mediaPlayer.setMuted)
-
+        self.functionsFrame.settingsFrame.downloadDirChanged.connect(self.set_new_downloaddir)
+        self.functionsFrame.settingsFrame.downloadDirChanged.connect(self.managePage.searchFrame.set_download_dir)
+        self.functionsFrame.settingsFrame.desktop_lyric_style_changed.connect(self.update_desktop_lyric_style)
+        self.functionsFrame.settingsFrame.close_button_act_changed.connect(self.set_new_close_button_act)
+        self.functionsFrame.aboutPage.updatingStateChanged.connect(self.updating_state_changed)
+        self.functionsFrame.timeoutDialog.time_out_signal.connect(self.close)
+        self.functionsFrame.changeVolume.connect(self.mediaPlayer.setVolume)
+        self.functionsFrame.changeMuting.connect(self.mediaPlayer.setMuted)
+    
+    def set_new_downloaddir(self, newDir):
+        self.downloadDir = newDir
+    
+    def set_new_close_button_act(self, act):
+        self.closeButtonAct = act
+    
     def initial_mediaplayer(self):
         self.mediaPlayer = QMediaPlayer()
         self.mediaPlayer.setNotifyInterval(500)
 
     def initial_parameters(self):
+        self.closeButtonAct = globalSettings.CloseButtonAct
         self.forceCloseFlag = False    #跳过确认窗口强制关闭程序的标志
         self.lock = threading.Lock()    #设置一个线程锁，为了防止下载任务完成后向“我的下载”添加记录时与当前在此表上的其他操作产生冲突。
         self.dragPosition = QPoint(0, 0)
@@ -97,11 +107,7 @@ class Player(PlayerUi):
         self.lyricDict = {}
         self.j = -5
         self.deleteLocalfilePermit = False
-        try:
-            with open(Configures.SettingFile, 'r') as f:
-                self.downloadDir = f.read()
-        except:
-            self.downloadDir = Configures.MusicsDir
+        self.downloadDir = globalSettings.DownloadfilesPath
         self.model.initial_model(Configures.PlaylistFavorite)
         self.lovedSongs = []  
         for i in range(0, self.model.rowCount()):
@@ -113,21 +119,6 @@ class Player(PlayerUi):
             ident = self.model.get_record_paths(i)
             title = self.model.get_record_title(i)
             self.playback_musictable_add_widget(ident, title)
-
-    def operate_after_check_thread_locked_state(func):
-        """用于判断当前线程锁的状态的修饰器，主要用在添加、删除、清空列表几个操作。"""
-        @wraps(func)
-        def _call(*args, **kwargs):
-            obj = args[0]
-            if obj.currentTable == Configures.PlaylistDownloaded:
-                if obj.lock.acquire():
-                    result = func(*args, **kwargs)
-                    obj.lock.release()
-            else:
-                result = func(*args, **kwargs)
-            print('%s执行成功!'%func.__name__)
-            return result
-        return _call
 
     def open_download_dir(self, name):
         """点击下载任务标题栏打开下载目录。"""
@@ -182,9 +173,6 @@ class Player(PlayerUi):
     def select_current_source_row(self):
         """当点击playbackPage的歌单按键，系统选中到当前播放的那首歌。"""
         self.playbackPage.musicList.selectRow(self.currentSourceRow)
-    
-    def set_new_downloaddir(self, newDir):
-        self.downloadDir = newDir
 
     def slider_pressed(self):
         self.mediaPlayer.positionChanged.disconnect(self.tick)
@@ -535,11 +523,7 @@ class Player(PlayerUi):
                     break
             text = self.managePage.lyricLabel.text()
             if not self.playbackPage.desktopLyric.isHidden() and self.playbackPage.desktopLyric.text() != text:
-                x, y, old_width, height = self.playbackPage.desktopLyric.geometry_info()
-                width = self.playbackPage.desktopLyric.fontMetrics().width(text)
-                self.playbackPage.desktopLyric.setFixedWidth(width)
-                self.playbackPage.desktopLyric.setText(text)
-                self.playbackPage.desktopLyric.setGeometry(x + (old_width - width) / 2, y, width, height)
+                self.playbackPage.desktopLyric.set_text(text)
 
     def state_changed(self, newState):
         if newState in [QMediaPlayer.PlayingState, QMediaPlayer.PausedState, QMediaPlayer.StoppedState]:
@@ -578,11 +562,11 @@ class Player(PlayerUi):
         self.check_favorite()
 
     def check_mountout_state(self):
-        if self.settingFrame.mountoutDialog.countoutMode:
-            if not self.settingFrame.mountoutDialog.remainMount:
+        if self.functionsFrame.mountoutDialog.countoutMode:
+            if not self.functionsFrame.mountoutDialog.remainMount:
                 self.close()
-            self.settingFrame.mountoutDialog.remainMount -= 1
-            self.settingFrame.mountoutDialog.spinBox.setValue(self.settingFrame.mountoutDialog.remainMount)
+            self.functionsFrame.mountoutDialog.remainMount -= 1
+            self.functionsFrame.mountoutDialog.spinBox.setValue(self.functionsFrame.mountoutDialog.remainMount)
 
     def update_parameters(self):
         oldSourceRow = self.currentSourceRow
@@ -982,7 +966,7 @@ class Player(PlayerUi):
         """处理不同的软件更新状态。"""
         if updateState == Configures.UpdateStarted:
             self.mediaPlayer.stop()
-            self.settingFrame.close()
+            self.functionsFrame.close()
             self.hide()
         else:
             closeFlag = False
@@ -999,5 +983,6 @@ class Player(PlayerUi):
             else:
                 self.show()
 
-
+    def update_desktop_lyric_style(self):
+        self.playbackPage.desktopLyric.set_color(tuple(self.functionsFrame.settingsFrame.colors))
 

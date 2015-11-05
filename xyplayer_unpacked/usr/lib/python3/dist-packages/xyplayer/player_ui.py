@@ -5,8 +5,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QCursor,QPixmap
 from PyQt5.QtCore import Qt, QSize
 from xyplayer import Configures, desktopSize
-from xyplayer.iconshub import IconsHub
-from xyplayer.mypages import manage_page, playback_page, setting_frame
+from xyplayer.myicons import IconsHub
+from xyplayer.mypages import manage_page, playback_page, functions_frame
 from xyplayer.mytables import TableModel, TableView
 from xyplayer.mywidgets import PushButton, NewListWidget
 
@@ -32,30 +32,28 @@ class PlayerUi(QDialog):
         self.setObjectName('xyplayer')
         self.setStyleSheet("#xyplayer{border-image: url(%s);background:transparent}"%IconsHub.Background)
         self.setWindowFlags(Qt.MSWindowsFixedSizeDialogHint | Qt.FramelessWindowHint)
-        self.setFixedSize(370, 660)
-        self.setGeometry((desktopSize.width() - 370)//2, 40, 370, 660)
+        self.setMaximumSize(QSize(370, 598))
+        self.setGeometry((desktopSize.width() - 370)//2, 40, 370, 598)
         self.setAttribute(Qt.WA_QuitOnClose,True)
 
 #title_widgets
         self.titleIconLabel = QLabel()
         pixmap = QPixmap(IconsHub.Xyplayer)
-        self.titleIconLabel.setFixedSize(17, 17)
+        self.titleIconLabel.setFixedSize(18, 18)
         self.titleIconLabel.setScaledContents(True)
         self.titleIconLabel.setPixmap(pixmap)
         self.titleLabel = QLabel("xyplayer")
+        self.titleLabel.setFixedHeight(30)
+        self.titleLabel.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.titleLabel.setStyleSheet("font-family:'微软雅黑';font-size:14px;color: white")
         self.minButton = PushButton()
         self.minButton.setFocusPolicy(Qt.NoFocus)
-        self.hideButton = PushButton()
-        self.hideButton.setFocusPolicy(Qt.NoFocus)
         self.closeButton = PushButton()
         self.closeButton.setFocusPolicy(Qt.NoFocus)
         self.minButton.loadPixmap(IconsHub.MinButton)
-        self.hideButton.loadPixmap(IconsHub.HideButton)
         self.closeButton.loadPixmap(IconsHub.CloseButton)
-        self.hideButton.clicked.connect(self.show_mainwindow)
         self.minButton.clicked.connect(self.show_minimized)
-        self.closeButton.clicked.connect(self.close)
+        self.closeButton.clicked.connect(self.closeButtonActed)
 
 #播放页面
         self.playbackPage = playback_page.PlaybackPage()
@@ -94,17 +92,17 @@ class PlayerUi(QDialog):
 
 #综合布局 
         titleLayout = QHBoxLayout()
+        titleLayout.setSpacing(0)
         titleLayout.addWidget(self.titleIconLabel)
-        titleLayout.addSpacing(3)
         titleLayout.addWidget(self.titleLabel)
-        titleLayout.addWidget(self.hideButton)
+        titleLayout.addStretch()
         titleLayout.addWidget(self.minButton)
         titleLayout.addWidget(self.closeButton)
         
         self.globalFrame = QFrame()
         self.globalFrame.setStyleSheet("QPushButton{border:2px solid lightgray;border-radius:10px;}")
         hbox4 = QHBoxLayout(self.globalFrame)
-        hbox4.setContentsMargins(4, 2, 4, 2)
+        hbox4.setContentsMargins(4, 0, 4, 0)
         hbox4.addWidget(self.globalBackButton)
         hbox4.addWidget(self.globalHomeButton)
         hbox4.addWidget(self.globalSettingButton)
@@ -114,21 +112,21 @@ class PlayerUi(QDialog):
         self.mainStack.addWidget(self.managePage)
         self.mainStack.addWidget(self.playbackPage)
         mainLayout = QVBoxLayout(self)
+        mainLayout.setSpacing(2)
+        mainLayout.setContentsMargins(3, 0, 3, 7)
         mainLayout.addLayout(titleLayout)
-        mainLayout.setSpacing(0)
-        mainLayout.setContentsMargins(3, 6, 3, 8)
         mainLayout.addWidget(self.mainStack)
+        mainLayout.addSpacing(4)
         mainLayout.addWidget(self.globalFrame)
         self.show_mainstack_1()
-#        self.show_mainstack_0()
 
 #设置菜单页面
-        self.settingFrame = setting_frame.SettingFrame(self)
-        self.settingFrame.setGeometry(9, 246, 352, 390)
+        self.functionsFrame = functions_frame.FunctionsFrame(self)
+        self.functionsFrame.setGeometry(9, 206, 352, 422)
         pixmap = QPixmap(IconsHub.Functions)
-        self.settingFrame.setPixmap(pixmap)
-        self.settingFrame.setMask(pixmap.mask())
-        self.settingFrame.hide()
+        self.functionsFrame.setPixmap(pixmap)
+        self.functionsFrame.setMask(pixmap.mask())
+        self.functionsFrame.hide()
 
 #创建托盘图标
         self.trayIcon = QSystemTrayIcon(self)
@@ -216,24 +214,19 @@ class PlayerUi(QDialog):
         self.close()
 
     def closeEvent(self, event):
-        if not self.settingFrame.isHidden():
-            self.settingFrame.hide()
-        if self.settingFrame.mountoutDialog.countoutMode and not self.settingFrame.mountoutDialog.remainMount or self.settingFrame.timeoutDialog.timeoutFlag or self.forceCloseFlag:
+        if not self.functionsFrame.isHidden():
+            self.functionsFrame.hide()
+        if self.functionsFrame.mountoutDialog.countoutMode and not self.functionsFrame.mountoutDialog.remainMount or self.functionsFrame.timeoutDialog.timeoutFlag or self.forceCloseFlag:
             self.handle_before_close()
             event.accept()
         else:
-            self.show()
             if threading.active_count() == 1:
-                ok = QMessageBox.question(self, '退出', '您确定退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
-                if ok == QMessageBox.Ok:
+                if self.managePage.downloadPage.allWorksCount:
+                    self.mediaPlayer.stop()
+                    self.hide()
                     self.trayIcon.hide()
-                    if self.managePage.downloadPage.allWorksCount:
-                        self.mediaPlayer.stop()
-                        self.hide()
-                        self.managePage.downloadPage.record_works_into_database()
-                    event.accept()
-                else:
-                    event.ignore()
+                    self.managePage.downloadPage.record_works_into_database()
+                event.accept()
             else:
                 ok = QMessageBox.question(self, '退出', '当前有下载任务正在进行，您是否要挂起全部下载任务并退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
                 if ok == QMessageBox.Ok:
@@ -249,7 +242,6 @@ class PlayerUi(QDialog):
         for t in threading.enumerate():
             if t.name == 'downloadLrc':
                 t.stop()
-#                t.join()
             elif t!= threading.main_thread():
                 t.pause()
                 t.join()
@@ -275,8 +267,8 @@ class PlayerUi(QDialog):
             self.playbackPage.set_new_playmode(Configures.PlaymodeSingle)
     
     def show_minimized(self):
-        if not self.settingFrame.isHidden():
-            self.settingFrame.hide()
+        if not self.functionsFrame.isHidden():
+            self.functionsFrame.hide()
         self.showMinimized()
 
     def show_mainstack_1(self):
@@ -295,17 +287,17 @@ class PlayerUi(QDialog):
             self.showMainWindowAction.setText('隐藏主界面')
             self.show()
         else:
-            if not self.settingFrame.isHidden():
-                self.settingFrame.hide()
+            if not self.functionsFrame.isHidden():
+                self.functionsFrame.hide()
             self.hide()
             self.showMainWindowAction.setText('显示主界面')
     
     def show_global_setting_frame(self):
-        if self.settingFrame.isHidden():
-            self.settingFrame.show_main()
-            self.settingFrame.show()  
+        if self.functionsFrame.isHidden():
+            self.functionsFrame.show_main()
+            self.functionsFrame.show()  
         else:
-            self.settingFrame.hide()
+            self.functionsFrame.hide()
     
     def desktop_lyric_state_changed(self, be_to_off):
         if be_to_off:
@@ -354,3 +346,9 @@ class PlayerUi(QDialog):
         if self.mainStack.currentIndex or self.managePage.stackedWidget.currentIndex: 
             self.show_mainstack_0()
             self.managePage.back_to_main()
+    
+    def closeButtonActed(self):
+        if self.closeButtonAct == Configures.SettingsHide:
+            self.show_mainwindow()
+        else:
+            self.close()

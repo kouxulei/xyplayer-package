@@ -6,6 +6,7 @@ class MountoutDialog(QDialog):
     state_message_signal = pyqtSignal(int)
     def __init__(self, parent = None):
         super(MountoutDialog, self).__init__(parent)
+        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
         label1 = QLabel("系统将再播放")
         label1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         label1.setFixedHeight(35)

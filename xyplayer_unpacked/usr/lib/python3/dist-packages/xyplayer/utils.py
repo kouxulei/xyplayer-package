@@ -17,13 +17,20 @@ def trace_to_keep_time(func):
         return result  #Do not forget the returns
     return _call
 
-def format_position_to_mmss(value):
-    hours = value // 3600
-    minutes = (value % 3600) // 60    
-    seconds = value % 3600 % 60
-    if hours:
-        return QTime(hours, minutes, seconds).toString('hh:mm:ss')
-    return QTime(0, minutes, seconds).toString('mm:ss')
+def operate_after_check_thread_locked_state(func):
+    """用于判断当前线程锁的状态的修饰器，主要用在添加、删除、清空列表几个操作。"""
+    @wraps(func)
+    def _call(*args, **kwargs):
+        obj = args[0]
+        if obj.currentTable == Configures.PlaylistDownloaded:
+            if obj.lock.acquire():
+                result = func(*args, **kwargs)
+                obj.lock.release()
+        else:
+            result = func(*args, **kwargs)
+        print('%s执行成功!'%func.__name__)
+        return result
+    return _call
 
 def connect_as_title(artist, musicname):
     return '%s%s%s'%(artist, Configures.Hyphen, musicname)
@@ -37,6 +44,17 @@ def get_artist_and_musicname_from_title(title):
         artist = '未知'
         musicName = title.strip()
     return artist, musicName
+
+def get_full_music_name_from_title(title, musicType=Configures.MusicMp3):
+    return '%s.%s'%(title, musicType)
+
+def format_position_to_mmss(value):
+    hours = value // 3600
+    minutes = (value % 3600) // 60    
+    seconds = value % 3600 % 60
+    if hours:
+        return QTime(hours, minutes, seconds).toString('hh:mm:ss')
+    return QTime(0, minutes, seconds).toString('mm:ss')
 
 def read_music_info(path):
     """读取歌曲的tag信息。"""
@@ -56,6 +74,15 @@ def read_music_info(path):
     else:
         title = connect_as_title(artist, musicname)
     return title,album, totalTime
+
+def write_tags(musicPath, title, album):
+    audio = MP3(musicPath, ID3 = EasyID3)
+    audio.clear()
+    artist, musicname = get_artist_and_musicname_from_title(title)
+    audio['title'] = musicname
+    audio['artist'] = artist
+    audio['album'] = album.strip()
+    audio.save()
 
 def list_to_seconds(timeTuple):
     min, sec, ms = timeTuple
@@ -101,15 +128,6 @@ def parse_lrc(text):
     else:
         lrcOffset = 0
     return lrcOffset, lrcHandled
-    
-def write_tags(musicPath, title, album):
-    audio = MP3(musicPath, ID3 = EasyID3)
-    audio.clear()
-    artist, musicname = get_artist_and_musicname_from_title(title)
-    audio['title'] = musicname
-    audio['artist'] = artist
-    audio['album'] = album.strip()
-    audio.save()
 
 def version_to_num(version):
     """将版本号转化成数字序列，主要是方便比较检查是否有更高版本。"""
@@ -135,6 +153,3 @@ def convert_B_to_MB(bytes):
     """单位转换：B转到单位MB。"""
     mb = bytes / (1024 * 1024)
     return mb
-
-def get_full_music_name_from_title(title, musicType=Configures.MusicMp3):
-    return '%s.%s'%(title, musicType)

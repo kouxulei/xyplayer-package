@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton,QVBoxLayout, QLabe
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
 from xyplayer import Configures
-from xyplayer.iconshub import IconsHub
+from xyplayer.myicons import IconsHub
 from xyplayer.mywidgets import LabelButton, DownloadListItem
 from xyplayer.mytables import WorksList, DownloadWorksModel
 from xyplayer.mythreads import DownloadThread

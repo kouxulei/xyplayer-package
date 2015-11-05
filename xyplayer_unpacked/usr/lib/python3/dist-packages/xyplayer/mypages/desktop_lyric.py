@@ -1,35 +1,55 @@
 from PyQt5.QtWidgets import QLabel, QMenu, QAction
-from PyQt5.QtGui import QCursor, QPalette, QFont, QColor, QPainter, QLinearGradient, QPen
+from PyQt5.QtGui import QCursor, QFont, QPainter, QLinearGradient, QPen
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint
 from xyplayer import desktopSize
+from xyplayer.mysettings import globalSettings
 
-class DesktopLyric(QLabel):
+class DesktopLyricBasic(QLabel):
+    def __init__(self, text='桌面歌词', parent=None):
+        super(DesktopLyricBasic, self).__init__(parent)
+        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_TranslucentBackground)    #设置透明背景
+        self.setText(text)
+        self.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.font = QFont()
+        self.font.setFamily(globalSettings.DesktoplyricFontFamily)
+        self.font.setWeight(globalSettings.DesktoplyricFontWeight)
+        self.font.setPointSize(globalSettings.DesktoplyricFontSize)
+        self.setFont(self.font)
+        self.set_color(globalSettings.DesktoplyricColors)
+
+    def set_color(self, colors):
+        self.colors = colors
+        self.update()
+    
+    def get_linear_gradient(self):
+        fontHeight = self.fontMetrics().height()
+        startPoint = QPoint(self.rect().x(), self.rect().y()+0.5*(self.rect().height()-fontHeight))
+        endPoint = QPoint(startPoint.x(), startPoint.y()+fontHeight)
+        linear = QLinearGradient(startPoint, endPoint)    
+        colorCounts = len(self.colors)
+        for i in range(colorCounts):
+            linear.setColorAt(0.2+i/colorCounts, self.colors[i])
+        return linear
+    
+    def paintEvent(self, event):
+        self.painter = QPainter()
+        self.painter.begin(self)
+        linear = self.get_linear_gradient()
+        self.painter.setPen(QPen(linear, 0))
+        self.painter.drawText(0, 0, self.rect().width(), self.rect().height(), Qt.AlignHCenter|Qt.AlignVCenter, self.text())
+        self.painter.end()      
+
+class DesktopLyric(DesktopLyricBasic):
     hide_desktop_lyric_signal = pyqtSignal()
     def __init__(self):
         super(DesktopLyric, self).__init__()
         self.setAttribute(Qt.WA_QuitOnClose,False)
         self.desktopWidth = desktopSize.width()
         self.desktopHeight = desktopSize.height()
-        self.setGeometry((self.desktopWidth - 500)//2, self.desktopHeight-90, 500, 60)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
-#        self.setWordWrap(True)
-        self.setText('桌面歌词显示于此！')
-        self.setAlignment(Qt.AlignCenter)
-#        self.setStyleSheet("background:transparent;font-family:'楷体';font-size:45px;color:blue;")
-        font = QFont()
-        font.setFamily("楷体")
-        font.setWeight(60)
-        font.setPointSize(35)
-        self.setFont(font)
-        pe = QPalette()
-        pe.setColor(QPalette.WindowText, QColor(0, 0, 255))
-        self.setPalette(pe)
+        self.setGeometry((self.desktopWidth - 300)//2, self.desktopHeight-90, 300, 60)
+        self.setText('桌面歌词显示')
         self.create_contextmenu()
-        
-        self.colorR = 20
-        self.colorG = 190
-        self.colorB = 255
     
     def create_contextmenu(self):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -42,31 +62,18 @@ class DesktopLyric(QLabel):
         self.hideLyricAction.triggered.connect(self.hide_desktop_lyric)
         self.customContextMenuRequested.connect(self.show_context_menu)
     
-    def set_color(self, colorR, colorG, colorB):
-        self.colorR = colorR
-        self.colorG = colorG
-        self.colorB = colorB
-        self.update()
-        
-    
-    def paintEvent(self, event):
-        self.painter = QPainter()
-        self.painter.begin(self)
-
-        self.linear = QLinearGradient(self.rect().topLeft(),self.rect().bottomLeft())
-        self.linear.setColorAt(1, QColor(self.colorR, self.colorG, self.colorB));
-#        self.linear.setColorAt(0.5, QColor(114, 232, 255));
-#        self.linear.setColorAt(0.9, QColor(14, 179, 255));
-
-        self.painter.setPen(QPen(self.linear, 0))
-        self.painter.drawText(0, 0, self.rect().width(), self.rect().height(), Qt.AlignLeft, self.text())
-        self.painter.end()      
-    
     def original_place(self):
         self.move(QPoint((self.desktopWidth - self.width())//2, self.desktopHeight - self.height()-30))
     
     def geometry_info(self):
         return self.geometry().x(), self.geometry().y(), self.width(), self.height()
+    
+    def set_text(self, text):
+        x, y, old_width, height = self.geometry_info()
+        width = self.fontMetrics().width(text)
+        self.setFixedWidth(width)
+        self.setText(text)
+        self.setGeometry(x + (old_width - width) / 2, y, width, height)
     
     def hide_desktop_lyric(self):
         self.hide_desktop_lyric_signal.emit()

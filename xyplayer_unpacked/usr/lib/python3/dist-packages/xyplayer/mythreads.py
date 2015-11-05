@@ -82,7 +82,7 @@ class DownloadThread(threading.Thread):
         req.headers['Range'] = 'bytes= %s-%s'%(self.currentLength, self.length)
         res = self.try_to_open_url(req)
         if not res or res.getheader('Content-Type') != 'audio/mpeg':
-            self.errorHappend()
+            self.errorHappend('无法定位到开始下载处的节点位置')
             return
         contentsList = []
         while self.currentLength<self.length and self.runPermit and self.noPause:
