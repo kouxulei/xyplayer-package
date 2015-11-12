@@ -2,12 +2,12 @@ import os
 import time
 import socket
 import re
-import json
 import zlib
 import base64
 from urllib import request, parse
 from xyplayer import Configures
-from xyplayer.utils import trace_to_keep_time, get_artist_and_musicname_from_title
+from xyplayer.utils import (trace_to_keep_time, get_artist_and_musicname_from_title, 
+    composite_lyric_path_use_title, get_pic_url_from_info_text)
 
 reqCache = {}
 songLinkCache = {}
@@ -39,7 +39,6 @@ class SearchOnline(object):
         reqContent = SearchOnline.url_open(url)
         if reqContent == Configures.UrlError:
             print('联网出错')
-#            QMessageBox.critical(None, "错误", "联网出错！\n请检查网络连接是否正常！")     
             return None
         if not reqContent:
             return None
@@ -49,11 +48,6 @@ class SearchOnline(object):
         songLinkTemp = songLinkTemp.split('/')
         songLink = '/'.join(songLinkTemp[:3]+songLinkTemp[5:])
         return songLink
-    
-    def get_local_artist_info_path(artist):
-        infoName = artist+'.info'
-        infoPath = os.path.join(Configures.ArtistinfosDir, infoName)
-        return infoPath
     
     def get_artist_info_path(artist):
         """获取歌手信息。"""
@@ -68,10 +62,8 @@ class SearchOnline(object):
         reqContent = SearchOnline.url_open(url)
         if reqContent ==  Configures.UrlError:
             return None
-#        if not reqContent:
-#            return None
         try:
-            info = reqContent.replace('"', '''\\"''').replace("'", '"').replace('\t', '')
+            info = reqContent.replace('"', '''\\"''').replace("'", '"').replace('\t', '').replace('\\', '')
             with open(infoPath, 'w+') as f:
                 f.write(info)
             return infoPath
@@ -79,8 +71,20 @@ class SearchOnline(object):
             return None
         if not info:
             return None
+            
+    def get_local_artist_info_path(artist):
+        infoName = artist+'.info'
+        infoPath = os.path.join(Configures.ArtistinfosDir, infoName)
+        return infoPath
 
     def get_artist_image_path(artist):
+        def _get_artist_pic_url(pic_path):
+            if len(pic_path) < 5:
+                return None
+            if pic_path[:2] in ('55', '90'):
+                pic_path = '100/%s'%pic_path[2:]
+            url = ''.join(['http://img4.kwcdn.kuwo.cn/', 'star/starheads/', pic_path])
+            return url
         imageName = artist+'.jpg'
         imagePath = os.path.join(Configures.ImagesDir, imageName)
         if os.path.exists(imagePath):
@@ -90,12 +94,8 @@ class SearchOnline(object):
             return None
         with open(infoPath, 'r+') as f:
             infoStr = f.read()
-        infoList = json.loads(infoStr)
-        try:
-            picPath = infoList['pic']
-        except:
-            return None
-        picUrl = SearchOnline.get_artist_pic_url(picPath)
+        picPath = get_pic_url_from_info_text(infoStr)
+        picUrl = _get_artist_pic_url(picPath)
         if not picUrl or len(picUrl)<10:
             return None
         try:
@@ -108,46 +108,51 @@ class SearchOnline(object):
             print(req.getheader('Content-Type'))
             return None
         image = req.read()
-#        if not image:
-#            return None
         with open(imagePath, 'wb+') as f:
             f.write(image)
         return imagePath
     
-    def get_artist_pic_url(pic_path):
-        if len(pic_path) < 5:
-            return None
-        if pic_path[:2] in ('55', '90',):
-            pic_path = '100/' + pic_path[2:]
-        url = ''.join(['http://img4.kwcdn.kuwo.cn/', 'star/starheads/', pic_path, ])
-        return url
-    
-    def is_lrc_path_exists(title):
-        lrcName = title + '.lrc'
-        lrcPath = os.path.join(Configures.LrcsDir, lrcName)
-        if os.path.exists(lrcPath):
-            return lrcPath
-        return None
-    
-    def  get_lrc_path(title, musicId):
+    def  get_lrc_contents(title, musicId):
         """获取歌词。"""
-        lrcName = title+'.lrc'
-        lrcPath = os.path.join(Configures.LrcsDir, lrcName)
+        lrcPath = composite_lyric_path_use_title(title)
+        if os.path.exists(lrcPath):
+            f = open(lrcPath, 'r')
+            contents = f.read()
+            if contents == 'None':
+                return Configures.LyricNone
+            if contents not in ('Configures.UrlError', 'Error'):
+                return contents
         if musicId != Configures.LocalMusicId:
             lrcContent = SearchOnline.get_lrc_from_musicid(musicId)
         else:
             lrcContent = SearchOnline.get_lrc_from_title(title)
         with open(lrcPath, 'w') as f:
-            if not lrcContent:
+            if lrcContent == Configures.LyricNone:
                 f.write('None')
-            elif lrcContent == Configures.UrlError:
-                f.write('Configures.UrlError')
+            elif lrcContent == Configures.LyricNetError:
+                f.write('Error')
             else:
                 f.write(lrcContent)
-        return lrcPath
-    
-    def parse_quote(str):
-        return parse.quote(str, safe = '~@#$&()*!+=:;,.?/\'')
+            f.close()
+        return lrcContent
+
+    def get_lrc_from_musicid(musicId):
+        url = ('http://newlyric.kuwo.cn/newlyric.lrc?' + 
+            SearchOnline.encode_lrc_url(musicId))
+        try:
+            req = request.urlopen(url)
+            if req.status != 200 or req.reason != 'OK':
+                return Configures.LyricNetError
+            reqContent = req.read()
+        except:
+            return Configures.LyricNetError
+        if not reqContent:
+            return Configures.LyricNone
+        try:
+            lrcContent = SearchOnline.decode_lrc_content(reqContent)
+            return lrcContent if lrcContent else Configures.LyricNone
+        except:
+            return Configures.LyricNone
 
     def get_lrc_from_title(title):
         try:
@@ -162,22 +167,19 @@ class SearchOnline(object):
             ])
             reqContent = SearchOnline.url_open(url)
             if reqContent ==  Configures.UrlError:
-                return Configures.UrlError
+                return Configures.LyricNetError
             if not reqContent:
-                return None
+                return Configures.LyricNone
             songs, hit = SearchOnline.parse_songs_wrap(reqContent)
-        except:
-            return None
-        if hit == 0 or  not songs:
-            return None
-        try:
+            if hit == 0 or  not songs:
+                return Configures.LyricNone
             musicId = songs[0][3]
             if not musicId:
-                return None
+                return Configures.LyricNone
             lrcContent = SearchOnline.get_lrc_from_musicid(musicId)
-            return lrcContent
+            return lrcContent if lrcContent else Configures.LyricNone
         except:
-            return None
+            return Configures.LyricNone
 
     def parse_songs_wrap(str):
         hit = int(re.search('Hit\=(\d+)', str).group(1))
@@ -195,6 +197,9 @@ class SearchOnline(object):
                 continue
             break
         return songs_wrap, hit
+    
+    def parse_quote(str):
+        return parse.quote(str, safe = '~@#$&()*!+=:;,.?/\'')
 
     def url_open(url, retries = 4):
         socket.setdefaulttimeout(3)
@@ -210,32 +215,6 @@ class SearchOnline(object):
                 time.sleep(0.05)
                 continue
         return Configures.UrlError
-
-    def get_lrc_from_musicid(musicId):
-        url = ('http://newlyric.kuwo.cn/newlyric.lrc?' + 
-            SearchOnline.encode_lrc_url(musicId))
-#        print(url)
-        try:
-            req = request.urlopen(url)
-        except:
-            return Configures.UrlError
-        if req.status != 200 or req.reason != 'OK':
-            return Configures.UrlError
-        reqContent = req.read()
-        if reqContent ==  Configures.UrlError:
-            return Configures.UrlError
-        if not reqContent:
-            return None
-        try:
-            lrcContent = SearchOnline.decode_lrc_content(reqContent)
-#            if not lrcContent:
-#                return None
-            return lrcContent
-#            with open(lrcPath, 'w') as f:
-#                f.write(lrcContent)
-#            return lrcPath
-        except:
-            return None
     
     def encode_lrc_url(musicId):
         param = ('user=12345,web,web,web&requester=localhost&req=1&rid=MUSIC_%s' %musicId)
@@ -255,7 +234,6 @@ class SearchOnline(object):
         return SearchOnline.xor_bytes(str_bytes).decode('gb18030')
     
     def xor_bytes(str_bytes, key = 'yeelion'):
-        #key = 'yeelion'
         xor_bytes = key.encode('utf8')
         str_len = len(str_bytes)
         xor_len = len(xor_bytes)

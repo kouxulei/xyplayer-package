@@ -1,11 +1,13 @@
 import os
 import random
-from PyQt5.QtWidgets import QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QColorDialog
+from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, 
+    QColorDialog, QComboBox, QHBoxLayout, QVBoxLayout, QGroupBox, QRadioButton, QLineEdit, QFileDialog)
 from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont
 from PyQt5.QtCore import pyqtSignal, Qt, QSize
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
-from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title
+from xyplayer.mysettings import globalSettings, configOptions
+from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title, get_usable_fonts
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
@@ -35,7 +37,6 @@ class PushButton(QPushButton):
         self.update()
 
     def mousePressEvent(self,event):	
-#        if(event.button() == Qt.LeftButton):		
         self.mouse_press = True
         self.status = 2 
         self.update()		
@@ -60,30 +61,22 @@ class PushButton(QPushButton):
 class ToolButton(QToolButton):
     def __init__(self,pic_name, text = '', parent = None):
         super(ToolButton,self).__init__(parent)
-
-        #设置图标
         self.pixmap= QPixmap(pic_name) 
         self.setIcon(QIcon(self.pixmap))
         self.setIconSize(self.pixmap.size())
-        #设置大小
         self.setFixedSize(self.pixmap.width()+25, self.pixmap.height()+27)
         self.setAutoRaise(True)
-
-        #设置文本颜色
         self.text_palette = QPalette()
         self.text_palette.setColor(self.text_palette.ButtonText, QColor(230, 230, 230))
         self.setPalette(self.text_palette)
-
-        #设置文本粗体
         self.setText(text)
         self.text_font = QFont()
         self.text_font.setWeight(QFont.Bold)
-
         self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-
+        self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.setStyleSheet("background:transparent;color:black;font-size:16px")
-        self.mouse_over  = False#鼠标是否移过
-        self.mouse_press = False#鼠标是否按下
+        self.mouse_over  = False
+        self.mouse_press = False
 
     def enterEvent(self,event):
         self.mouse_over = True
@@ -103,7 +96,6 @@ class ToolButton(QToolButton):
 
     def paintEvent(self,event):
         if(self.mouse_over):
-            #绘制鼠标移到按钮上的按钮效果
             self.painterInfo(0, 150, 255)
         else:
             if(self.mouse_press):
@@ -113,20 +105,14 @@ class ToolButton(QToolButton):
     def painterInfo(self,top_color,middle_color,bottom_color):
         self.painter = QPainter()
         self.painter.begin(self)
-        #self.pen = QPen()
-        #self.pen.setWidth(0)
         self.painter.setPen(Qt.NoPen)
 
         self.linear = QLinearGradient(self.rect().topLeft(),self.rect().bottomLeft())
-#        self.linear = QLinearGradient(self.rect().topLeft(),self.rect().topRight())
-        #self.linear.start()
         self.linear.setColorAt(0.2, QColor(0, 255, 0, top_color))
         self.linear.setColorAt(0.5, QColor(0, 255, 0, middle_color))
         self.linear.setColorAt(1, QColor(0, 255, 0, bottom_color))
-        #self.linear.finalStop()
 
         self.painter.setBrush(self.linear)
-        #self.painter.fillRect(self.rect(),Qt.LinearGradientPattern)
         self.painter.drawRect(self.rect()) #
         self.painter.end()      
 
@@ -154,26 +140,26 @@ class LabelButton(QLabel):
 
 class ColorButton(QWidget):
     """选择桌面歌词颜色的按键"""
-    new_color_signal = pyqtSignal(int, QColor)
-    def __init__(self, index=0):
+    new_color_signal = pyqtSignal()
+    def __init__(self, index=0, color=QColor(255, 255, 0)):
         super(ColorButton, self).__init__()
         self.setMinimumHeight(10)
+        self.color = color
         self.index = index
-        self.color = QColor(255, 255, 0)
     
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            color = QColorDialog.getColor(initial=self.color)
+            color = QColorDialog.getColor(initial=self.color, title='颜色选择 #%i'%(self.index+1))
             if color.isValid() and color != self.color:
                 self.set_color(color)
     
     def set_color(self, color):
         self.color = color
         self.update()
-        self.new_color_signal.emit(self.index, self.color)
+        self.new_color_signal.emit()
     
-    def set_index(self, index):
-        self.index = index
+    def get_color(self):
+        return self.color
     
     def paintEvent(self, event):
         painter = QPainter()
@@ -303,7 +289,6 @@ class NewLabel(QLabel):
     def initial_timer(self):
         if self.textWidth < self.width():
             self.offset = 0
-#            self.kill_timer()
         else:
             self.offset = -self.init_pos
             self.start_timer()
@@ -336,15 +321,6 @@ class NewLabel(QLabel):
             x = -self.offset
         self.painter.drawText(x, 0, self.textWidth, self.height(), Qt.AlignLeft | Qt.AlignVCenter, self.text())
         self.painter.end()
-        
-#    def showEvent(self, event):
-#        self.initial_timer()
-    
-#    def hideEvent(self, event):
-#        self.kill_timer()
-#
-#    def kill_timer(self):
-#        self.killTimer(self.myTimerId) 
     
     def start_timer(self):
         self.myTimerId = self.startTimer(self.timer_interval)
@@ -372,7 +348,8 @@ class DownloadListItem(QLabel):
         self.killButton = QToolButton(self, clicked=self.kill_button_clicked)
         self.killButton.setIcon(QIcon(IconsHub.DownloadKill))
         self.killButton.setIconSize(QSize(23, 23))
-        self.titleLabel = QLabel(self.title, self)
+        self.titleLabel = NewLabel(self)
+        self.titleLabel.setText(self.title)
         self.titleLabel.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.progressBar = QProgressBar(self)
         self.progressBar.setValue(0)
@@ -435,4 +412,290 @@ class DownloadListItem(QLabel):
         self.killWork.emit(self.ident)
 
 
+#FontPanel,ColorsPanel,CloseActionsBox均在settings_frame.py中用到
 
+class FontPanel(QWidget):
+    """用来调整桌面歌词字体的板块，放在settings_frame中使用。"""
+    font_style_changed = pyqtSignal(str, str)
+    def __init__(self, parent=None):
+        super(FontPanel, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+        self.fill_family_combo()
+        self.fill_size_combo()
+        self.fill_form_combo()
+    
+    def create_connections(self):
+        self.familyCombo.currentTextChanged.connect(self.family_combo_text_changed)
+        self.sizeCombo.currentTextChanged.connect(self.size_combo_text_changed)
+        self.formCombo.currentTextChanged.connect(self.form_combo_text_changed)
+    
+    def setup_ui(self):
+        label1 = QLabel('字体:', self)
+        label2 = QLabel('字号:', self)
+        label3 = QLabel('字型:', self)
+        self.familyCombo = QComboBox(self)
+        self.familyCombo.setFixedWidth(95)
+        self.sizeCombo = QComboBox(self)
+        self.sizeCombo.setFixedWidth(50)
+        self.formCombo = QComboBox(self)
+        self.formCombo.setFixedWidth(60)
+        
+        mainLayout = QHBoxLayout(self)
+        mainLayout.setSpacing(2)
+        mainLayout.setContentsMargins(0, 2, 0, 4)
+        mainLayout.addWidget(label1)
+        mainLayout.addWidget(self.familyCombo)
+        mainLayout.addStretch()
+        mainLayout.addWidget(label2)
+        mainLayout.addWidget(self.sizeCombo)
+        mainLayout.addStretch()
+        mainLayout.addWidget(label3)
+        mainLayout.addWidget(self.formCombo)
+    
+    def fill_family_combo(self):
+        self.familys = get_usable_fonts()
+        self.fill_combo_common(self.familyCombo, self.familys)
+    
+    def fill_size_combo(self):
+        self.sizes = Configures.SettingsFontSizes
+        self.fill_combo_common(self.sizeCombo, self.sizes)
+    
+    def fill_form_combo(self):
+        self.forms = Configures.SettingsFontForms
+        self.fill_combo_common(self.formCombo, self.forms)
+        
+    def fill_combo_common(self, combo, values):
+        for value in values:
+            combo.addItem(str(value))
+    
+    def family_combo_text_changed(self, text):
+        self.font_style_changed.emit(globalSettings.optionsHub.DesktoplyricFontFamily, text)
+    
+    def size_combo_text_changed(self, text):
+        self.font_style_changed.emit(globalSettings.optionsHub.DesktoplyricFontSize, text)
+    
+    def form_combo_text_changed(self, text):
+        self.font_style_changed.emit(globalSettings.optionsHub.DesktoplyricFontForm, text)
+    
+    def get_font_style(self):
+        return (self.familyCombo.currentText(), int(self.sizeCombo.currentText()), self.formCombo.currentText())
+    
+    def set_font_style(self, family, size, form):
+        self.familyCombo.setCurrentIndex(self.familys.index(family))
+        self.sizeCombo.setCurrentIndex(self.sizes.index(size))
+        self.formCombo.setCurrentIndex(self.forms.index(form))
+    
+    def restore_default_font_style(self):
+        self.set_font_style(
+            configOptions[globalSettings.optionsHub.DesktoplyricFontFamily], 
+            configOptions[globalSettings.optionsHub.DesktoplyricFontSize], 
+            configOptions[globalSettings.optionsHub.DesktoplyricFontForm]
+        )
+
+class ColorsPanel(QWidget):
+    color_changed = pyqtSignal()
+    def __init__(self, parent=None):
+        super(ColorsPanel, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        for button in self.colorButtons:
+            button.new_color_signal.connect(self.color_of_button_changed)
+    
+    def setup_ui(self):
+        self.colorButtons = []
+        colorsLayout = QVBoxLayout(self)
+        colorsLayout.setContentsMargins(0, 0, 0, 0)
+        colorsLayout.setSpacing(5)
+        for index in range(3):
+            colorButton = ColorButton(index)
+            self.colorButtons.append(colorButton)
+            colorsLayout.addWidget(colorButton)
+    
+    def color_of_button_changed(self):
+        self.color_changed.emit()
+    
+    def get_colors(self):
+        return tuple(button.get_color() for button in self.colorButtons)
+    
+    def set_colors(self, colors):
+        for i, color in enumerate(colors):
+            self.colorButtons[i].set_color(color)
+    
+    def restore_default_colors(self):
+        self.set_colors(configOptions[globalSettings.optionsHub.DesktoplyricColors])
+
+class CloseActionsBox(QGroupBox):
+    close_act_changed = pyqtSignal(int)
+    def __init__(self, parent=None):
+        super(CloseActionsBox, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        self.hideItButton.pressed.connect(self.hideit_button_clicked)
+        self.exitItButton.pressed.connect(self.exitit_button_clicked)
+    
+    def setup_ui(self):
+        self.setTitle('关闭主面板时')
+        self.hideItButton = QRadioButton('最小化到托盘')
+        self.hideItButton.setFocusPolicy(Qt.NoFocus)
+        self.exitItButton = QRadioButton('退出程序')
+        self.exitItButton.setFocusPolicy(Qt.NoFocus)    
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.hideItButton)
+        vbox.addWidget(self.exitItButton)
+    
+    def set_close_act(self, act):
+        if act == Configures.SettingsHide:
+            self.hideItButton.setChecked(True)
+        elif act == Configures.SettingsExit:
+            self.exitItButton.setChecked(True) 
+        self.close_act_changed.emit(act)
+    
+    def hideit_button_clicked(self):
+        self.close_act_changed.emit(Configures.SettingsHide)
+    
+    def exitit_button_clicked(self):
+        self.close_act_changed.emit(Configures.SettingsExit)
+    
+    def restore_default_close_act(self):
+        self.set_close_act(configOptions[globalSettings.optionsHub.CloseButtonAct])
+
+class PathSelectPanel(QWidget):
+    download_dir_changed = pyqtSignal(str)
+    def __init__(self, parent=None):
+        super(PathSelectPanel, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        self.lineEdit.textChanged.connect(self.text_changed)
+    
+    def setup_ui(self):
+        label = QLabel("下载目录")
+        self.lineEdit = QLineEdit()
+        self.openDir = QToolButton(clicked = self.select_dir)
+        self.openDir.setText('...')
+        downloadDirLayout = QHBoxLayout(self)
+        downloadDirLayout.setContentsMargins(0, 0, 0, 0)
+        downloadDirLayout.setSpacing(2)
+        downloadDirLayout.addWidget(label)
+        downloadDirLayout.addWidget(self.lineEdit)
+        downloadDirLayout.addWidget(self.openDir)
+    
+    def select_dir(self):
+        oldDir = self.lineEdit.text()
+        f = QFileDialog()
+        newDir = f.getExistingDirectory(self, "选择下载文件夹", Configures.HomeDir, QFileDialog.ShowDirsOnly)
+        if newDir and newDir != oldDir:
+            self.lineEdit.setText(newDir)
+    
+    def get_download_dir(self):
+        return self.lineEdit.text().strip()
+    
+    def set_download_dir(self, dir):
+        self.lineEdit.setText(dir)
+    
+    def text_changed(self, text):
+        self.download_dir_changed.emit(text.strip())
+    
+    def restore_default_download_dir(self):
+        self.lineEdit.setText(configOptions[globalSettings.optionsHub.DownloadfilesPath])
+
+class LyricPanel(QWidget):
+    param_changed = pyqtSignal(str, str)
+    def __init__(self, title='窗口歌词', option1='', option2='', parent=None):
+        super(LyricPanel, self).__init__(parent)
+        self.title = title
+        self.set_option_names(option1, option2)
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        self.sizeCombo.currentTextChanged.connect(self.size_combo_text_changed)
+        self.colorCombo.currentTextChanged.connect(self.color_combo_text_changed)
+    
+    def setup_ui(self):
+        titleLabel = QLabel(self.title)
+        font = QFont()
+        font.setBold(True)
+        titleLabel.setFont(font)
+        label1 = QLabel('字号:')
+        label2 = QLabel('颜色:')
+        self.sizeCombo = QComboBox()
+        self.sizeCombo.setFixedWidth(50)
+        self.colorCombo = QComboBox()
+        self.colorCombo.setFixedWidth(80)
+        self.fill_color_combo()
+        mainLayout = QHBoxLayout(self)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.addWidget(titleLabel)
+        mainLayout.addStretch()
+        mainLayout.addWidget(label1)
+        mainLayout.addWidget(self.sizeCombo)
+        mainLayout.addStretch()
+        mainLayout.addWidget(label2)
+        mainLayout.addWidget(self.colorCombo)
+    
+    def fill_color_combo(self):
+        self.colors = Configures.SettingsNormColors
+        for color in self.colors:
+            self.colorCombo.addItem(color)
+    
+    def set_combo_range(self, range):
+        self.sizes = range
+        for v in range:
+            self.sizeCombo.addItem(str(v))
+    
+    def set_option_names(self, option1, option2):
+        self.sizeOption = option1
+        self.colorOption = option2        
+    
+    def set_parameters(self, size, color):
+        self.sizeCombo.setCurrentIndex(self.sizes.index(size))
+        self.colorCombo.setCurrentIndex(self.colors.index(color))
+    
+    def size_combo_text_changed(self, text):
+        self.param_changed.emit(self.sizeOption, text)
+    
+    def color_combo_text_changed(self, text):
+        self.param_changed.emit(self.colorOption, text)
+        
+class LyricPanelsBox(QGroupBox):
+    parameters_changed = pyqtSignal(str, str)
+    def __init__(self, parent=None):
+        super(LyricPanelsBox, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        self.lyricPanelRun.param_changed.connect(self.parameters_changed.emit)
+        self.lyricPanelReady.param_changed.connect(self.parameters_changed.emit)
+    
+    def setup_ui(self):
+        self.setTitle('窗口歌词')
+        self.lyricPanelRun = LyricPanel(title='已选中：')
+        self.lyricPanelRun.set_combo_range(Configures.SettingsRange1)
+        self.lyricPanelRun.set_option_names(globalSettings.optionsHub.WindowlyricRunFontSize, globalSettings.optionsHub.WindowlyricRunFontColor)
+        self.lyricPanelReady = LyricPanel(title='未选中：')
+        self.lyricPanelReady.set_combo_range(Configures.SettingsRange2)
+        self.lyricPanelReady.set_option_names(globalSettings.optionsHub.WindowlyricReadyFontSize, globalSettings.optionsHub.WindowlyricReadyFontColor)
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.lyricPanelRun)
+        vbox.addSpacing(6)
+        vbox.addWidget(self.lyricPanelReady)
+    
+    def set_box_parameters(self, size1, color1, size2, color2):
+        self.lyricPanelRun.set_parameters(size1, color1)
+        self.lyricPanelReady.set_parameters(size2, color2)
+    
+    def restore_default_font_style(self):
+        self.set_box_parameters(
+            configOptions[globalSettings.optionsHub.WindowlyricRunFontSize], 
+            configOptions[globalSettings.optionsHub.WindowlyricRunFontColor], 
+            configOptions[globalSettings.optionsHub.WindowlyricReadyFontSize], 
+            configOptions[globalSettings.optionsHub.WindowlyricReadyFontColor]
+        )

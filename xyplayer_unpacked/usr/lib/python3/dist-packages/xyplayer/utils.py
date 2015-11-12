@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import tempfile
 from functools import wraps
 from mutagenx.mp3 import MP3
 from mutagenx.easyid3 import EasyID3
@@ -92,8 +93,41 @@ def list_to_seconds(timeTuple):
         currentTime = int(min)*60 + int(sec) + float(ms)
     return currentTime*1000
 
+def get_lyric_offset_from_text(text):
+    m = re.search(r'\[offset\:(\-?\d+?)\]', text, re.MULTILINE)
+    offset = 0
+    recordExists = False
+    if m:
+        offset = int(m.group(1))
+        recordExists = True
+    return recordExists, offset
+
+def composite_lyric_path_use_title(title):
+    lrcPath = os.path.join(Configures.LrcsDir, '%s.lrc'%title)
+    return lrcPath
+
+def change_lyric_offset_in_file(file, offset):
+    with open(file, 'r') as f:
+       originalText = f.read() 
+       f.close()
+    offsetRecord = r'[offset:%i]'%offset
+    screen = r'\[offset\:(\-?\d+?)\]'
+    recordExists, oldOffset = get_lyric_offset_from_text(originalText)
+    newText = ''
+    if recordExists:
+        if offset != oldOffset:
+            newText = re.sub(screen, offsetRecord, originalText)
+    else:
+        newText = '%s\n%s'%(offsetRecord, originalText)
+    newText = re.sub(r'\noffset\=(\-?\d+)', '', newText)    #将用原来方法的部分改回来
+    if newText:
+        with open(file, 'w') as f:
+            f.write(newText)
+            f.close()       
+
 def parse_lrc(text):
     """解析lrc歌词文件。"""
+    recordExists, lrcOffset = get_lyric_offset_from_text(text)
     lines = text.split('\n')
     lrcHandled = {-2:''}
     pattern = re.compile(r'\[([0-9]{2}):([0-9]{2})(\.[0-9]{1,3})?\]')
@@ -107,27 +141,49 @@ def parse_lrc(text):
                 timeTags.append(currentTime)
                 offset = match.end()
                 match = pattern.match(line, offset)
-            content = line[offset:].strip()
             breakFlag = True
-            if not content:
-                content = '... ...'
-            else:
-                match = pattern.search(line, offset)
-                if match:
-                    content = line[offset:match.start()].strip()
-                    breakFlag = False
-            for tag in timeTags:
-                lrcHandled[tag] = content
+            if len(timeTags):
+                content = line[offset:].strip()
+                if not content:
+                    content = '... ...'
+                else:
+                    match = pattern.search(line, offset)
+                    if match:
+                        content = line[offset:match.start()].strip()
+                        breakFlag = False
+                for tag in timeTags:
+                    lrcHandled[tag] = content
             if breakFlag:
                 break
             else:
                 timeTags =[]
-    c = re.match('offset\=(\-?\d+)',lines[-1])
-    if c:
-        lrcOffset = int(c.group(1))
-    else:
-        lrcOffset = 0
     return lrcOffset, lrcHandled
+
+def parse_artist_info(infoPath):
+    def _parse_info_text(infoText, infoDict):
+        pattern = re.compile(r'\"(\S+?)\"\:\"(.*?)\"\,')
+        wraps = pattern.findall(infoText)
+        for key, value in wraps:
+            if key in infoDict and value:
+                infoDict[key] = value
+    infoDict = {
+        'birthday': '不是今天', 
+        'birthplace': '地球', 
+        'language': '地球语', 
+        'gender': '男/女', 
+        'constellation': '神马座', 
+        'info': '未找到歌手的详细信息'}
+    if infoPath:
+        with open(infoPath, 'r') as f:
+            infoText = f.read()
+        if infoText:
+            _parse_info_text(infoText, infoDict)
+    return infoDict
+
+def get_pic_url_from_info_text(infoText):
+    pattern = re.compile(r'\"pic\"\:\"(.*?)\"\,')
+    m = pattern.search(infoText)
+    return m.group(1)
 
 def version_to_num(version):
     """将版本号转化成数字序列，主要是方便比较检查是否有更高版本。"""
@@ -153,3 +209,18 @@ def convert_B_to_MB(bytes):
     """单位转换：B转到单位MB。"""
     mb = bytes / (1024 * 1024)
     return mb
+
+def get_usable_fonts():
+    """读取系统可用的中文字体"""
+    fontsListFile = tempfile.NamedTemporaryFile(prefix='xyplayer-', suffix='.fonts').name
+    os.system('fc-list :lang=zh > %s'%fontsListFile)
+    fonts = []
+    pattern = re.compile(r'\: (.+?)\:')
+    with open(fontsListFile, 'r') as f:
+        for line in f.readlines():
+            m = pattern.search(line)
+            font = m.group(1).split(',')[0]
+            fonts.append(font)
+    fonts.sort()
+    return tuple(fonts)
+    

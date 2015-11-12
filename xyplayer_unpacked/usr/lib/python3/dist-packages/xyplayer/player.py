@@ -10,7 +10,7 @@ from xyplayer.myicons import IconsHub
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.mysettings import globalSettings
-from xyplayer.utils import (read_music_info, parse_lrc, trace_to_keep_time, get_full_music_name_from_title,
+from xyplayer.utils import (read_music_info, parse_lrc, trace_to_keep_time, get_full_music_name_from_title,composite_lyric_path_use_title, 
     format_position_to_mmss, get_artist_and_musicname_from_title, operate_after_check_thread_locked_state)
 from xyplayer.player_ui import PlayerUi
 
@@ -72,20 +72,31 @@ class Player(PlayerUi):
         self.managePage.frameBottomWidget.clicked.connect(self.show_mainstack_1)
         self.managePage.lyricLabel.clicked.connect(self.show_mainstack_1)
 
-        self.functionsFrame.settingsFrame.downloadDirChanged.connect(self.set_new_downloaddir)
-        self.functionsFrame.settingsFrame.downloadDirChanged.connect(self.managePage.searchFrame.set_download_dir)
+        self.functionsFrame.settingsFrame.download_dir_changed.connect(self.set_new_download_dir)
         self.functionsFrame.settingsFrame.desktop_lyric_style_changed.connect(self.update_desktop_lyric_style)
         self.functionsFrame.settingsFrame.close_button_act_changed.connect(self.set_new_close_button_act)
+        self.functionsFrame.settingsFrame.window_lyric_style_changed.connect(self.set_new_window_lyric_style)
         self.functionsFrame.aboutPage.updatingStateChanged.connect(self.updating_state_changed)
         self.functionsFrame.timeoutDialog.time_out_signal.connect(self.close)
         self.functionsFrame.changeVolume.connect(self.mediaPlayer.setVolume)
         self.functionsFrame.changeMuting.connect(self.mediaPlayer.setMuted)
     
-    def set_new_downloaddir(self, newDir):
+    def set_new_download_dir(self, newDir):
         self.downloadDir = newDir
+        self.managePage.searchFrame.set_download_dir(newDir)
     
     def set_new_close_button_act(self, act):
         self.closeButtonAct = act
+    
+    def update_desktop_lyric_style(self):
+        self.playbackPage.desktopLyric.set_color(self.functionsFrame.settingsFrame.get_lyric_colors())
+        self.playbackPage.desktopLyric.set_font_style(*self.functionsFrame.settingsFrame.get_lyric_font_styles())
+    
+    def set_new_window_lyric_style(self):
+        params = self.functionsFrame.settingsFrame.get_window_lyric_params()
+        self.playbackPage.set_new_window_lyric_style(params)
+        if len(self.lyricDict) and self.playbackPage.document.blockCount():
+            self.playbackPage.set_html(self.j, self.lyricDict, self.t)
     
     def initial_mediaplayer(self):
         self.mediaPlayer = QMediaPlayer()
@@ -510,10 +521,10 @@ class Player(PlayerUi):
     def syc_lyric(self, currentTime):
         """同步歌词"""
         if len(self.lyricDict) and self.playbackPage.document.blockCount():
-            if currentTime-self.lyricOffset <= self.t[0]:
+            if currentTime+self.lyricOffset <= self.t[0]:
                 self.managePage.lyricLabel.setText('歌词同步显示')
             for i in range(len(self.t) - 1):
-                if self.t[i] < currentTime-self.lyricOffset and self.t[i + 1] > currentTime-self.lyricOffset and i!= self.j:
+                if self.t[i] < currentTime+self.lyricOffset and self.t[i + 1] > currentTime+self.lyricOffset and i!= self.j:
                     self.j = i
                     if self.lyricDict[self.t[i]]:
                         self.managePage.lyricLabel.setText(self.lyricDict[self.t[i]])
@@ -606,27 +617,20 @@ class Player(PlayerUi):
         self.lyricOffset = 0     
         title = self.model.get_record_title(self.currentSourceRow)
         musicId = self.model.get_record_musicId(self.currentSourceRow)
-        self.lrcPath = SearchOnline.is_lrc_path_exists(title)
-        if not self.lrcPath:
-            self.lrcPath = SearchOnline.get_lrc_path(title, musicId)
-        with open(self.lrcPath, 'r+') as f:
-            lyric = f.read()
-        if lyric == 'Configures.UrlError':
-            self.lrcPath = SearchOnline.get_lrc_path(title, musicId)
-            with open(self.lrcPath, 'r+') as f:
-                lyric = f.read()
-            if lyric == 'Configures.UrlError':
-                self.managePage.lyricLabel.setText("网络出错，无法搜索歌词！")
-                self.playbackPage.desktopLyric.setText("网络出错，无法搜索歌词！")
-                self.lyricDict.clear()
-                self.playbackPage.url_error_lyric()
-        elif lyric == 'None':
-            self.managePage.lyricLabel.setText("搜索不到匹配歌词！")
-            self.playbackPage.desktopLyric.setText("搜索不到匹配歌词！")
+        self.lrcPath = composite_lyric_path_use_title(title)
+        lyric = SearchOnline.get_lrc_contents(title, musicId)
+        if lyric == Configures.LyricNetError:
+            self.managePage.lyricLabel.setText("网络出错，无法搜索歌词！")
+            self.playbackPage.desktopLyric.set_text("网络出错，无法搜索歌词！")
+            self.lyricDict.clear()
+            self.playbackPage.url_error_lyric()
+        elif lyric == Configures.LyricNone:
+            self.managePage.lyricLabel.set_text("搜索不到匹配歌词！")
+            self.playbackPage.desktopLyric.set_text("搜索不到匹配歌词！")
             self.lyricDict.clear()
             self.playbackPage.no_matched_lyric()
         else:
-            self.managePage.lyricLabel.setText("歌词同步显示")
+            self.managePage.lyricLabel.set_text("歌词同步显示")
             self.lyricOffset, self.lyricDict = parse_lrc(lyric)
             self.lyricDict[3000000] = ''
             self.t = sorted(self.lyricDict.keys())
@@ -635,9 +639,9 @@ class Player(PlayerUi):
     def lyric_offset_changed(self, offset):
         self.lyricOffset = offset
         if len(self.lyricDict):
-            if self.lyricOffset > 0:
+            if self.lyricOffset < 0:
                 self.managePage.lyricLabel.setToolTip("已延迟%s秒"%(self.lyricOffset/1000))
-            elif self.lyricOffset < 0:
+            elif self.lyricOffset > 0:
                 self.managePage.lyricLabel.setToolTip("已提前%s秒"%(abs(self.lyricOffset/1000)))
             else:
                 self.managePage.lyricLabel.setToolTip("正常")
@@ -982,7 +986,4 @@ class Player(PlayerUi):
                 self.force_close()
             else:
                 self.show()
-
-    def update_desktop_lyric_style(self):
-        self.playbackPage.desktopLyric.set_color(tuple(self.functionsFrame.settingsFrame.colors))
 

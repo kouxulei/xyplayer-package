@@ -1,17 +1,16 @@
 import os
-from PyQt5.QtWidgets import (
-    QMessageBox,QHBoxLayout, QPushButton, QTabWidget, QFileDialog, QLabel, QWidget, QVBoxLayout, 
-    QLineEdit,QToolButton, QGroupBox, QRadioButton)
+from PyQt5.QtWidgets import QMessageBox,QHBoxLayout, QPushButton, QTabWidget, QLabel, QWidget, QVBoxLayout
 from PyQt5.QtCore import pyqtSignal, Qt
 from xyplayer import Configures
 from xyplayer.mypages import desktop_lyric
-from xyplayer.mywidgets import ColorButton
-from xyplayer.mysettings import globalSettings, configOptions
+from xyplayer.mywidgets import FontPanel, ColorsPanel, CloseActionsBox, PathSelectPanel, LyricPanelsBox
+from xyplayer.mysettings import globalSettings
 
 class SettingsFrame(QWidget):
-    downloadDirChanged = pyqtSignal(str)
+    download_dir_changed = pyqtSignal(str)
     desktop_lyric_style_changed = pyqtSignal()
     close_button_act_changed = pyqtSignal(int)
+    window_lyric_style_changed = pyqtSignal()
     def __init__(self, parent = None):
         super(SettingsFrame, self).__init__(parent)
         self.setStyleSheet("QPushButton{font-family:'微软雅黑';font-size:14px;}")
@@ -23,12 +22,12 @@ class SettingsFrame(QWidget):
         self.initial_parames()
     
     def create_connections(self):
-        self.lineEdit.textChanged.connect(self.check_changed_text)
         self.tabWidget.currentChanged.connect(self.tab_switched)
-        for colorButton in self.colorButtons:
-            colorButton.new_color_signal.connect(self.preview)
-        self.hideItButton.pressed.connect(self.hideit_button_clicked)
-        self.exitItButton.pressed.connect(self.exitit_button_clicked)
+        self.pathSelectPanel.download_dir_changed.connect(self.change_download_dir)
+        self.fontPanel.font_style_changed.connect(self.set_new_desktoplyric_font_style)
+        self.colorsPanel.color_changed.connect(self.set_new_colors)
+        self.closeActionsBox.close_act_changed.connect(self.check_close_button_act)
+        self.lyricPanelsBox.parameters_changed.connect(self.set_new_windowlyric_font_style)
     
     def initial_parames(self):
         self.modifiedDict = {}
@@ -46,67 +45,44 @@ class SettingsFrame(QWidget):
     
     def initial_basic_tab(self):
         self.basicTab = QWidget()
-        groupBox = QGroupBox('关闭主面板时')
-        self.hideItButton = QRadioButton('最小化到托盘')
-        self.hideItButton.setFocusPolicy(Qt.NoFocus)
-        self.exitItButton = QRadioButton('退出程序')
-        self.exitItButton.setFocusPolicy(Qt.NoFocus)
-        if globalSettings.CloseButtonAct == Configures.SettingsHide:
-            self.hideItButton.setChecked(True)
-        else:
-            self.exitItButton.setChecked(True)
-        vbox = QVBoxLayout(groupBox)
-        vbox.addWidget(self.hideItButton)
-        vbox.addWidget(self.exitItButton)
-        
+        self.closeActionsBox = CloseActionsBox()
+        self.lyricPanelsBox = LyricPanelsBox()
+        self.basic_tab_revert_parameters()
         mainLayout = QVBoxLayout(self.basicTab)
-        mainLayout.addWidget(groupBox)
+        mainLayout.addWidget(self.closeActionsBox)
+        mainLayout.addStretch()
+        mainLayout.addWidget(self.lyricPanelsBox)
         mainLayout.addStretch()
     
     def initial_download_tab(self):
         self.downloadTab = QWidget()
-        label = QLabel("下载目录")
-        self.lineEdit = QLineEdit("%s"%globalSettings.DownloadfilesPath)
-        self.openDir = QToolButton(clicked = self.select_dir)
-        self.openDir.setText('...')
-        downloadDirLayout = QHBoxLayout()
-        downloadDirLayout.setSpacing(2)
-        downloadDirLayout.addWidget(label)
-        downloadDirLayout.addWidget(self.lineEdit)
-        downloadDirLayout.addWidget(self.openDir)
+        self.pathSelectPanel = PathSelectPanel()
+        self.download_tab_revert_parameters()
         downloadTabLayout = QVBoxLayout(self.downloadTab)
-        downloadTabLayout.addLayout(downloadDirLayout)
+        downloadTabLayout.addWidget(self.pathSelectPanel)
         downloadTabLayout.addStretch()
     
     def initial_lyric_tab(self):
         self.lyricTab = QWidget()
-        self.colors = []
-        self.colorButtons = []
         self.previewLabel = desktop_lyric.DesktopLyricBasic()
+        self.previewLabel.setFixedHeight(80)
         self.previewLabel.set_color(globalSettings.DesktoplyricColors)
         label1 = QLabel('颜色：', self.lyricTab)
-        label2 = QLabel('预览：', self.lyricTab)
         label1.setFixedWidth(50)
-        
-        colorsLayout = QVBoxLayout()
-        colorsLayout.setSpacing(3)
-        for index in range(3):
-            colorButton = ColorButton()
-            colorButton.set_index(index)
-            colorButton.set_color(globalSettings.DesktoplyricColors[index])
-            self.colors.append(globalSettings.DesktoplyricColors[index])
-            self.colorButtons.append(colorButton)
-            colorsLayout.addWidget(colorButton)
+        label2 = QLabel('预览：', self.lyricTab)
+        self.fontPanel = FontPanel()
+        self.colorsPanel = ColorsPanel()
+        self.desktoplyric_tab_revert_parameters()
         lyricColorLayout = QHBoxLayout()
         lyricColorLayout.addWidget(label1)
-        lyricColorLayout.addLayout(colorsLayout)
-        
+        lyricColorLayout.addWidget(self.colorsPanel)
         lyricTabLayout = QVBoxLayout(self.lyricTab)
+        lyricTabLayout.setSpacing(6)
+        lyricTabLayout.addWidget(self.fontPanel)
         lyricTabLayout.addLayout(lyricColorLayout)
         lyricTabLayout.addStretch()
         lyricTabLayout.addWidget(label2)
         lyricTabLayout.addWidget(self.previewLabel)
-        
     
     def initial_main_ui(self):
         self.defaultButton = QPushButton("恢复本页默认配置", clicked = self.default)
@@ -133,14 +109,32 @@ class SettingsFrame(QWidget):
         mainLayout.addLayout(buttonsLayout)
         mainLayout.setContentsMargins(2, 4, 4, 4)
 
+    def check_control_buttons_state(self):
+        self.okButton.setEnabled(bool(len(self.modifiedDict)))
+        self.cancelButton.setEnabled(bool(len(self.modifiedDict)))
+
+    def check_and_change_edit_state(self, option, default, new):
+        if new != default:
+            self.modifiedDict[option] = new
+        else:
+            if option in self.modifiedDict:
+                del self.modifiedDict[option]
+        self.check_control_buttons_state()
+
     def make_modified_global_settings_valid(self):
         for key, value in self.modifiedDict.items():
+            if key == globalSettings.optionsHub.DownloadfilesPath:
+                if not os.path.isdir(value):
+                    QMessageBox.critical(self, '错误', '您输入的不是一个文件夹！')
+                    return False
             globalSettings.__setattr__(key, value)
         self.modifiedDict.clear()
         self.check_control_buttons_state()
+        return True
 
     def confirm(self):
-        self.make_modified_global_settings_valid() 
+        if not self.make_modified_global_settings_valid() :
+            return
         if self.tabWidget.tabText(self.currentIndex) == Configures.SettingsBasicTab:
             self.basic_tab_confirm()
         elif self.tabWidget.tabText(self.currentIndex) == Configures.SettingsDownloadTab:
@@ -150,11 +144,11 @@ class SettingsFrame(QWidget):
 
     def cancel(self):
         if self.tabWidget.tabText(self.currentIndex) == Configures.SettingsBasicTab:
-            self.basic_tab_cancel()
+            self.basic_tab_revert_parameters()
         elif self.tabWidget.tabText(self.currentIndex) == Configures.SettingsDownloadTab:
-            self.download_tab_cancel()
+            self.download_tab_revert_parameters()
         elif self.tabWidget.tabText(self.currentIndex) == Configures.SettingsDesktopLyricTab:
-            self.desktoplyric_tab_cancel()
+            self.desktoplyric_tab_revert_parameters()
 
     def default(self):
         ok = QMessageBox.question(self, 'xyplayer选项管理', '确认恢复本页默认配置？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
@@ -168,80 +162,85 @@ class SettingsFrame(QWidget):
 
     def basic_tab_confirm(self):
         self.close_button_act_changed.emit(globalSettings.CloseButtonAct)
+        self.window_lyric_style_changed.emit()
     
-    def basic_tab_cancel(self):
-        if globalSettings.CloseButtonAct == Configures.SettingsHide:
-            self.hideItButton.setChecked(True)
-        else:
-            self.exitItButton.setChecked(True)
-        self.check_close_button_act()
-    
+    def basic_tab_revert_parameters(self):
+        self.closeActionsBox.set_close_act(globalSettings.CloseButtonAct)
+        self.lyricPanelsBox.set_box_parameters(
+            globalSettings.WindowlyricRunFontSize, 
+            globalSettings.WindowlyricRunFontColor, 
+            globalSettings.WindowlyricReadyFontSize, 
+            globalSettings.WindowlyricReadyFontColor)
+        
     def basic_tab_default(self):
-        self.hideItButton.setChecked(True)
-        self.check_close_button_act()
+        self.closeActionsBox.restore_default_close_act()
+        self.lyricPanelsBox.restore_default_font_style()
 
     def download_tab_confirm(self):
-        self.downloadDirChanged.emit(globalSettings.DownloadfilesPath)
+        self.download_dir_changed.emit(globalSettings.DownloadfilesPath)
 
-    def download_tab_cancel(self):
-        self.lineEdit.setText(globalSettings.DownloadfilesPath)
+    def download_tab_revert_parameters(self):
+        self.pathSelectPanel.lineEdit.setText(globalSettings.DownloadfilesPath)
     
     def download_tab_default(self):
-        self.lineEdit.setText(configOptions[globalSettings.optionsHub.DownloadfilesPath])
+        self.pathSelectPanel.restore_default_download_dir()
     
     def desktoplyric_tab_confirm(self):
         self.desktop_lyric_style_changed.emit()
     
-    def desktoplyric_tab_cancel(self):
-        for index in range(len(self.colorButtons)):
-            self.colorButtons[index].set_color(globalSettings.DesktoplyricColors[index])
+    def desktoplyric_tab_revert_parameters(self):
+        self.fontPanel.set_font_style(globalSettings.DesktoplyricFontFamily, 
+            globalSettings.DesktoplyricFontSize, globalSettings.DesktoplyricFontForm)
+        self.colorsPanel.set_colors(globalSettings.DesktoplyricColors)
             
     def desktoplyric_tab_default(self):
-        for index in range(len(self.colorButtons)):
-            self.colorButtons[index].set_color(configOptions[globalSettings.optionsHub.DesktoplyricColors][index])
+        self.fontPanel.restore_default_font_style()
+        self.colorsPanel.restore_default_colors()
+    
+    def change_download_dir(self, text):
+        self.check_and_change_edit_state(globalSettings.optionsHub.DownloadfilesPath, globalSettings.DownloadfilesPath, str(text))
+    
+    def check_close_button_act(self, act):
+        self.check_and_change_edit_state(globalSettings.optionsHub.CloseButtonAct, globalSettings.CloseButtonAct, act)
+    
+    def set_new_desktoplyric_font_style(self, option, new):
+        if option == globalSettings.optionsHub.DesktoplyricFontFamily:
+            default = globalSettings.DesktoplyricFontFamily
+        elif option == globalSettings.optionsHub.DesktoplyricFontSize:
+            default = globalSettings.DesktoplyricFontSize
+            new = int(new)
+        elif option == globalSettings.optionsHub.DesktoplyricFontForm:
+            default = globalSettings.DesktoplyricFontForm
+        self.previewLabel.set_font_style(*self.get_lyric_font_styles())
+        self.check_and_change_edit_state(option, default, new)
+    
+    def set_new_windowlyric_font_style(self, option, new):
+        if option == globalSettings.optionsHub.WindowlyricRunFontSize:
+            default = globalSettings.WindowlyricRunFontSize
+            new = int(new)
+        elif option == globalSettings.optionsHub.WindowlyricRunFontColor:
+            default = globalSettings.WindowlyricRunFontColor
+        elif option == globalSettings.optionsHub.WindowlyricReadyFontSize:
+            default = globalSettings.WindowlyricReadyFontSize
+            new = int(new)
+        elif option == globalSettings.optionsHub.WindowlyricReadyFontColor:
+            default = globalSettings.WindowlyricReadyFontColor
+        self.check_and_change_edit_state(option, default, new)
 
-    def check_control_buttons_state(self):
-        self.okButton.setEnabled(bool(len(self.modifiedDict)))
-        self.cancelButton.setEnabled(bool(len(self.modifiedDict)))
+    def set_new_colors(self):
+        colors = self.get_lyric_colors()
+        self.previewLabel.set_color(colors)
+        self.check_and_change_edit_state(globalSettings.optionsHub.DesktoplyricColors, globalSettings.DesktoplyricColors, colors)
     
-    def select_dir(self):
-        f = QFileDialog()
-        newDir = f.getExistingDirectory(self, "选择下载文件夹", Configures.HomeDir, QFileDialog.ShowDirsOnly)
-        if not os.path.isdir(newDir):
-            QMessageBox.critical(self, '错误', '您输入的不是一个文件夹！')
-            self.lineEdit.setText(globalSettings.DownloadfilesPath)
-            return
-        if newDir:
-            self.lineEdit.setText(newDir)
+    def get_lyric_colors(self):
+        return self.colorsPanel.get_colors()
+        
+    def get_lyric_font_styles(self):
+        return self.fontPanel.get_font_style()
     
-    def check_changed_text(self, text):
-        self.check_and_change_edit_state(globalSettings.optionsHub.DownloadfilesPath, globalSettings.DownloadfilesPath, text.strip())
-    
-    def preview(self, i, color):
-        if self.colors[i] != color:
-            self.colors[i] = color
-        colors_tuple = tuple(self.colors)
-        self.previewLabel.set_color(colors_tuple)
-        self.check_and_change_edit_state(globalSettings.optionsHub.DesktoplyricColors, globalSettings.DesktoplyricColors, colors_tuple)
-    
-    def check_close_button_act(self):
-        act = Configures.SettingsHide
-        if self.exitItButton.isChecked():
-            act = Configures.SettingsExit
-        self.check_and_change_edit_state(globalSettings.optionsHub.CloseButtonAct, globalSettings.CloseButtonAct, act)
-    
-    def hideit_button_clicked(self):
-        act = Configures.SettingsHide
-        self.check_and_change_edit_state(globalSettings.optionsHub.CloseButtonAct, globalSettings.CloseButtonAct, act)
-    
-    def exitit_button_clicked(self):
-        act = Configures.SettingsExit
-        self.check_and_change_edit_state(globalSettings.optionsHub.CloseButtonAct, globalSettings.CloseButtonAct, act)
-    
-    def check_and_change_edit_state(self, option, default, new):
-        if new != default:
-            self.modifiedDict[option] = new
-        else:
-            if option in self.modifiedDict:
-                del self.modifiedDict[option]
-        self.check_control_buttons_state()
+    def get_window_lyric_params(self):
+        return (
+            globalSettings.WindowlyricRunFontSize, 
+            globalSettings.WindowlyricRunFontColor, 
+            globalSettings.WindowlyricReadyFontSize, 
+            globalSettings.WindowlyricReadyFontColor)

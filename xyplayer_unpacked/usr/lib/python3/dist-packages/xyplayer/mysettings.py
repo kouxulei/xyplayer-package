@@ -4,13 +4,17 @@ from xyplayer import Configures, settings
 configOptions = {
     'CloseButtonAct': Configures.SettingsHide, 
     'DownloadfilesPath': Configures.MusicsDir, 
-    'DesktoplyricFontFamily': "楷体", 
-    'DesktoplyricFontWeight': 60, 
-    'DesktoplyricFontSize': 35, 
-    'DesktoplyricColors': (QColor(14, 100, 255), QColor(114, 150, 230), QColor(14, 100, 255))
+    'DesktoplyricFontFamily': '楷体', 
+    'DesktoplyricFontSize': 35,    #values: 20~60, step by 5
+    'DesktoplyricFontForm': '常规', 
+    'DesktoplyricColors': (QColor(14, 100, 255), QColor(85, 255, 127), QColor(14, 100, 255)), 
+    'WindowlyricRunFontSize': 20,     #values: 18~30, step by 1
+    'WindowlyricRunFontColor': 'white', 
+    'WindowlyricReadyFontSize': 16,     #values: 12~24, step by 1
+    'WindowlyricReadyFontColor': 'black'
 }
 
-def readFromSettings(key, keyType, default=None, settings=settings):
+def read_from_settings(key, keyType, default=None, settings=settings):
     if not settings.contains(key):
         return default
     try:
@@ -22,7 +26,7 @@ def readFromSettings(key, keyType, default=None, settings=settings):
         print('Warning: %s'%str(error))
         return default if default else keyType()
 
-def writeToSettings(key, value, default, settings=settings):
+def write_to_settings(key, value, default, settings=settings):
     if value == default:
         settings.remove(key)
     else:
@@ -37,13 +41,15 @@ class MySettings(object):
         for option in configOptions:
             value = configOptions[option]
             object.__setattr__(self.optionsHub, option, option)
-            object.__setattr__(self, option, readFromSettings(option, type(value), default=value))
+            object.__setattr__(self, option, read_from_settings(option, type(value), default=value))
     
     def __setattr__(self, option, value):
         if not option in configOptions:
             raise AttributeError('Unknown attribute %s!'%option)
         object.__setattr__(self, option, value)
-        writeToSettings(option, value, configOptions[option])
+        write_to_settings(option, value, configOptions[option])
 
 globalSettings = MySettings()
-globalSettings.DownloadfilesPath = Configures.clean_old_settings_file()
+downloadPathOrigin = Configures.clean_old_settings_file()
+if downloadPathOrigin:
+    globalSettings.DownloadfilesPath = downloadPathOrigin

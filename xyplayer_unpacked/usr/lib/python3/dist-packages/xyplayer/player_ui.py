@@ -53,7 +53,7 @@ class PlayerUi(QDialog):
         self.minButton.loadPixmap(IconsHub.MinButton)
         self.closeButton.loadPixmap(IconsHub.CloseButton)
         self.minButton.clicked.connect(self.show_minimized)
-        self.closeButton.clicked.connect(self.closeButtonActed)
+        self.closeButton.clicked.connect(self.close_button_acted)
 
 #播放页面
         self.playbackPage = playback_page.PlaybackPage()
@@ -228,6 +228,7 @@ class PlayerUi(QDialog):
                     self.managePage.downloadPage.record_works_into_database()
                 event.accept()
             else:
+                self.show()
                 ok = QMessageBox.question(self, '退出', '当前有下载任务正在进行，您是否要挂起全部下载任务并退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
                 if ok == QMessageBox.Ok:
                     self.handle_before_close()
@@ -294,7 +295,6 @@ class PlayerUi(QDialog):
     
     def show_global_setting_frame(self):
         if self.functionsFrame.isHidden():
-            self.functionsFrame.show_main()
             self.functionsFrame.show()  
         else:
             self.functionsFrame.hide()
@@ -347,7 +347,7 @@ class PlayerUi(QDialog):
             self.show_mainstack_0()
             self.managePage.back_to_main()
     
-    def closeButtonActed(self):
+    def close_button_acted(self):
         if self.closeButtonAct == Configures.SettingsHide:
             self.show_mainwindow()
         else:

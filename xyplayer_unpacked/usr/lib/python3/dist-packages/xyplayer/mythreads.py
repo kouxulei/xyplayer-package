@@ -4,7 +4,7 @@ import socket
 import threading
 from urllib import request
 from xyplayer import Configures
-from xyplayer.utils import write_tags, get_file_contents_length, read_music_info
+from xyplayer.utils import write_tags, get_file_contents_length, read_music_info, composite_lyric_path_use_title
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.mytables import TableModel
 
@@ -28,8 +28,9 @@ class DownloadLrcThread(threading.Thread):
             except:
                 pass
             musicId = self.list[i][1]
-            if not SearchOnline.is_lrc_path_exists(title):
-                SearchOnline.get_lrc_path(title, musicId)
+            lrcPath = composite_lyric_path_use_title(title)
+            if not os.path.exists(lrcPath):
+                SearchOnline.get_lrc_contents(title, musicId)
             i  += 1
     
     def stop(self):
@@ -86,7 +87,7 @@ class DownloadThread(threading.Thread):
             return
         contentsList = []
         while self.currentLength<self.length and self.runPermit and self.noPause:
-            trytimes = 10
+            trytimes = 5
             while(trytimes):
                 try:
                     contentCache = res.read(BufferBlock)
@@ -96,7 +97,7 @@ class DownloadThread(threading.Thread):
                         self.currentLength = self.length
                     break
                 except:
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                     trytimes -= 1
                     continue
             if trytimes == 0:
@@ -166,8 +167,7 @@ class DownloadThread(threading.Thread):
             
     def download_lrc_and_artistinfo(self, title, musicId):
         """下载歌曲的同时去下载对应的歌词、歌手信息等内容。"""
-        lrcName = title + '.lrc'
-        lrcPath = os.path.join(Configures.LrcsDir, lrcName)
+        lrcPath = composite_lyric_path_use_title(title)
         if os.path.exists(lrcPath):
             os.remove(lrcPath)
         list_temp = [(title, musicId)]

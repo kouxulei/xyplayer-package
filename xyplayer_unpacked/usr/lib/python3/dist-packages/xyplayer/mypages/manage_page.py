@@ -40,7 +40,7 @@ class ManagePage(QWidget):
         self.searchButton.setIcon(QIcon(IconsHub.Search))
         
         self.lyricLabel = LabelButton("歌词同步显示", 33)
-
+        self.lyricLabel.setFixedWidth(312)
 
         self.frameBottomWidget = SpecialLabel('', 93)    
         self.frameBottomWidget.setFixedWidth(352)

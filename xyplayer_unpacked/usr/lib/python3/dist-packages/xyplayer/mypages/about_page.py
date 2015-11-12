@@ -1,4 +1,5 @@
 import os
+import time
 import socket
 from urllib import request
 from PyQt5.QtGui import *
@@ -133,9 +134,11 @@ class AboutPage(QWidget):
     
     def check_update(self):
         url = 'https://raw.githubusercontent.com/Zheng-Yejian/xyplayer-package/master/changelog'
+        version, req = self.url_open(url)
+        if not version:
+            self.newestVersionLabel.setText('联网出错，检查新版本失败！')
+            return
         try:
-            req = request.urlopen(url)
-            version = req.readline().decode().strip()
             versionNum = version_to_num(version)
             if versionNum != self.changelogVersionNum:
                 with open(Configures.Changelog, 'w') as f:
@@ -154,7 +157,19 @@ class AboutPage(QWidget):
             else:
                 self.newestVersionLabel.setText('已是最新版，谢谢使用！')
         except:
-                 self.newestVersionLabel.setText('联网出错，检查新版本失败！')
+            self.newestVersionLabel.setText('联网出错，检查新版本失败！')
+    
+    def url_open(self, url):
+        retries = 4
+        while retries:
+            try:
+                req = request.urlopen(url)
+                version = req.readline().decode().strip()
+                return version, req
+            except:
+                time.sleep(0.05)
+                retries -= 1
+        return None, None
     
     def update(self):
         url = 'https://github.com/Zheng-Yejian/xyplayer-package/blob/master/xyplayer_%s_all.deb?raw=true'%self.newestVersion

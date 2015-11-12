@@ -6,11 +6,12 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import QIcon, QCursor
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from xyplayer import Configures
+from xyplayer.mysettings import globalSettings
 from xyplayer.myicons import IconsHub
 from xyplayer.mytables import SearchTable, TableModel
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
-from xyplayer.utils import connect_as_title, get_full_music_name_from_title
+from xyplayer.utils import connect_as_title, get_full_music_name_from_title, composite_lyric_path_use_title
 
 class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()
@@ -167,7 +168,7 @@ class SearchFrame(QWidget):
         self.searchTable.addBunchToListAction.triggered.connect(self.add_bunch_to_list)
     
     def init_params(self):
-        self.downloadDir = Configures.MusicsDir
+        self.downloadDir = globalSettings.DownloadfilesPath
     
     def set_download_dir(self, path):
         self.downloadDir = path
@@ -228,8 +229,7 @@ class SearchFrame(QWidget):
                     artist = self.searchTable.item(row, 2).text()
                     title = connect_as_title(artist, musicName)
                     album = self.searchTable.item(row, 3).text()
-                    lrcName = title + '.lrc'
-                    lrcPath = os.path.join(Configures.LrcsDir, lrcName)
+                    lrcPath = composite_lyric_path_use_title(title)
                     if os.path.exists(lrcPath):
                         os.remove(lrcPath)
                     self.added_items.append([title, musicId])

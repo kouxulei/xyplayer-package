@@ -11,8 +11,8 @@ from PyQt5.QtSql import QSqlDatabase, QSqlQuery
 __doc__ = '''This is a simple musicplayer that can search, play, download musics from the Internet.'''
 
 app_name = 'xyplayer'
-app_version = '0.8.4-1'
-app_version_num = 80401
+app_version = '0.8.4-2'
+app_version_num = 80402
 
 NDEBUG = True    #调试模式指示器
 
@@ -57,12 +57,17 @@ class Configures(object):
     DownloadCancelled = 3    #已取消
     DownloadError = 4    #下载出错
     
+    #获取歌词内容的几个状态
+    LyricSucceed = 0
+    LyricNetError = 1
+    LyricNone = 2
+    
     #系统自带的几张数据库表名
     PlaylistDefault = '默认列表'
     PlaylistFavorite = '我的收藏'
     PlaylistDownloaded = '我的下载'
     PlaylistOnline = '试听列表'
-    BasicPlaylists = [PlaylistOnline, PlaylistDefault, PlaylistFavorite, PlaylistDownloaded]
+    BasicPlaylists = (PlaylistOnline, PlaylistDefault, PlaylistFavorite, PlaylistDownloaded)
     DownloadWorksTable = 'downloadworkstable'    #用来保存下载任务信息的数据库表
     PlaylistsManageTable = 'playlistsmanagetable'    #用来记录所有歌曲列表名
     
@@ -82,6 +87,15 @@ class Configures(object):
     #选项页面常规设置“关闭主面板时”的两种行为
     SettingsHide = 0
     SettingsExit = 1
+    SettingsFontForms = ('常规', '粗体', '斜体', '粗斜')
+    SettingsFontSizes = tuple(range(20, 65, 5))
+    SettingsNormColors = (
+        'aqua', 'black', 'blue', 'fuchsia', 
+        'gray', 'green', 'lime', 'maroon', 
+        'navy', 'olive', 'orange', 'purple', 
+        'red', 'silver', 'teal', 'white', 'yellow')
+    SettingsRange1 = tuple(range(18, 31))
+    SettingsRange2 = tuple(range(12, 25))
     
     HomeDir = os.path.expanduser('~')
     CacheDir = os.path.join(HomeDir, '.xyplayer')
@@ -128,7 +142,7 @@ class Configures(object):
                 f.close()
             os.remove(oldSettingsFile)
             return downloadPathSetted
-        return cls.MusicsDir
+        return None
 
 class SqlOperator(object):
     def __init__(self):

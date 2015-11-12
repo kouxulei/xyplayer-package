@@ -1,6 +1,4 @@
 import os
-import re
-import json
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -10,7 +8,7 @@ from xyplayer.urlhandle import SearchOnline
 from xyplayer.mytables import WorksList
 from xyplayer.mywidgets import NewLabel, MyTextEdit
 from xyplayer.mypages import desktop_lyric
-from xyplayer.utils import get_artist_and_musicname_from_title
+from xyplayer.utils import get_artist_and_musicname_from_title, change_lyric_offset_in_file, parse_artist_info
 from xyplayer.mysettings import globalSettings
 
 class PlaybackPage(QWidget):
@@ -22,7 +20,14 @@ class PlaybackPage(QWidget):
         super(PlaybackPage, self).__init__()
         self.setup_ui()
         self.create_connections()
+        self.initial_params()
+    
+    def initial_params(self):
         self.playmode = Configures.PlaymodeRandom    #播放模式指示器
+        self.lyricRunSize = globalSettings.WindowlyricRunFontSize
+        self.lyricRunColor = globalSettings.WindowlyricRunFontColor
+        self.lyricReadySize = globalSettings.WindowlyricReadyFontSize
+        self.lyricReadyColor = globalSettings.WindowlyricReadyFontColor
     
     def setup_ui(self):
         self.setStyleSheet(
@@ -269,71 +274,22 @@ class PlaybackPage(QWidget):
         self.refreshBtn.clicked.connect(self.update_infofile_cached)
     
     def set_artist_info(self, artist):
-        errorHanppen = False
-        try:
-            infoPath = SearchOnline.get_artist_info_path(artist)
-            if infoPath:
-                with open(infoPath, 'r+') as f:
-                    info = f.read()
-                if not info:
-                    errorHanppen = True
-                infoList = json.loads(info)
-                name = infoList['name']
-                birthday = infoList['birthday']
-                if not birthday:
-                    birthday = '不是今天'
-                birthplace = infoList['birthplace']
-                if not birthplace:
-                    birthplace = '地球'
-#                country = infoList['country']
-#                if not country:
-#                    country = '全球'
-                language = infoList['language']
-                if not language:
-                    language = '地球语'
-                gender = infoList['gender']
-                if not gender:
-                    gender = '男/女'
-                constellation = infoList['constellation']
-                if not constellation:
-                    constellation = '神马座'
-                info = infoList['info']
-                self.artistName.setText(name)
-                self.artistBirthday.setText('生日：' + birthday)
-                self.artistBirthplace.setText('出生地：' + birthplace)
-#                self.artistCountry.setText('国籍：' + country)
-                self.artistLanguage.setText('语言：' + language)
-                self.artistGender.setText('性别：' + gender)
-                self.artistConstellation.setText('星座：' + constellation)
-                self.artistDetail.clear()
-                if not info:
-                    info = "未找到歌手的详细信息"
-                cur = self.artistDetail.textCursor()
-                cur.setPosition(0, QTextCursor.MoveAnchor)
-                self.artistDetail.setTextCursor(cur)
-            else:
-                errorHanppen = True
-            imagePath = SearchOnline.get_artist_image_path(artist)
-            if imagePath:
-                pixmap = QPixmap(imagePath)
-            else:
-                pixmap = QPixmap(IconsHub.Anonymous)
-        except:
-            print('load artistinfo failed')
+        infoPath = SearchOnline.get_artist_info_path(artist)
+        infoDict = parse_artist_info(infoPath)
+        self.artistName.setText(artist)
+        self.artistBirthday.setText('生日：%s'%infoDict['birthday'])
+        self.artistBirthplace.setText('出生地：%s'%infoDict['birthplace'])
+        self.artistLanguage.setText('语言：%s'%infoDict['language'])
+        self.artistGender.setText('性别：%s'%infoDict['gender'])
+        self.artistConstellation.setText('星座：%s'%infoDict['constellation'])
+        self.artistDetail.clear()
+        self.artistDetail.setAlignment(Qt.AlignHCenter)
+        self.artistDetail.setHtml(self.get_artist_detail_style_text(infoDict['info']))
+        imagePath = SearchOnline.get_artist_image_path(artist)
+        if imagePath:
+            pixmap = QPixmap(imagePath)
+        else:
             pixmap = QPixmap(IconsHub.Anonymous)
-            errorHanppen = True
-        if errorHanppen:
-            self.artistName.setText(artist)
-            self.artistBirthday.setText('生日：' + '不是今天')
-            self.artistBirthplace.setText('出生地：' + '地球')
-#                self.artistCountry.setText('国籍：' + country)
-            self.artistLanguage.setText('语言：' + '地球语')
-            self.artistGender.setText('性别：' + '男/女')
-            self.artistConstellation.setText('星座：' + '神马座')
-            self.artistDetail.clear()
-            info  = "未找到歌手的详细信息"
-            self.artistDetail.setAlignment(Qt.AlignHCenter)
-        self.artistDetail.setHtml(self.get_artist_detail_style_text(info))
         self.artistHeadLabel.setPixmap(pixmap)
         return pixmap
     
@@ -351,28 +307,18 @@ class PlaybackPage(QWidget):
         
     def set_lyric_offset(self, lyricOffset, lyricDict, lrcPath):
         self.lrcPath = lrcPath
-        if lyricOffset < 0:
+        k = 2
+        if lyricOffset > 0:
             k = 0
-            self.lyricOffsetSlider.setRange(0, 50)
-        elif lyricOffset > 0:
+        elif lyricOffset < 0:
             k = 1
-            self.lyricOffsetSlider.setRange(0, 50)
-        else:
-            k = 2
-            self.lyricOffsetSlider.setRange(0, 0)
-        self.lyricOffsetIndex = k
         self.lyricOffsetCombo.setCurrentIndex(k)
         self.lyricOffsetSlider.setValue(abs(lyricOffset)//100)
-        self.lyricOffsetLabel.setText('%s秒'%round(abs(lyricOffset)/1000, 1))
+        self.lyricOffsetLabel.setText('%.1f秒'%(abs(lyricOffset)/1000))
         self.lyricText.clear()
         self.lyricText.setAlignment(Qt.AlignHCenter)
         t = sorted(lyricDict.keys())
         self.set_html(1, lyricDict, t)
-#        cur = self.lyricText.textCursor()
-#        cur.setPosition(0, QTextCursor.MoveAnchor)
-#        self.lyricText.setTextCursor(cur)
-        self.lyricOffset = lyricOffset
-        self.lyric_offset_changed_signal.emit(self.lyricOffset)
     
     def set_html(self, index, lyricDict, t, extraBlocks=10):
         htmlList = ['<body><center>']
@@ -380,11 +326,11 @@ class PlaybackPage(QWidget):
             htmlList.append("<br></br>")
         for i in range(len(t)):
             if i == index:
-                size = '20'
-                color = 'white'
+                size = self.lyricRunSize
+                color = self.lyricRunColor
             else:
-                size = '16'
-                color = 'black'
+                size = self.lyricReadySize
+                color = self.lyricReadyColor
             htmlList.append("<p style = 'color:%s;font-size:%spx;'>%s</p>"%(color, size, lyricDict[t[i]]))
         for i in range(6):
             htmlList.append("<br></br>")
@@ -420,7 +366,6 @@ class PlaybackPage(QWidget):
         return "<p style = 'color:white;font-size:20px;'><br><br><br><br><br><br><br>%s</p>"%text
             
     def lyric_offset_type(self, index):
-        self.lyricOffsetIndex = index
         self.lyricOffset = 0
         self.lyricOffsetSlider.setValue(0)
         self.lyricOffsetLabel.setText('0.0秒')
@@ -431,29 +376,15 @@ class PlaybackPage(QWidget):
         self.lyric_offset_changed_signal.emit(0)
     
     def lyric_offset_changed(self, value):
-        if self.lyricOffsetIndex == 0:
-            self.lyricOffset = (0 - value*100)
-        elif self.lyricOffsetIndex == 1:
+        if self.lyricOffsetCombo.currentIndex() == 0:
             self.lyricOffset = value*100
-        self.lyricOffsetLabel.setText('%s秒'%(value/10))
+        elif self.lyricOffsetCombo.currentIndex() == 1:
+            self.lyricOffset = - value*100
+        self.lyricOffsetLabel.setText('%.1f秒'%(value/10))
         self.lyric_offset_changed_signal.emit(self.lyricOffset)
     
     def lyric_offset_save(self):
-        with open(self.lrcPath, 'r') as f:
-           originalText = f.read() 
-        m = re.search('offset\=',originalText,re.MULTILINE)
-        if m:
-            pos = m.end()
-            lyricOffsetTemp = int(originalText[pos:])
-            print('Player.py lyric_offset_save %s'%lyricOffsetTemp)
-            if lyricOffsetTemp!= self.lyricOffset:
-                newText = originalText[:pos] + '%s'%self.lyricOffset
-                with open(self.lrcPath, 'w+') as f:
-                    f.write(newText)
-        else:
-            with open(self.lrcPath, 'a+') as f:
-                f.write('\noffset=%s'%self.lyricOffset)
-        self.lyricOffsetSButton.setFocus()
+        change_lyric_offset_in_file(self.lrcPath, self.lyricOffset)
     
     def show_lyric_text(self):
         self.stacked_widget_change_index(0)
@@ -547,7 +478,8 @@ class PlaybackPage(QWidget):
         self.playmodeButton.setIcon(QIcon(iconPath))
         self.playmodeButton.setToolTip(toolTip)
             
-            
+    def set_new_window_lyric_style(self, params):
+        self.lyricRunSize, self.lyricRunColor, self.lyricReadySize, self.lyricReadyColor = params
             
             
             
