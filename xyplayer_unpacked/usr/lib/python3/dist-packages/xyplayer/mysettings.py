@@ -4,7 +4,7 @@ from xyplayer import Configures, settings
 configOptions = {
     'CloseButtonAct': Configures.SettingsHide, 
     'DownloadfilesPath': Configures.MusicsDir, 
-    'DesktoplyricFontFamily': '楷体', 
+    'DesktoplyricFontFamily': 'AR PL UKai CN',
     'DesktoplyricFontSize': 35,    #values: 20~60, step by 5
     'DesktoplyricFontForm': '常规', 
     'DesktoplyricColors': (QColor(14, 100, 255), QColor(85, 255, 127), QColor(14, 100, 255)), 

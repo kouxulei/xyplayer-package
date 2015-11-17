@@ -48,12 +48,13 @@ iconsDict = {
     'SearchMusictitle': 'search_musictitle', 
     'Delete': 'delete', 
     'Preference': 'preference', 
-    'HeadIcon': 'head_icon'
+    'HeadIcon': 'head_icon', 
+    'RemovePlaylist': 'download_kill'
 }
 
 def get_icon_path(iconName, dir=Configures.IconsDir):
     return os.path.join(dir, '%s.png'%iconName)
     
 for icon, value in iconsDict.items():
-        iconPath = get_icon_path(value)
-        setattr(IconsHub, icon, iconPath)
+    iconPath = get_icon_path(value)
+    setattr(IconsHub, icon, iconPath)

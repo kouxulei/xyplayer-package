@@ -4,7 +4,8 @@ from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
 from xyplayer.mywidgets import LabelButton, DownloadListItem
-from xyplayer.mytables import WorksList, DownloadWorksModel
+from xyplayer.mytables import WorksList
+from xyplayer.myplaylists import DownloadWorksModel
 from xyplayer.mythreads import DownloadThread
 
 class DownloadPage(QWidget):
@@ -110,7 +111,6 @@ class DownloadPage(QWidget):
             self.netSpeedInfo.setText("0.00 KB/s")
             self.titleLabel.set_text('下载任务(0/%s)'%len(self.allDownloadWorks))
         if len(self.completedWorkNames):
-#            self.add_downloaded_to_download_table(self.completedWorkNames)
             self.work_complete_signal.emit()
     
     def remove_work_from_download_list(self, completedWorkNames):
@@ -162,11 +162,11 @@ class DownloadPage(QWidget):
         """在程序启动时，读取数据库中的下载任务信息，并启动"""
         print('reloading works from database ...')
         downloadWorksModel = DownloadWorksModel()
-        for row in range(downloadWorksModel.rowCount()):
+        for row in range(downloadWorksModel.get_length()):
             args = downloadWorksModel.get_work_info_at_row(row)
             args.append(lock)
             self.add_a_download_work(*args)
-        downloadWorksModel.clear_table()
+        downloadWorksModel.clear_log_file()
     
     def record_works_into_database(self):
         """程序结束时，把未完成的任务记录到数据库中"""
@@ -175,6 +175,7 @@ class DownloadPage(QWidget):
         for name in self.allDownloadWorks:
             work = self.allDownloadWorks[name][0]
             downloadWorksModel.add_record(*self.get_infos_from_a_work(work))
+        downloadWorksModel.commit_records()
         
     def get_infos_from_a_work(self, work):
         title = work.title
@@ -184,4 +185,4 @@ class DownloadPage(QWidget):
         songLink = work.songLink
         musicPath = work.musicPath
         musicId = work.musicId
-        return [title , downloadedsize, size, album, songLink, musicPath, musicId]
+        return [songLink, musicPath, title, album , musicId, size, downloadedsize]

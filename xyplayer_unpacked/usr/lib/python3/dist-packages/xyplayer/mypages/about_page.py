@@ -36,7 +36,8 @@ class AboutPage(QWidget):
                         "<p>当前版本： v%s</p>"
                         "<p>特别操作说明：</p>"
                         "<p>1. 主界面右键长按拖动窗口；</p>"
-                        "<p>2. “更多功能”页面右键单击返回；</p>"%app_version )
+                        "<p>2. “更多功能”页面右键单击返回；</p>"
+                        "<p>3. 对任意歌曲列表按键长按可以进行删除和重命名操作；</p>"%app_version )
         specText.setText(specs)
             
 #感谢页面   

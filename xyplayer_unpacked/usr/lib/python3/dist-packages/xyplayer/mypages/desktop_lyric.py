@@ -8,7 +8,6 @@ class DesktopLyricBasic(QLabel):
     def __init__(self, text='桌面歌词', parent=None):
         super(DesktopLyricBasic, self).__init__(parent)
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)    #设置透明背景
         self.setText(text)
         self.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         self.set_font_style(globalSettings.DesktoplyricFontFamily, globalSettings.DesktoplyricFontSize, globalSettings.DesktoplyricFontForm)
@@ -61,7 +60,9 @@ class DesktopLyric(DesktopLyricBasic):
     hide_desktop_lyric_signal = pyqtSignal()
     def __init__(self):
         super(DesktopLyric, self).__init__()
-        self.setAttribute(Qt.WA_QuitOnClose,False)
+        self.setAttribute(Qt.WA_TranslucentBackground )    #设置透明背景
+        self.setAttribute(Qt.WA_QuitOnClose, False)
+        self.setWindowFlags(Qt.FramelessWindowHint| Qt.WindowStaysOnTopHint | Qt.X11BypassWindowManagerHint)
         self.set_text('桌面歌词显示')
         self.original_place()
         self.create_contextmenu()
@@ -74,7 +75,7 @@ class DesktopLyric(DesktopLyricBasic):
         self.listMenu.addAction(self.originalPlaceAction)
         self.listMenu.addAction(self.hideLyricAction)
         self.originalPlaceAction.triggered.connect(self.original_place)
-        self.hideLyricAction.triggered.connect(self.hide_desktop_lyric)
+        self.hideLyricAction.triggered.connect(self.close)
         self.customContextMenuRequested.connect(self.show_context_menu)
     
     def original_place(self):
@@ -90,14 +91,11 @@ class DesktopLyric(DesktopLyricBasic):
         self.setFixedWidth(width+10)
         self.setFixedHeight(height)
         self.setText(text)
-        self.move(x + (old_width - width) / 2, y)
+        self.move(x + (old_width - self.width()) / 2, y)
     
     def set_font_style(self, family, size, form):
         DesktopLyricBasic.set_font_style(self, family, size, form)
         self.set_text(self.text())
-    
-    def hide_desktop_lyric(self):
-        self.hide_desktop_lyric_signal.emit()
     
     def show_context_menu(self, pos):
         self.listMenu.exec_(self.mapToGlobal(pos))
@@ -117,5 +115,5 @@ class DesktopLyric(DesktopLyricBasic):
             event.accept()
     
     def closeEvent(self, event):
-        self.hideDesktopLyricSignal.emit()
-        event.ignore()
+        self.hide_desktop_lyric_signal.emit()
+        event.accept()

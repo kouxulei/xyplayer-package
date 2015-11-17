@@ -4,17 +4,22 @@ from PyQt5.QtCore import *
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
 from xyplayer.mywidgets import LabelButton, SpecialLabel, NewLabel
-from xyplayer.mypages import  search_page, download_page, lists_frame
+from xyplayer.mypages import  search_page, download_page
 from xyplayer.mytables import MyListTable
+from xyplayer.myplaylists import playlistsManager
+from xyplayer.mytables import PlaylistWidget
 
 class ManagePage(QWidget):
-    show_lists_manage_frame_signal = pyqtSignal()
-    current_table_changed_signal = pyqtSignal(int)
+    current_table_changed_signal = pyqtSignal(str)
     add_a_list_signal = pyqtSignal()
+    playlist_removed_signal = pyqtSignal(str)
+    playlist_renamed_signal = pyqtSignal(str, str)
+    show_playback_page_signal = pyqtSignal()
     def __init__(self):
         super(ManagePage, self).__init__()
         self.setup_ui()
         self.create_connections()
+        self.set_normal_mode()
     
     def setup_ui(self):
         self.setStyleSheet("QToolButton{background:transparent}"
@@ -24,14 +29,13 @@ class ManagePage(QWidget):
                                     "QPushButton:hover{border:0px solid lightgray;color:green;background:white}"
                                     "QComboBox,QLineEdit:hover{background:white;color:green;border:0px solid lightgray;}" 
                                     "QComboBox,QLineEdit{background:rgb(210,240,240);color:blue;border:0px solid lightgray;}")
+                                    
+#管理歌曲的列表
+        self.playlistWidget = PlaylistWidget()
 #搜索页面
         self.searchFrame = search_page.SearchFrame()
-
 #下载页面
         self.downloadPage = download_page.DownloadPage()
-
-#列表管理页面
-        self.listsFrame = lists_frame.ListsFrame()
         
         self.searchButton = QPushButton(clicked = self.show_search_frame)
         self.searchButton.setFocusPolicy(Qt.NoFocus)
@@ -42,14 +46,13 @@ class ManagePage(QWidget):
         self.lyricLabel = LabelButton("歌词同步显示", 33)
         self.lyricLabel.setFixedWidth(312)
 
-        self.frameBottomWidget = SpecialLabel('', 93)    
-        self.frameBottomWidget.setFixedWidth(352)
+        self.frameBottomWidget = SpecialLabel()    
+        self.frameBottomWidget.setFixedSize(QSize(352, 93))
 #3个标签
         self.artistHeadLabel = QLabel(self.frameBottomWidget)
         self.artistHeadLabel.setScaledContents(True)
         self.artistHeadLabel.setPixmap(QPixmap(IconsHub.Anonymous))
 
-#        self.musicNameLabel = QLabel("xyplayer")
         self.musicNameLabel = NewLabel(self.frameBottomWidget)
         self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:18px;color: blue;background:transparent")
 
@@ -81,24 +84,39 @@ class ManagePage(QWidget):
         self.allListButton = LabelButton("列表管理")
         self.downloadPageButton = LabelButton("下载任务")
         
-        self.listButtons = []
-        for text in [Configures.PlaylistOnline, Configures.PlaylistDefault, Configures.PlaylistFavorite, Configures.PlaylistDownloaded]:
-            button = LabelButton(text)
-            button.clicked.connect(self.switch_to_certain_page)
-            self.listButtons.append(button)
-        self.listButtons[1].setStyleSheet("QLabel{background:rgb(50, 255, 50);color:blue;}"
-                                            "QLabel:hover{background:white;color:green;}")
-        
         self.myListTable = MyListTable()
         self.myListTable.setStyleSheet("background:transparent")
-        for i in range(4, self.listsFrame.manageModel.rowCount()):
-            text = self.listsFrame.manageModel.record(i).value('tableName')
-            self.add_a_widget_to_table(text)
-        
+        for i, tableName in enumerate(playlistsManager.get_play_list_names()):
+            flag = False
+            if i >= 4:
+                flag = True
+            self.myListTable.add_a_button( tableName, flag)
+        self.myListTable.get_button_at(1).setStyleSheet("QLabel{background:rgb(50, 255, 50);color:blue;}"
+                                            "QLabel:hover{background:white;color:green;}")
         self.randomOneButton = LabelButton("随机切歌", 271)
-        
         self.addListButton = LabelButton("添加列表")
-        self.deleteListButton = LabelButton("删除列表")
+        
+        listsFrame = QWidget()
+#返回按键
+        self.backButton = QPushButton(clicked = self.back_to_main)
+        self.backButton.setFocusPolicy(Qt.NoFocus)
+        self.backButton.setStyleSheet("font-size:15px")
+        self.backButton.setFixedSize(25, 33)
+        self.backButton.setIcon(QIcon(IconsHub.Back))
+        self.backButton.setIconSize(QSize(20, 20))
+ #标签 
+        self.titleLabel = LabelButton("列表管理")
+        self.titleLabel.setFixedSize(100, 33)
+        self.titleLabel.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+#管理歌曲列表页面的布局
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.backButton)
+        hbox1.addWidget(self.titleLabel)
+        hbox1.addStretch()
+        listFrameLayout = QVBoxLayout(listsFrame)
+        listFrameLayout.setContentsMargins(0, 0, 0, 0)
+        listFrameLayout.addLayout(hbox1)
+        listFrameLayout.addWidget(self.playlistWidget)
 
 #综合布局            
         hbox_sch = QHBoxLayout()
@@ -108,27 +126,23 @@ class ManagePage(QWidget):
         
         hbox_om = QHBoxLayout()
         hbox_om.setSpacing(7)
-        hbox_om.addWidget(self.listButtons[0])
-        hbox_om.addWidget(self.listButtons[1])
+        hbox_om.addWidget(self.myListTable.get_button_at(0))
+        hbox_om.addWidget(self.myListTable.get_button_at(1))
         
         hbox_fd = QHBoxLayout()
         hbox_fd.setSpacing(7)
-        hbox_fd.addWidget(self.listButtons[2])
-        hbox_fd.addWidget(self.listButtons[3])
+        hbox_fd.addWidget(self.myListTable.get_button_at(2))
+        hbox_fd.addWidget(self.myListTable.get_button_at(3))
         
         vbox_no = QVBoxLayout()
         vbox_no.setSpacing(7)
         vbox_no.addWidget(self.downloadPageButton)
         vbox_no.addWidget(self.randomOneButton)
         
-        hbox_ar = QHBoxLayout()
-        hbox_ar.setSpacing(7)
-        hbox_ar.addWidget(self.addListButton)
-        
         vbox_mar = QVBoxLayout()
         vbox_mar.setSpacing(7)
         vbox_mar.addWidget(self.myListTable)
-        vbox_mar.addLayout(hbox_ar)
+        vbox_mar.addWidget(self.addListButton)
         
         hbox_nh = QHBoxLayout()
         hbox_nh.setSpacing(7)
@@ -152,7 +166,7 @@ class ManagePage(QWidget):
 #中间的stackedWidget
         self.stackedWidget = QStackedWidget()
         self.stackedWidget.addWidget(homeWidget)
-        self.stackedWidget.addWidget(self.listsFrame)
+        self.stackedWidget.addWidget(listsFrame)
         self.stackedWidget.addWidget(self.searchFrame)
         self.stackedWidget.addWidget(self.downloadPage)
 
@@ -165,21 +179,20 @@ class ManagePage(QWidget):
     def create_connections(self):
         self.searchFrame.back_to_main_signal.connect(self.back_to_main)
         self.downloadPage.back_to_main_signal.connect(self.back_to_main)
-        self.listsFrame.back_to_main_signal.connect(self.back_to_main)
         self.downloadPageButton.clicked.connect(self.show_download_page)
-        self.allListButton.clicked.connect(self.show_lists_frame)
-        self.addListButton.clicked.connect(self.add_a_list_signal.emit)
+        self.addListButton.clicked.connect(self.add_a_playlist)
+        self.frameBottomWidget.clicked.connect(self.show_playback_page_signal.emit)
+        self.lyricLabel.clicked.connect(self.show_playback_page_signal.emit)
+        self.myListTable.button_in_list_clicked.connect(self.switch_to_certain_page)
+        self.myListTable.operate_mode_activated.connect(self.set_operate_mode)
+        self.myListTable.remove_a_playlist_signal.connect(self.remove_a_playlist)
+        self.myListTable.rename_a_playlist_signal.connect(self.rename_a_playlist)
+        
+        #新连接
+        self.playlistWidget.playlist_changed_signal.connect(self.change_list_buttons_color)
     
     def back_to_main(self):
         self.stackedWidget.setCurrentIndex(0)
-    
-    def show_lists_frame(self):
-        self.listsFrame.titleLabel.setText("列表管理")
-#        self.listsFrame.stateLabel.show()
-        self.listsFrame.manageTable.show()
-        self.listsFrame.musicTable.setColumnWidth(1, 300)
-        self.show_lists_manage_frame_signal.emit()
-        self.stackedWidget.setCurrentIndex(1)
     
     def show_search_frame(self):
         self.stackedWidget.setCurrentIndex(2)
@@ -196,34 +209,73 @@ class ManagePage(QWidget):
         self.artistNameLabel.setText("Zheng-Yejian")
     
     def switch_to_certain_page(self, text):
-        for i in range(0, self.listsFrame.manageModel.rowCount()):
-            if self.listsFrame.manageModel.record(i).value("tableName") == text:
-                break
-        self.listsFrame.titleLabel.setText(text)
-        self.listsFrame.stateLabel.hide()
-        self.listsFrame.manageTable.hide()
-        self.listsFrame.musicTable.setColumnWidth(1, 270)
-        self.listsFrame.musicTable.setColumnWidth(2, 80)
+        self.titleLabel.setText(text)
         self.stackedWidget.setCurrentIndex(1)
-        self.current_table_changed_signal.emit(i)
+        self.playlistWidget.set_playlist_use_name(text)
+        self.current_table_changed_signal.emit(text)
 
     def change_list_buttons_color(self, playTableOld, playTable):
-        for button in self.listButtons:
+        for button in self.myListTable.get_buttons():
             if button.name == playTableOld:
                 button.setStyleSheet("QLabel{background: rgb(210,240,240);color:blue;}"
                                                     "QLabel:hover{background:white;color:green;}")
             if button.name == playTable:
                 button.setStyleSheet("QLabel{background: rgb(50, 255, 50);color:blue;}"
                                                     "QLabel:hover{background:white;color:green;}")
-  
+
+    def set_operate_mode(self):
+        self.playlistMode = Configures.OperateMode
+        self.addListButton.set_text('完成操作')
+        for button in self.myListTable.buttons:
+            button.set_remove_mode()
     
-    def add_a_widget_to_table(self, text):
-            button = LabelButton(text)
-            button.clicked.connect(self.switch_to_certain_page)
-            button.setStyleSheet("QLabel:hover{background:white;color:green;font-size:15px}" 
-                                    "QLabel{background:rgb(210,240,240);color:blue;font-size:15px}")
-            self.listButtons.append(button)
-            self.myListTable.add_widget(button)
- 
+    def set_normal_mode(self):
+        self.playlistMode = Configures.NormalMode
+        self.addListButton.set_text('添加列表')
+        for button in self.myListTable.buttons:
+            button.set_normal_mode()
     
-        
+    def add_a_playlist(self):
+        if self.playlistMode == Configures.NormalMode:
+            j = 1
+            while True:            
+                textOld = "我的列表%s"%j
+                if textOld not in playlistsManager.get_play_list_names():
+                    break
+                j += 1            
+            text, ok = QInputDialog.getText(self, "添加列表", "请输入列表名：", QLineEdit.Normal, textOld)
+            if ok:
+                if text:
+                    if text in playlistsManager.get_play_list_names():
+                        QMessageBox.critical(self, "注意！", "列表'%s'已存在！\n请重新添加！"%text)
+                        return
+                else:
+                    QMessageBox.critical(self, "注意！", "列表名不能为空！")
+                    return
+                playlistsManager.create_a_playlist(text)
+                self.myListTable.add_a_button(text)
+        else:
+            self.set_normal_mode()
+
+    def rename_a_playlist(self, index):
+        name = self.myListTable.get_name_at(index)
+        newName, ok = QInputDialog.getText(self, "重命名列表", "请输入新列表名：", QLineEdit.Normal, name)
+        if ok:
+            if newName and newName != name:
+                if newName in playlistsManager.get_play_list_names():
+                    QMessageBox.critical(self, "注意！", "列表'%s'已存在！\n请重新修改！"%newName)
+                else:
+                    playlistsManager.rename_a_playlist(name, newName)
+                    self.myListTable.rename_button_at(index, newName)
+                    self.playlist_renamed_signal.emit(name, newName)
+        self.myListTable.get_button_at(index).set_normal_style_sheet()
+                
+    def remove_a_playlist(self, index):    
+        name = self.myListTable.get_name_at(index)
+        ok = QMessageBox.warning(self, "删除列表", "列表'%s'将被删除，表中记录将被全部移除！\n您是否继续？"%name, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
+        if ok == QMessageBox.Yes:
+            playlistsManager.remove_a_playlist(name)
+            self.myListTable.remove_button_at(index)
+            self.playlist_removed_signal.emit(name)
+        else:
+            self.myListTable.get_button_at(index).set_normal_style_sheet()

@@ -7,8 +7,7 @@ from PyQt5.QtCore import Qt, QSize
 from xyplayer import Configures, desktopSize
 from xyplayer.myicons import IconsHub
 from xyplayer.mypages import manage_page, playback_page, functions_frame
-from xyplayer.mytables import TableModel, TableView
-from xyplayer.mywidgets import PushButton, NewListWidget
+from xyplayer.mywidgets import PushButton
 
 class PlayerUi(QDialog):
     def __init__(self, parent = None):
@@ -18,13 +17,13 @@ class PlayerUi(QDialog):
         self.managePage.ui_initial()
         self.playbackPage.ui_initial()
     
-    def playback_musictable_add_widget(self, ident, title):
-        widget = NewListWidget(ident, title)
-        widget.play_button_clicked_signal.connect(self.playback_page_to_listen)
-        widget.info_button_clicked_signal.connect(self.playback_page_music_info)
-        self.playbackPage.musicList.add_item(widget, 85)
-        self.allPlaySongs.append(ident) 
-            
+    def create_connections(self):
+        self.playbackPage.desktop_lyric_state_changed_signal.connect(self.desktop_lyric_state_changed)
+        self.playbackPage.backButton.clicked.connect(self.show_mainstack_0)
+        self.managePage.show_playback_page_signal.connect(self.show_mainstack_1)
+        self.managePage.searchFrame.switch_to_online_list.connect(self.switch_to_online_list)
+        self.managePage.titleLabel.clicked.connect(self.lists_frame_title_label_clicked)
+
     def setup_ui(self):        
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.setWindowIcon(QIcon(IconsHub.Xyplayer))
@@ -82,13 +81,6 @@ class PlayerUi(QDialog):
         self.globalHomeButton.setIconSize(QSize(25, 25))
         self.globalSettingButton.setFixedHeight(30)
         self.globalSettingButton.setIconSize(QSize(25, 25))
-
-#管理列表的model
-        self.model = TableModel()      
-        self.model.initial_model(Configures.PlaylistDefault)
-        
-        self.musicTable = TableView()
-        self.musicTable.initial_view(self.model)
 
 #综合布局 
         titleLayout = QHBoxLayout()
@@ -306,25 +298,10 @@ class PlayerUi(QDialog):
             self.showDesktopLyricAction.setText('开启桌面歌词')
     
     def switch_to_online_list(self):
-        self.managePage.show_lists_frame()
-        self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(0, 0))
-    
-    def current_table_changed(self, i):
-        self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(i, 1))
-        
-    def show_current_table(self):
-        for i in range(0, self.managePage.listsFrame.manageModel.rowCount()):
-            if self.managePage.listsFrame.manageModel.record(i).value("tableName") == self.playTable:
-                break
-        self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(i, 0))
+        self.managePage.switch_to_certain_page(Configures.PlaylistOnline)
     
     def lists_frame_title_label_clicked(self):
-        text = self.managePage.listsFrame.titleLabel.text()
-        if text == '列表管理':
-            self.show_current_table()
-        else:
-            if text == self.playTable:
-                self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
+        self.managePage.playlistWidget.select_row()
     
     def ui_initial(self):
         self.totalTime = '00:00'

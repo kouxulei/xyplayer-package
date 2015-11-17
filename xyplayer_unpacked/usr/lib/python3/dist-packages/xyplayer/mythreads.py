@@ -6,7 +6,7 @@ from urllib import request
 from xyplayer import Configures
 from xyplayer.utils import write_tags, get_file_contents_length, read_music_info, composite_lyric_path_use_title
 from xyplayer.urlhandle import SearchOnline
-from xyplayer.mytables import TableModel
+from xyplayer.myplaylists import Playlist
 
 BufferBlock = 5120
 
@@ -116,11 +116,13 @@ class DownloadThread(threading.Thread):
                 os.rename(self.tempfileName, self.musicPath)
                 write_tags(self.musicPath, self.title, self.album)
                 self.print_info('准备添加到“%s”'%Configures.PlaylistDownloaded)
-                model = TableModel()
-                model.initial_model(Configures.PlaylistDownloaded)
+                playlistTemp = Playlist()
+                playlistTemp.fill_list(Configures.PlaylistDownloaded)
                 title, album, totalTime = read_music_info(self.musicPath)
                 if self.lock.acquire():
-                    model.add_record(title, totalTime, album, self.musicPath, self.length, self.musicId)
+                    if self.musicPath not in playlistTemp.get_items_queue():
+                        playlistTemp.add_record(self.musicPath, title, totalTime, album, self.musicPath, self.length, self.musicId)
+                        playlistTemp.commit_records()
                     self.print_info("已完成下载")
                     self.lock.release()
         

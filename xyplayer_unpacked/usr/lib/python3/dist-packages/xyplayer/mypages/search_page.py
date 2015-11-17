@@ -8,7 +8,8 @@ from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from xyplayer import Configures
 from xyplayer.mysettings import globalSettings
 from xyplayer.myicons import IconsHub
-from xyplayer.mytables import SearchTable, TableModel
+from xyplayer.mytables import SearchTable
+from xyplayer.myplaylists import Playlist
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.utils import connect_as_title, get_full_music_name_from_title, composite_lyric_path_use_title
@@ -17,7 +18,6 @@ class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()
     add_bunch_to_list_succeed = pyqtSignal()
     listen_online_signal = pyqtSignal(str, str, str, str)
-    listen_local_signal = pyqtSignal(str)
     add_to_download_signal = pyqtSignal()
     back_to_main_signal = pyqtSignal()
 
@@ -210,16 +210,13 @@ class SearchFrame(QWidget):
     
     def add_bunch_to_list(self):
         """向“在线试听”列表批量添加歌曲。"""
-        selections = self.searchTable.selectionModel()
-        selecteds = selections.selectedIndexes()
+        selecteds = self.searchTable.selectedIndexes()
         if not len(selecteds):
             return
-        model = TableModel()
-        model.initial_model(Configures.PlaylistOnline)
-        musicIdsInOnlineList = []
         self.added_items = []
-        for i in range(model.rowCount()):
-            musicIdsInOnlineList.append(model.get_record_musicId(i))
+        playlistTemp = Playlist()
+        playlistTemp.fill_list(Configures.PlaylistOnline)
+        musicIdsInOnlineList = playlistTemp.get_items_queue()
         for index in selecteds:
             if index.column() == 0:
                 row = index.row()
@@ -233,8 +230,9 @@ class SearchFrame(QWidget):
                     if os.path.exists(lrcPath):
                         os.remove(lrcPath)
                     self.added_items.append([title, musicId])
-                    model.add_record(title, Configures.ZeroTime, album, Configures.NoLink, 0, musicId)
+                    playlistTemp.add_record(musicId, title, Configures.ZeroTime, album, Configures.NoLink, 0, musicId)
         if len(self.added_items):
+            playlistTemp.commit_records()
             thread = DownloadLrcThread(self.added_items)
             thread.setDaemon(True)
             thread.setName("downloadLrc")

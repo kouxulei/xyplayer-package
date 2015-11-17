@@ -95,6 +95,8 @@ class SearchOnline(object):
         with open(infoPath, 'r+') as f:
             infoStr = f.read()
         picPath = get_pic_url_from_info_text(infoStr)
+        if not picPath:
+            return None
         picUrl = _get_artist_pic_url(picPath)
         if not picUrl or len(picUrl)<10:
             return None

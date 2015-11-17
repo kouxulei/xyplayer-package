@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import json
 import tempfile
 from functools import wraps
 from mutagenx.mp3 import MP3
@@ -23,7 +24,7 @@ def operate_after_check_thread_locked_state(func):
     @wraps(func)
     def _call(*args, **kwargs):
         obj = args[0]
-        if obj.currentTable == Configures.PlaylistDownloaded:
+        if obj.playlist.get_name() == Configures.PlaylistDownloaded:
             if obj.lock.acquire():
                 result = func(*args, **kwargs)
                 obj.lock.release()
@@ -183,7 +184,9 @@ def parse_artist_info(infoPath):
 def get_pic_url_from_info_text(infoText):
     pattern = re.compile(r'\"pic\"\:\"(.*?)\"\,')
     m = pattern.search(infoText)
-    return m.group(1)
+    if m:
+        return m.group(1)
+    return None
 
 def version_to_num(version):
     """将版本号转化成数字序列，主要是方便比较检查是否有更高版本。"""
@@ -220,7 +223,40 @@ def get_usable_fonts():
         for line in f.readlines():
             m = pattern.search(line)
             font = m.group(1).split(',')[0]
-            fonts.append(font)
+            if font not in fonts:
+                fonts.append(font)
     fonts.sort()
     return tuple(fonts)
+    
+def composite_playlist_path_use_name(listName):
+    return os.path.join(Configures.PlaylistsDir, '%s%s'%(listName, Configures.PlaylistsExt))
+
+def rename_playlist(oldName, newName):
+    oldPath = composite_playlist_path_use_name(oldName)
+    newPath = composite_playlist_path_use_name(newName)
+    os.rename(oldPath, newPath)
+
+def remove_playlist(name):
+    path = composite_playlist_path_use_name(name)
+    os.remove(path)
+
+def wrap_playlist_datas(items=[], infos={}):
+        dict = {}
+        dict[Configures.PlaylistKeyQueue] = items
+        dict[Configures.PlaylistKeyGroup] = infos
+        return json.dumps(dict)
+
+def wrap_datas(data=Configures.BasicPlaylists):
+    return json.dumps(data)
+
+def parse_json_file(file):
+    with open(file, 'r') as f:
+        contents = f.read()
+        f.close()
+    return json.loads(contents)
+
+def write_into_disk(file, datas):
+    with open(file, 'w') as f:
+        f.write(datas)
+        f.close()
     

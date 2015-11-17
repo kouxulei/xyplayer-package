@@ -6,7 +6,7 @@ from xyplayer import Configures, app_version
 from xyplayer.myicons import IconsHub
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.mytables import WorksList
-from xyplayer.mywidgets import NewLabel, MyTextEdit
+from xyplayer.mywidgets import NewLabel, MyTextEdit, NewListWidget
 from xyplayer.mypages import desktop_lyric
 from xyplayer.utils import get_artist_and_musicname_from_title, change_lyric_offset_in_file, parse_artist_info
 from xyplayer.mysettings import globalSettings
@@ -16,6 +16,8 @@ class PlaybackPage(QWidget):
     desktop_lyric_state_changed_signal = pyqtSignal(bool)
     select_current_row_signal = pyqtSignal()
     playmode_changed_signal = pyqtSignal(int, int)
+    play_from_music_list_signal = pyqtSignal(int)
+    show_music_info_signal = pyqtSignal(int)
     def __init__(self):
         super(PlaybackPage, self).__init__()
         self.setup_ui()
@@ -264,7 +266,7 @@ class PlaybackPage(QWidget):
         self.favoriteButton.setGeometry(300, 507, 60, 60)
     
     def create_connections(self):
-        self.desktopLyric.hide_desktop_lyric_signal.connect(self.show_desktop_lyric)
+        self.desktopLyric.hide_desktop_lyric_signal.connect(self.desktop_lyric_closed)
         self.buttonList[0].clicked.connect(self.show_lyric_text)
         self.buttonList[1].clicked.connect(self.show_artist_info)
         self.buttonList[2].clicked.connect(self.show_music_table)
@@ -432,7 +434,6 @@ class PlaybackPage(QWidget):
                             "<br /><br />"
                             "简介: This is a simple musicplayer that can search, play, download musics from the Internet.</p>"%app_version)
         self.lyricText.clear()
-        self.musicList.clear_list()
         self.lyricText.setHtml(authorInfo)
         cur = self.lyricText.textCursor()
         cur.setPosition(0, QTextCursor.MoveAnchor)
@@ -453,6 +454,9 @@ class PlaybackPage(QWidget):
             beToOff = False
             self.desktopLyric.hide()  
         self.desktop_lyric_state_changed_signal.emit(beToOff)
+    
+    def desktop_lyric_closed(self):
+        self.desktop_lyric_state_changed_signal.emit(False)
     
     def change_playmode(self):
         oldPlaymode = self.playmode
@@ -481,5 +485,16 @@ class PlaybackPage(QWidget):
     def set_new_window_lyric_style(self, params):
         self.lyricRunSize, self.lyricRunColor, self.lyricReadySize, self.lyricReadyColor = params
             
-            
-            
+    def add_widget_into_musiclist(self, ident, title):
+        widget = NewListWidget(ident, title)
+        widget.play_button_clicked_signal.connect(self.click_to_listen)
+        widget.info_button_clicked_signal.connect(self.click_to_show_music_info)
+        self.musicList.add_item(widget, 85)           
+
+    def click_to_listen(self, ident):
+        row = self.musicList.row_of_item(ident)
+        self.play_from_music_list_signal.emit(row)
+
+    def click_to_show_music_info(self, ident):
+        row = self.musicList.row_of_item(ident)
+        self.show_music_info_signal.emit(row)           

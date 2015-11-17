@@ -1,9 +1,10 @@
 import os
 import random
+import time
 from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, 
     QColorDialog, QComboBox, QHBoxLayout, QVBoxLayout, QGroupBox, QRadioButton, QLineEdit, QFileDialog)
 from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont
-from PyQt5.QtCore import pyqtSignal, Qt, QSize
+from PyQt5.QtCore import pyqtSignal, Qt, QSize, QTimer
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
 from xyplayer.mysettings import globalSettings, configOptions
@@ -116,28 +117,6 @@ class ToolButton(QToolButton):
         self.painter.drawRect(self.rect()) #
         self.painter.end()      
 
-class LabelButton(QLabel):
-    clicked = pyqtSignal(str)
-    def __init__(self, text = None, height = 36, icon = None):
-        super(LabelButton, self).__init__()
-        self.setFixedHeight(height)
-        self.setText(text)
-        self.name = text
-        self.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
-        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
-            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
-        self.setScaledContents(True)
-        if icon:
-            self.setPixmap(QPixmap(icon))
-
-    def set_text(self, text):
-        self.setText(text)
-        self.name = text
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.clicked.emit(self.name)
-
 class ColorButton(QWidget):
     """选择桌面歌词颜色的按键"""
     new_color_signal = pyqtSignal()
@@ -166,14 +145,144 @@ class ColorButton(QWidget):
         painter.begin(self)
         painter.fillRect(self.rect(), self.color)
         painter.end()
-        
-class SpecialLabel(LabelButton):
+
+class LabelButtonBasic(QLabel):
+    clicked = pyqtSignal(str)
+    def __init__(self, text='', parent=None):
+        super(LabelButtonBasic, self).__init__(parent)
+        self.name = text
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit(self.name)
+
+class LabelButton(LabelButtonBasic):
     def __init__(self, text = None, height = 36, icon = None):
-        super(SpecialLabel, self).__init__(text, height, icon)
+        super(LabelButton, self).__init__(text)
+        self.setFixedHeight(height)
+        self.setText(self.name)
+        self.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
+        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
+            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
+        self.setScaledContents(True)
+        if icon:
+            self.setPixmap(QPixmap(icon))
+
+    def set_text(self, text):
+        self.setText(text)
+        self.name = text
+
+class PlaylistButton(QLabel):
+    clicked = pyqtSignal(str)
+    long_time_clickd = pyqtSignal()
+    remove_me_signal = pyqtSignal(str)
+    rename_me_signal = pyqtSignal(str)
+    def __init__(self, name = '', removable=False):
+        super(PlaylistButton, self).__init__()
+        self.setFixedSize(QSize(172, 36))
+        self.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.name = name
+        self.setText(name)
+        self.removable = removable
+        self.operateState = False
+        self.setup_ui()
+        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
+            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
+        self.timerFlag = False
+        self.startTime = 0
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.check_press_time)
+    
+    def setup_ui(self):
+        self.nameLabel = LabelButtonBasic()
+        self.nameLabel.setVisible(False)
+        self.nameLabel.clicked.connect(self.rename_button_clicked)
+        self.nameLabel.setStyleSheet("background:transparent;")
+        self.nameLabel.setText(self.name)
+        self.nameLabel.setFixedSize(80, 30)
+        self.killLabel = LabelButtonBasic()
+        self.killLabel.setVisible(False)
+        self.killLabel.clicked.connect(self.remove_button_clicked)
+        self.killLabel.setFixedSize(QSize(25, 25))
+        self.killLabel.setScaledContents(True)
+        self.killLabel.setPixmap(QPixmap(IconsHub.RemovePlaylist))
+        self.nameLabel.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
+        mainLayout = QHBoxLayout(self)
+        mainLayout.setContentsMargins(25, 0, 25, 0)
+        mainLayout.addWidget(self.killLabel)
+        mainLayout.addWidget(self.nameLabel)
+    
+    def set_remove_mode(self):
+        if self.removable:
+            self.setText('')
+            self.nameLabel.setVisible(True)
+            self.killLabel.setVisible(True)
+        self.operateState = True
+    
+    def set_normal_mode(self):
+        if self.removable:
+            self.setText(self.name)
+            self.nameLabel.setVisible(False)
+            self.killLabel.setVisible(False)
+        self.operateState = False
+    
+    def set_name(self, text):
+        self.name = text
+        if self.operateState:
+            self.nameLabel.setText(self.name)
+        else:
+            self.setText(self.name)
+
+    def get_name(self):
+        return self.name
+    
+    def rename_button_clicked(self):
+        self.styleDesc = self.styleSheet()
+        self.setStyleSheet("background:rgb(255,0,255);")
+        self.rename_me_signal.emit(self.name)
+    
+    def set_normal_style_sheet(self):
+        self.setStyleSheet(self.styleDesc)       
+    
+    def remove_button_clicked(self):
+        self.styleDesc = self.styleSheet()
+        self.setStyleSheet("background:rgb(255,0,255);")
+        self.remove_me_signal.emit(self.name)
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            if not self.operateState:
+                self.timerFlag = True
+                self.startTime = time.time()
+                self.timer.start(50)
+    
+    def mouseReleaseEvent(self, event):
+        if not self.operateState and time.time() - self.startTime < 0.6:
+            self.timer.stop()
+            self.clicked.emit(self.name)          
+    
+    def check_press_time(self):
+        if self.timerFlag:
+            if time.time() - self.startTime >= 0.6:
+                self.timer.stop()
+                self.long_time_clickd.emit()
+        
+class SpecialLabel(QLabel):
+    clicked = pyqtSignal()
+    def __init__(self, parent=None):
+        super(SpecialLabel, self).__init__(parent)
+        self.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
+        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
+            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
+        self.setScaledContents(True)
         self.ratio = 0
         self.cl = [50, 255, 50]
         self.color1 = QColor(255, 50, 50)
         self.color2 = QColor(50, 255, 50)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
 
     def setGradient(self, ratio):
         self.ratio = ratio

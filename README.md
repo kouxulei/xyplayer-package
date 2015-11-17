@@ -3,6 +3,7 @@ xyplayer-package放置[xyplayer](https://github.com/Zheng-Yejian/xyplayer)的deb
 
 ##<h2 name="installation">程序安装</h2>
 下载最新的deb包(用*VERSION*表示某个版本号)：xyplayer_*VERSION*_all.deb  
+切换到安装包文件所在的目录下，并执行：
 
 ```bash
 sudo apt-get install gdebi

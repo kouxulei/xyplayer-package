@@ -1,17 +1,18 @@
 import os
 import random
 import threading
-from PyQt5.QtWidgets import QMessageBox, QLineEdit, QInputDialog, QFileDialog
-from PyQt5.QtGui import QIcon, QCursor, QPixmap, QDesktopServices
-from PyQt5.QtCore import Qt, QTime, QUrl, QPoint
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5.QtGui import QIcon, QPixmap, QDesktopServices
+from PyQt5.QtCore import QTime, QUrl, QPoint
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from xyplayer import Configures, sqlOperator
+from xyplayer import Configures
+from xyplayer.myplaylists import Playlist
 from xyplayer.myicons import IconsHub
 from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.mysettings import globalSettings
-from xyplayer.utils import (read_music_info, parse_lrc, trace_to_keep_time, get_full_music_name_from_title,composite_lyric_path_use_title, 
-    format_position_to_mmss, get_artist_and_musicname_from_title, operate_after_check_thread_locked_state)
+from xyplayer.utils import (parse_lrc, get_full_music_name_from_title,composite_lyric_path_use_title, 
+    format_position_to_mmss, get_artist_and_musicname_from_title)
 from xyplayer.player_ui import PlayerUi
 
 class Player(PlayerUi):
@@ -19,10 +20,12 @@ class Player(PlayerUi):
         super(Player, self).__init__(parent)
         self.initial_mediaplayer()
         self.initial_parameters()
+        self.initial_widget_parameters()
         self.create_connections()
         self.managePage.downloadPage.reload_works_from_database(self.lock)
 
     def create_connections(self):      
+        PlayerUi.create_connections(self)
         self.mediaPlayer.positionChanged.connect(self.tick)        
         self.mediaPlayer.stateChanged.connect(self.state_changed)      
         self.mediaPlayer.currentMediaChanged.connect(self.source_changed)
@@ -33,44 +36,31 @@ class Player(PlayerUi):
         self.playbackPage.seekSlider.valueChanged.connect(self.slider_value_changed)
         self.playbackPage.seekSlider.sliderPressed.connect(self.slider_pressed)
         self.playbackPage.seekSlider.sliderReleased.connect(self.seek)
-        self.playbackPage.desktop_lyric_state_changed_signal.connect(self.desktop_lyric_state_changed)
         self.playbackPage.lyric_offset_changed_signal.connect(self.lyric_offset_changed)
         self.playbackPage.favoriteButton.clicked.connect(self.mark_as_favorite)
-        self.playbackPage.backButton.clicked.connect(self.show_mainstack_0)
         self.playbackPage.select_current_row_signal.connect(self.select_current_source_row)
         self.playbackPage.playmode_changed_signal.connect(self.playmode_changed)
+        self.playbackPage.play_from_music_list_signal.connect(self.decide_to_play_or_pause)
+        self.playbackPage.show_music_info_signal.connect(self.managePage.playlistWidget.show_music_info_at_row)
 
-        self.managePage.current_table_changed_signal.connect(self.current_table_changed)
-        self.managePage.show_lists_manage_frame_signal.connect(self.show_current_table)
-        self.managePage.listsFrame.titleLabel.clicked.connect(self.lists_frame_title_label_clicked)
-        self.managePage.add_a_list_signal.connect(self.add_tables)
         self.managePage.randomOneButton.clicked.connect(self.listen_random_one)
-        self.managePage.listsFrame.musicTable.addMusicAction.triggered.connect(self.add_files)
-        self.managePage.listsFrame.musicTable.markSelectedAsFavoriteAction.triggered.connect(self.mark_selected_as_favorite)
-        self.managePage.listsFrame.musicTable.deleteAction.triggered.connect(self.delete_localfile)
-        self.managePage.listsFrame.musicTable.deleteSelectedsAction.triggered.connect(self.delete_selecteds)
-        self.managePage.listsFrame.musicTable.clearTheListAction.triggered.connect(self.check_and_clear_music_table)
-        self.managePage.listsFrame.musicTable.downloadAction.triggered.connect(self.online_list_song_download)
-        self.managePage.listsFrame.musicTable.songSpecAction.triggered.connect(self.song_spec)
-        self.managePage.listsFrame.musicTable.switchToSearchPageAction.triggered.connect(self.managePage.show_search_frame)
-        self.managePage.listsFrame.musicTable.doubleClicked.connect(self.music_table_clicked)
-
-        self.managePage.listsFrame.manageTable.addTableAction.triggered.connect(self.add_tables)
-        self.managePage.listsFrame.manageTable.addMusicHereAction.triggered.connect(self.add_files)
-        self.managePage.listsFrame.manageTable.renameTableAction.triggered.connect(self.rename_tables)
-        self.managePage.listsFrame.manageTable.deleteTableAction.triggered.connect(self.delete_tables)
-        self.managePage.listsFrame.manageTable.pressed.connect(self.manage_table_clicked)
-        
+        self.managePage.playlist_removed_signal.connect(self.playlist_removed)
+        self.managePage.playlist_renamed_signal.connect(self.playlist_renamed)
+        self.managePage.current_table_changed_signal.connect(self.current_table_changed)
+        self.managePage.playlistWidget.play_music_at_row_signal.connect(self.set_media_source_at_row)
+        self.managePage.playlistWidget.play_or_pause_signal.connect(self.decide_to_play_or_pause)
+        self.managePage.playlistWidget.playlist_changed_signal.connect(self.switch_to_new_playing_list)
+        self.managePage.playlistWidget.musics_added_signal.connect(self.musics_added)
+        self.managePage.playlistWidget.musics_removed_signal.connect(self.musics_removed)
+        self.managePage.playlistWidget.musics_cleared_signal.connect(self.musics_cleared)
+        self.managePage.playlistWidget.musics_marked_signal.connect(self.musics_marked)
+        self.managePage.playlistWidget.switch_to_search_page_signal.connect(self.managePage.show_search_frame)
+        self.managePage.playlistWidget.download_signal.connect(self.online_list_song_download)
         self.managePage.downloadPage.work_complete_signal.connect(self.refresh_playlist_downloaded)
         self.managePage.downloadPage.titleLabel.clicked.connect(self.open_download_dir)
-
-        self.managePage.searchFrame.switch_to_online_list.connect(self.switch_to_online_list)
         self.managePage.searchFrame.listen_online_signal.connect(self.begin_to_listen)
-        self.managePage.searchFrame.listen_local_signal.connect(self.listen_local)
         self.managePage.searchFrame.add_to_download_signal.connect(self.add_to_download)
         self.managePage.searchFrame.add_bunch_to_list_succeed.connect(self.refresh_playlist_online)
-        self.managePage.frameBottomWidget.clicked.connect(self.show_mainstack_1)
-        self.managePage.lyricLabel.clicked.connect(self.show_mainstack_1)
 
         self.functionsFrame.settingsFrame.download_dir_changed.connect(self.set_new_download_dir)
         self.functionsFrame.settingsFrame.desktop_lyric_style_changed.connect(self.update_desktop_lyric_style)
@@ -84,6 +74,7 @@ class Player(PlayerUi):
     def set_new_download_dir(self, newDir):
         self.downloadDir = newDir
         self.managePage.searchFrame.set_download_dir(newDir)
+        self.managePage.playlistWidget.set_download_dir(newDir)
     
     def set_new_close_button_act(self, act):
         self.closeButtonAct = act
@@ -101,7 +92,13 @@ class Player(PlayerUi):
     def initial_mediaplayer(self):
         self.mediaPlayer = QMediaPlayer()
         self.mediaPlayer.setNotifyInterval(500)
-
+    
+    def initial_widget_parameters(self):
+        self.managePage.playlistWidget.set_playlist_use_name(Configures.PlaylistDefault)
+        self.managePage.playlistWidget.set_download_dir(self.downloadDir)
+        self.managePage.playlistWidget.set_lock(self.lock)
+        self.switch_to_new_playing_list()
+        
     def initial_parameters(self):
         self.closeButtonAct = globalSettings.CloseButtonAct
         self.forceCloseFlag = False    #跳过确认窗口强制关闭程序的标志
@@ -110,75 +107,38 @@ class Player(PlayerUi):
         self.lyricOffset = 0
         self.currentSourceRow = -1
         self.cTime = self.totalTime = Configures.ZeroTime
-        self.playTable =  Configures.PlaylistDefault
         self.currentTable = Configures.PlaylistDefault
         self.noError = 1
-        self.allPlaySongs = []
         self.nearPlayedSongs = []
         self.lyricDict = {}
         self.j = -5
         self.deleteLocalfilePermit = False
         self.downloadDir = globalSettings.DownloadfilesPath
-        self.model.initial_model(Configures.PlaylistFavorite)
-        self.lovedSongs = []  
-        for i in range(0, self.model.rowCount()):
-            self.lovedSongs.append(self.model.get_record_title(i))     
-
-        self.model.initial_model(Configures.PlaylistDefault)
-        self.musicTable.initial_view(self.model)
-        for i in range(0, self.model.rowCount()):
-            ident = self.model.get_record_paths(i)
-            title = self.model.get_record_title(i)
-            self.playback_musictable_add_widget(ident, title)
+        playlistTemp = Playlist()
+        playlistTemp.fill_list(Configures.PlaylistFavorite)
+        self.lovedSongs = playlistTemp.get_titles()
 
     def open_download_dir(self, name):
         """点击下载任务标题栏打开下载目录。"""
-        with open(Configures.SettingFile, 'r') as f:
-            downloadDir = f.read()
-        print(downloadDir)
-        QDesktopServices.openUrl(QUrl.fromLocalFile(downloadDir))
-
-    def delete_localfile(self):
-        self.deleteLocalfilePermit = True
-        self.delete_selecteds()
-        self.deleteLocalfilePermit = False
-
-    def song_spec(self):
-        row = self.managePage.listsFrame.musicTable.currentIndex().row()
-        self.show_music_info(self.managePage.listsFrame.model, row)
-
-
-    def show_music_info(self, model, row):
-        title = model.record(row).value("title")
-        album = model.record(row).value("album")
-        timeLength = model.record(row).value("length")
-        path = model.record(row).value("paths")
-        artist, musicName = get_artist_and_musicname_from_title(title)
-        if musicName:
-            information = "歌手：%s\n曲名：%s\n时长：%s\n专辑：%s\n路径：%s"%(artist, musicName, timeLength, album, path)
-        else:
-            information = "标题：%s\n时长：%s\n专辑：%s\n路径：%s"%(title, timeLength, album, path)
-        QMessageBox.information(self, "歌曲详细信息", information)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(self.downloadDir))
 
     def refresh_playlist_online(self):
         """当批量添加试听歌曲到“在线试听”歌单后更新显示"""
-        if self.playTable == Configures.PlaylistOnline:
-            self.model.initial_model(Configures.PlaylistOnline)
-            self.musicTable.initial_view(self.model)
+        if self.playlist.get_name() == Configures.PlaylistOnline:
+            self.playlist_refresh_with_name(Configures.PlaylistOnline)
             for item in self.managePage.searchFrame.added_items:
-                self.playback_musictable_add_widget(item[1], item[0])
+                self.playbackPage.add_widget_into_musiclist(item[1], item[0])
 
     def refresh_playlist_downloaded(self):
-        if self.playTable == Configures.PlaylistDownloaded:
-            self.model.initial_model(Configures.PlaylistDownloaded)
-            self.musicTable.initial_view(self.model)
+        if self.playlist.get_name() == Configures.PlaylistDownloaded:
+            exists = self.playlist.get_items_queue()
+            self.playlist_refresh_with_name(Configures.PlaylistDownloaded)
             for name in self.managePage.downloadPage.completedWorkNames:
                 work = self.managePage.downloadPage.allDownloadWorks[name][0]
-                if name not in self.allPlaySongs:
-                    self.playback_musictable_add_widget(name, work.title)
+                if name not in exists:
+                    self.playbackPage.add_widget_into_musiclist(name, work.title)
         if self.currentTable == Configures.PlaylistDownloaded:
-            self.managePage.listsFrame.model.initial_model(Configures.PlaylistDownloaded)
-            self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
+            self.managePage.playlistWidget.set_playlist_use_name(Configures.PlaylistDownloaded)
         self.managePage.downloadPage.remove_work_from_download_list(self.managePage.downloadPage.completedWorkNames)
     
     def select_current_source_row(self):
@@ -196,124 +156,82 @@ class Player(PlayerUi):
             self.mediaPlayer.setPosition(self.playbackPage.seekSlider.value())
             self.mediaPlayer.play()
         self.mediaPlayer.positionChanged.connect(self.tick)
-        
-    def delete_selecteds(self): 
-        selections = self.managePage.listsFrame.musicTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        cnt = len(selecteds)//12       
-        if not cnt:
-            return
-        selectedsSpan = selecteds[-1].row() - selecteds[0].row()  + 1
-        cnt1 = 0
-        cnt2 = 0
-        for index in selecteds:
-            if  index.row() < self.currentSourceRow and index.column() == 0:
-                cnt1 += 1
-            if index.row() == self.currentSourceRow and self.playTable == self.currentTable:
-                cnt2 = 1
-        if self.deleteLocalfilePermit:
-            text_tmp1 = "移除并删除本地文件"
-            text_tmp2 = "有%s首歌曲将被移出列表，并被彻底删除，请确认!"%cnt
-        else:
-            text_tmp1 = "移除选中项"
-            text_tmp2 = "有%s首歌曲将被移出列表!"%cnt
-        ok = QMessageBox.warning(self, text_tmp1, text_tmp2, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-        if ok == QMessageBox.Yes:
-            self.setCursor(QCursor(Qt.BusyCursor))
-            if not cnt2:               
-                self.delete_selecteds_after_check_thread_lock(selecteds)
-                if self.playTable == self.currentTable:
-                    self.playback_page_delete_selected(selecteds)
-                    self.currentSourceRow  -=  cnt1
-                    self.model.initial_model(self.playTable)
-                    self.musicTable.selectRow(self.currentSourceRow)
-                    self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
-            else:
-                currentMusic = self.managePage.listsFrame.model.get_record_title(self.currentSourceRow)
-                if self.deleteLocalfilePermit:
-                    text_tmp3 = "移除并删除当前歌曲"
-                    text_tmp4 = "当前播放的歌曲: %s 将会被移除并被删除！\n请确认！"%currentMusic
-                else:
-                    text_tmp3 = "移除当前歌曲"
-                    text_tmp4 = "当前播放的歌曲: %s 将会被移除!\n您是否要移除这首歌曲？"%currentMusic
-                ok = QMessageBox.warning(self, text_tmp3, text_tmp4, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-                if ok  == QMessageBox.Yes:
-                    if cnt ==  self.managePage.listsFrame.model.rowCount():
-                        self.clear_music_table()
-                        if self.deleteLocalfilePermit:
-                            self.managePage.listsFrame.model.delete_localfiles(selecteds)
-                    elif cnt == selectedsSpan and selecteds[-1].row() == self.managePage.listsFrame.model.rowCount() - 1:
-                        self.delete_selecteds_after_check_thread_lock(selecteds)     
-                        self.playback_page_delete_selected(selecteds)   
-                        self.model.initial_model(self.playTable)     
-                        self.set_media_source_at_row(0)
-                        self.managePage.listsFrame.musicTable.selectRow(0)
-                    else:     
-                        firstDeletedRow = selecteds[0].row()
-                        self.delete_selecteds_after_check_thread_lock(selecteds)
-                        self.playback_page_delete_selected(selecteds)
-                        self.model.initial_model(self.playTable)
-                        self.set_media_source_at_row(firstDeletedRow)
-                        self.managePage.listsFrame.musicTable.selectRow(firstDeletedRow)
-                elif ok  == QMessageBox.No:
-                    selecteds1 = []
-                    for index in selecteds:
-                        row = index.row()
-                        if self.managePage.listsFrame.model.get_record_paths(row) ==  self.managePage.listsFrame.model.get_record_paths(self.currentSourceRow):
-                            continue
-                        selecteds1.append(index)
-                    self.delete_selecteds_after_check_thread_lock(selecteds1)     
-                    self.playback_page_delete_selected(selecteds1)   
-                    self.model.initial_model(self.playTable) 
-                    self.currentSourceRow  -=  cnt1
-                    self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
-                    self.musicTable.selectRow(self.currentSourceRow)
-            self.setCursor(QCursor(Qt.ArrowCursor))
-            if self.currentTable == Configures.PlaylistFavorite:
-                self.lovedSongs.clear()
-                for i in range(0, self.managePage.listsFrame.model.rowCount()):
-                    self.lovedSongs.append(self.managePage.listsFrame.model.get_record_title(i))      
+
+    def musics_added(self):
+        widget = self.managePage.playlistWidget
+        playlist = widget.get_playlist()
+        newAddedTitles = []
+        if widget.get_playing_used_state():
+            self.playlist_modified()
+        for index in widget.addedIndexes:
+            title = playlist.get_music_title_at(index)
+            path = playlist.get_music_path_at(index)
+            newAddedTitles.append((title, Configures.LocalMusicId))
+            if playlist.get_name() == Configures.PlaylistFavorite:
+                self.lovedSongs.append(title)
+            if widget.get_playing_used_state():
+                self.playbackPage.add_widget_into_musiclist(path, title)
+        self.check_favorite()
+        if len(newAddedTitles):
+            thread = DownloadLrcThread(newAddedTitles)
+            thread.setDaemon(True)
+            thread.setName("downloadLrc")
+            thread.start()
+        addCount = len(widget.files)
+        newAddedCount = len(newAddedTitles)
+        text = "您选择了%s首歌曲！\n新添加了%s首歌曲，其他歌曲已在列表中不被添加！"%(addCount, newAddedCount)
+        if newAddedCount >0 and addCount == newAddedCount:
+            text = "已添加%s首歌曲!"%newAddedCount
+        if newAddedCount == 0:
+            text = "选择的歌曲已在列表中！"
+        QMessageBox.information(self, "添加完成", text)   
+
+    def musics_removed(self):
+        widget = self.managePage.playlistWidget
+        playlist = widget.get_playlist()
+        if len(widget.removedIndexes):
+            if widget.get_playing_used_state():
+                self.playlist_modified()
+                self.managePage.playlistWidget.select_row()
+                if self.playlist.get_current_row()  < 0:
+                    self.ui_initial()
+            for row in widget.removedIndexes:
+                if playlist.get_name() == Configures.PlaylistFavorite:
+                    del self.lovedSongs[row] 
+                if widget.get_playing_used_state():
+                    self.playbackPage.musicList.remove_item_at_row(row)
             self.check_favorite()
 
-    @operate_after_check_thread_locked_state
-    def delete_selecteds_after_check_thread_lock(self, selecteds):
-        if self.deleteLocalfilePermit:
-            self.managePage.listsFrame.model.delete_localfiles(selecteds)
-        self.managePage.listsFrame.model.delete_selecteds(selecteds)
-
-#标记选中项为喜欢
-    def mark_selected_as_favorite(self):
-        self.setCursor(QCursor(Qt.BusyCursor))
-        selections = self.managePage.listsFrame.musicTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        marked = []
-        marked.clear()
-        for index in selecteds:
-            row = index.row()
-            record = self.managePage.listsFrame.model.record(row)
-            title = record.value("title")
-            path = record.value("paths")
-            if index.column() == 0:
-                if title not in self.lovedSongs and os.path.exists(record.value("paths")):
-                    if self.playTable == Configures.PlaylistFavorite:
-                        self.playback_musictable_add_widget(path, title)
-                    marked.append(title)
-                    self.lovedSongs.append(title)
-                    self.model.initial_model(Configures.PlaylistFavorite)
-                    self.model.add_record(record.value('title'), record.value('length'), record.value('album'), record.value('paths'), record.value('size'))
-                    self.model.submitAll()
-        self.model.initial_model(self.playTable)
-        self.musicTable.initial_view(self.model)
+    def musics_cleared(self):
+        widget = self.managePage.playlistWidget
+        playlist = widget.get_playlist()
+        if widget.get_playing_used_state():
+            self.playlist_modified()
+            self.playbackPage.musicList.clear_list()
+            self.ui_initial()
+        if playlist.get_name() == Configures.PlaylistFavorite:
+            self.lovedSongs.clear() 
+            self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.FavoritesNo))
+    
+    def musics_marked(self):
+        widget = self.managePage.playlistWidget
+        playlist = widget.get_playlist()       
+        if self.playlist.get_name() == Configures.PlaylistFavorite:
+            self.playlist_refresh_with_name(Configures.PlaylistFavorite)
+        for index in widget.markedIndexes:
+            title = playlist.get_music_title_at(index)
+            path = playlist.get_music_path_at(index)
+            self.lovedSongs.append(title)
+            if self.playlist.get_name() == Configures.PlaylistFavorite:
+                self.playbackPage.add_widget_into_musiclist(path, title)
         self.check_favorite()
-        self.setCursor(QCursor(Qt.ArrowCursor))
 
     def mark_as_favorite(self):   
-        if self.playTable == Configures.PlaylistFavorite or not self.model.rowCount() or self.currentSourceRow < 0:
+        if self.playlist.get_name() == Configures.PlaylistFavorite or not self.playlist.length() or self.currentSourceRow < 0:
             return
-        record = self.model.record(self.currentSourceRow)
-        path = record.value("paths")
-        title = record.value("title")
-        if self.playTable == Configures.PlaylistOnline:
+        path = self.playlist.get_music_path_at(self.currentSourceRow)
+        title = self.playlist.get_music_title_at(self.currentSourceRow)
+        if self.playlist.get_name() == Configures.PlaylistOnline:
             musicName = get_full_music_name_from_title(title)
             musicPath = os.path.join(self.downloadDir, musicName)
             musicPathO = os.path.join(Configures.MusicsDir, musicName)
@@ -321,72 +239,58 @@ class Player(PlayerUi):
                 QMessageBox.information(self, '提示', '请先下载该歌曲再添加喜欢！')
                 return
             if os.path.exists(musicPath):
-                record.setValue("paths", musicPath)
+                path = musicPath
             else:
-                record.setValue("paths", musicPathO)
+                path = musicPathO
         elif not os.path.exists(path):
             QMessageBox.information(self, "提示", "路径'"+"%s"%path+"'无效，无法标记喜欢！")
             return
-        self.model.initial_model(Configures.PlaylistFavorite)
+        playlistTemp = Playlist()
+        playlistTemp.fill_list(Configures.PlaylistFavorite)
         if title in self.lovedSongs:
-            self.model.removeRow(self.lovedSongs.index(title))
-            self.model.submitAll()
+            playlistTemp.remove_item_at(self.lovedSongs.index(title))
+            playlistTemp.commit_records()
             self.lovedSongs.remove(title)
             self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.FavoritesNo))
             self.playbackPage.favoriteButton.setToolTip("收藏")
         else:
-            self.model.add_record(record.value('title'), record.value('length'), record.value('album'), record.value('paths'), record.value('size'))
+            playlistTemp.add_item_from_path(path)
+            playlistTemp.commit_records()
             self.lovedSongs.append(title)
             self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
             self.playbackPage.favoriteButton.setToolTip("取消收藏")
-        self.model.initial_model(self.playTable)
-        self.musicTable.initial_view(self.model)
-        if self.currentTable == Configures.PlaylistFavorite:
-            self.managePage.listsFrame.model.initial_model(self.currentTable)
-            self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
+        if self.managePage.playlistWidget.get_playlist().get_name() == Configures.PlaylistFavorite:
+            self.managePage.playlistWidget.set_playlist_use_name(Configures.PlaylistFavorite)
 
     def check_favorite(self):
-        if self.model.get_record_title(self.currentSourceRow) in self.lovedSongs:
+        if self.playlist.get_music_title_at(self.currentSourceRow) in self.lovedSongs:
             self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
             self.playbackPage.favoriteButton.setToolTip('取消收藏')
         else:
             self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.FavoritesNo))
             self.playbackPage.favoriteButton.setToolTip('收藏')
-        if self.playTable == Configures.PlaylistFavorite:
+        if self.playlist.get_name() == Configures.PlaylistFavorite:
             self.playbackPage.favoriteButton.setToolTip('收藏')
-
-    def listen_local(self, toListen):
-        if self.currentTable != Configures.PlaylistDownloaded:
-            self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(3, 0))
-        k = self.add_only(self.managePage.downloadPage.valid)[3]
-        if self.playTable == Configures.PlaylistDownloaded:
-            self.model.initial_model(self.currentTable)    
-            self.musicTable.initial_view(self.model)
-        if toListen:
-            self.music_table_clicked(self.managePage.listsFrame.model.index(k, 0))
 
     def begin_to_listen(self, title, album, songLink, musicId):
         if not songLink:
             QMessageBox.critical(self, '错误', '链接为空，无法播放！')
             return
-        if self.currentTable != Configures.PlaylistOnline:
-            self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(0, 0))
-        k = -1
-        for i in range(0, self.managePage.listsFrame.model.rowCount()):
-            if self.managePage.listsFrame.model.get_record_musicId(i) == musicId:
-                k = i
-                break
-        if k == -1:
-            self.managePage.listsFrame.model.add_record(title, Configures.ZeroTime, album, songLink, 0, musicId)
-            if self.playTable == Configures.PlaylistOnline:
-                self.playback_musictable_add_widget(musicId, title)
-                self.model.initial_model(Configures.PlaylistOnline)
-                self.musicTable.initial_view(self.model)
-            self.music_table_clicked(self.managePage.listsFrame.model.index(self.managePage.listsFrame.model.rowCount()-1, 0))
+        widget = self.managePage.playlistWidget
+        widget.set_playlist_use_name(Configures.PlaylistOnline)
+        playlist = self.managePage.playlistWidget.playlist
+        k = playlist.get_item_index(musicId)
+        if k == playlist.length():
+            widget.add_record_with_full_info(musicId, title, Configures.ZeroTime, album, songLink, 0, musicId)
+            playlist.commit_records()
+            if self.playlist.get_name() == Configures.PlaylistOnline:
+                self.playbackPage.add_widget_into_musiclist(musicId, title)
+                self.playlist.fill_list(Configures.PlaylistOnline)
+                widget.set_playing_status(self.playlist) 
         else:
-            if self.playTable == Configures.PlaylistOnline and self.currentSourceRow == k:
+            if self.playlist.get_name() == Configures.PlaylistOnline and self.currentSourceRow == k:
                 return
-            self.music_table_clicked(self.managePage.listsFrame.model.index(k, 0))
+        widget.double_click_to_play_with_row(k)
 
     def add_to_download(self):
         for songInfoList in self.managePage.searchFrame.readyToDownloadSongs:
@@ -398,16 +302,17 @@ class Player(PlayerUi):
             self.managePage.downloadPage.add_a_download_work(songLink, musicPath, title, album, musicId, 0, self.lock)
 
     def online_list_song_download(self):
-        selections = self.managePage.listsFrame.musicTable.selectionModel()
-        selecteds = selections.selectedIndexes()
+        widget = self.managePage.playlistWidget
+        playlist = widget.get_playlist()
+        selecteds = widget.selectedIndexes()
         isExistsSongs = []
         for index in selecteds:
             if index.column() == 0:
                 row = index.row()
-                songLink = self.managePage.listsFrame.model.get_record_paths(row)
-                title = self.managePage.listsFrame.model.get_record_title(row)
-                musicId = self.managePage.listsFrame.model.get_record_musicId(row)
-                album = self.managePage.listsFrame.model.get_record_album(row)
+                songLink = playlist.get_music_path_at(row)
+                title = playlist.get_music_title_at(row)
+                musicId = playlist.get_music_id_at(row)
+                album = playlist.get_music_album_at(row)
                 musicName = get_full_music_name_from_title(title)
                 musicPath = os.path.join(self.downloadDir, musicName)
                 musicPathO = os.path.join(Configures.MusicsDir, musicName)
@@ -423,70 +328,6 @@ class Player(PlayerUi):
             QMessageBox.information(self, "提示", 
                 "以下歌曲已在下载目录中不再进行下载，您可以在不联网的情况下点击在线列表播放！\n%s"%existsSongs)
 
-
-    #note: in pyqt5, function 'QFileDialog.getopenFileNames' return a tuple, it structs like "(['/home/xxx/file.mp3'], '*.mp3')"
-    #      while in pyqt4,just a list. 
-    def add_files(self):
-        files = QFileDialog.getOpenFileNames(self, "选择音乐文件",
-                self.downloadDir, self.tr("*.mp3"))[0]
-        if not files:
-            return
-        addCount, newAddedCount = self.add_and_choose_play(files)
-        text = "您选择了%s首歌曲！\n新添加了%s首歌曲，其他歌曲已在列表中不被添加！"%(addCount, newAddedCount)
-        if newAddedCount >0 and addCount == newAddedCount:
-            text = "已添加%s首歌曲!"%newAddedCount
-        if newAddedCount == 0:
-            text = "选择的歌曲已在列表中！"
-        QMessageBox.information(self, "添加完成", text)
-
-    @operate_after_check_thread_locked_state
-    @trace_to_keep_time
-    def add_only(self, files):
-        if not len(files):
-            return
-        addCount = len(files)
-        pathsInTable = []
-        newAddedTitles = []
-        for i in range(0, self.managePage.listsFrame.model.rowCount()):
-            pathsInTable.append(self.managePage.listsFrame.model.get_record_paths(i))
-        newAddedCount = 0
-        for item in list(set(files)-set(pathsInTable)):
-            self.setCursor(QCursor(Qt.BusyCursor))
-            title, album, totalTime =  read_music_info(item)
-            if self.currentTable == Configures.PlaylistFavorite:
-                self.lovedSongs.append(title)
-            if self.currentTable == self.playTable:
-                self.playback_musictable_add_widget(item, title)
-            size = os.path.getsize(item)
-            self.managePage.listsFrame.model.add_record(title, totalTime, album, item, size)  
-            newAddedTitles.append((title, Configures.LocalMusicId))
-        width = self.managePage.listsFrame.musicTable.columnWidth(1)
-        self.managePage.listsFrame.model.initial_model(self.currentTable)
-        self.managePage.listsFrame.musicTable.initial_view(self.managePage.listsFrame.model)
-        self.managePage.listsFrame.musicTable.setColumnWidth(1, width)
-        newAddedCount = len(newAddedTitles)
-        try:
-            index = pathsInTable.index(files[0])
-        except:
-            index = len(pathsInTable)
-        self.managePage.listsFrame.musicTable.selectRow(index)
-        self.setCursor(QCursor(Qt.ArrowCursor))
-        self.check_favorite()
-        if len(newAddedTitles):
-            thread = DownloadLrcThread(newAddedTitles)
-            thread.setDaemon(True)
-            thread.setName("downloadLrc")
-            thread.start()
-        return addCount, newAddedCount, index
-
-    def add_and_choose_play(self, files):
-        addCount, newAddedCount, k = self.add_only(files)
-        if self.playTable == self.currentTable:
-            self.model.initial_model(self.currentTable)    
-            self.musicTable.selectRow(k)
-            self.set_media_source_at_row(k)
-        return addCount, newAddedCount
-
     def duration_changed(self, duration):
         self.playbackPage.seekSlider.setMaximum(duration)
         exactTotalTime = format_position_to_mmss(self.mediaPlayer.duration()//1000)
@@ -494,17 +335,12 @@ class Player(PlayerUi):
             self.totalTime = exactTotalTime
             self.managePage.timeLabel.setText('%s/%s'%(Configures.ZeroTime, self.totalTime))
             self.playbackPage.timeLabel2.setText(self.totalTime)
-            self.model.setData(self.model.index(self.currentSourceRow, 2), self.totalTime)
-            self.model.submitAll()
-            self.musicTable.selectRow(self.currentSourceRow)
-            if self.currentTable == self.playTable:
-                self.managePage.listsFrame.model.initial_model(self.playTable)
-                self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
-                self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
+            self.playlist.set_music_time_at(self.currentSourceRow, exactTotalTime)
+            if self.currentTable == self.playlist.get_name():
+                self.managePage.playlistWidget.set_playlist_use_name(self.currentTable)
+                self.managePage.playlistWidget.select_row()
 
     def tick(self):
-        if not self.musicTable.currentIndex():
-            self.musicTable.selectRow(self.currentSourceRow)
         currentTime = self.mediaPlayer.position()
         self.syc_lyric(currentTime)
         self.playbackPage.seekSlider.setValue(currentTime)
@@ -538,12 +374,8 @@ class Player(PlayerUi):
 
     def state_changed(self, newState):
         if newState in [QMediaPlayer.PlayingState, QMediaPlayer.PausedState, QMediaPlayer.StoppedState]:
-            self.managePage.listsFrame.manageTable.setToolTip('当前播放列表：\n    %s'%self.playTable)
-            self.managePage.listsFrame.musicTable.setToolTip('当前播放列表：\n    %s\n'%self.playTable + '当前曲目：\n  %s'%self.model.get_record_title(self.currentSourceRow))      
-            if not self.model.rowCount():
+            if not self.playlist.length():
                 return        
-            if not self.musicTable.currentIndex:
-                self.musicTable.selectRow(self.currentSourceRow)
             iconPath = IconsHub.ControlPause
             isPaused = False
             if newState in [QMediaPlayer.StoppedState, QMediaPlayer.PausedState]:
@@ -552,17 +384,17 @@ class Player(PlayerUi):
             icon = QIcon(iconPath)
             self.playAction.setIcon(icon)
             try:
-                self.playbackPage.musicList.allListItems[self.currentSourceRow].set_pause_state(isPaused)
+                self.playbackPage.musicList.get_item_at_row(self.currentSourceRow).set_pause_state(isPaused)
             except:
                 pass
 
     def source_changed(self):  
-        if not self.model.rowCount():
-            return
+        if not self.playlist.length():
+            return 
         self.check_mountout_state()
         self.managePage.frameBottomWidget.setGradient(0)
         self.update_parameters()
-        if self.playTable == Configures.PlaylistOnline or os.path.exists(self.model.get_record_paths(self.currentSourceRow)) :
+        if self.playlist.get_name() == Configures.PlaylistOnline or os.path.exists(self.playlist.get_music_path_at(self.currentSourceRow)) :
             self.update_artist_info()
             self.update_lyric()
         else:
@@ -581,42 +413,42 @@ class Player(PlayerUi):
 
     def update_parameters(self):
         oldSourceRow = self.currentSourceRow
-        self.currentSourceRow = self.musicTable.currentIndex().row()
-        self.playbackPage.musicList.allListItems[self.currentSourceRow].set_pause_state(False)
+        self.currentSourceRow = self.playlist.get_current_row()
+        self.playbackPage.musicList.get_item_at_row(self.currentSourceRow).set_pause_state(False)
         try:
-            self.playbackPage.musicList.allListItems[oldSourceRow].set_pause_state(True)
+            self.playbackPage.musicList.get_item_at_row(oldSourceRow).set_pause_state(True)
         except:
             pass
         self.playbackPage.musicList.selectRow(self.currentSourceRow)
-        title = self.model.get_record_title(self.currentSourceRow)
+        title = self.playlist.get_music_title_at(self.currentSourceRow)
         artistName, musicName = get_artist_and_musicname_from_title(title)
         self.playAction.setText(musicName)
         self.playbackPage.musicNameLabel.setText(musicName)
         self.managePage.artistNameLabel.setText(artistName)
         self.managePage.musicNameLabel.setText(musicName)
-        self.totalTime = self.model.get_record_length(self.currentSourceRow)
+        self.totalTime = self.playlist.get_music_time_at(self.currentSourceRow)
         self.managePage.timeLabel.setText('%s/%s'%(Configures.ZeroTime, self.totalTime))
         self.playbackPage.timeLabel2.setText(self.totalTime)
 
     def update_near_played_queue(self):
-        currentSourceId = self.model.get_record_paths(self.currentSourceRow)
-        if self.playTable == Configures.PlaylistOnline:
-            currentSourceId = self.model.get_record_musicId(self.currentSourceRow)
+        currentSourceId = self.playlist.get_music_path_at(self.currentSourceRow)
+        if self.playlist.get_name() == Configures.PlaylistOnline:
+            currentSourceId = self.playlist.get_music_id_at(self.currentSourceRow)
         if currentSourceId not in self.nearPlayedSongs:
             self.nearPlayedSongs.append(currentSourceId)
-        while len(self.nearPlayedSongs) >= self.model.rowCount() * 4 / 5:
+        while len(self.nearPlayedSongs) >= self.playlist.length() * 4 / 5:
             del self.nearPlayedSongs[0]
 
     def update_artist_info(self):
-        title = self.model.get_record_title(self.currentSourceRow)
+        title = self.playlist.get_music_title_at(self.currentSourceRow)
         pixmap = self.playbackPage.update_artist_info(title)
         self.managePage.artistHeadLabel.setPixmap(pixmap)
 
     def update_lyric(self):
         self.managePage.lyricLabel.setToolTip("正常")
         self.lyricOffset = 0     
-        title = self.model.get_record_title(self.currentSourceRow)
-        musicId = self.model.get_record_musicId(self.currentSourceRow)
+        title = self.playlist.get_music_title_at(self.currentSourceRow)
+        musicId = self.playlist.get_music_id_at(self.currentSourceRow)
         self.lrcPath = composite_lyric_path_use_title(title)
         lyric = SearchOnline.get_lrc_contents(title, musicId)
         if lyric == Configures.LyricNetError:
@@ -648,102 +480,8 @@ class Player(PlayerUi):
         else:
             self.managePage.lyricLabel.setToolTip("歌词显示")
 
-    def manage_table_clicked(self, index):
-        row = index.row()
-        tableName = self.managePage.listsFrame.manageModel.record(row).value('tableName')
+    def current_table_changed(self, tableName):
         self.currentTable = tableName
-        self.managePage.listsFrame.manageTable.selectRow(row)
-        self.managePage.listsFrame.check_actions_in_page(row)
-        self.managePage.listsFrame.model.initial_model(tableName)
-        self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
-        if tableName == self.playTable:
-            self.managePage.listsFrame.musicTable.selectRow(self.currentSourceRow)
-
-    def add_tables(self):
-        existTables = []
-        for i in range(0, self.managePage.listsFrame.manageModel.rowCount()):
-            existTables.append(self.managePage.listsFrame.manageModel.record(i).value("tableName"))
-        j = 1
-        while True:            
-            textOld = "我的列表%s"%j
-            if textOld not in existTables:
-                break
-            j += 1            
-        text, ok = QInputDialog.getText(self, "添加列表", "请输入列表名：", QLineEdit.Normal, textOld)
-        if ok:
-            if text:
-                if text in existTables:
-                    QMessageBox.critical(self, "注意！", "列表'%s'已存在！\n请重新添加！"%text)
-                    return
-                if text in [Configures.PlaylistsManageTable, Configures.DownloadWorksTable]:
-                    QMessageBox.critical(self, "注意！", "列表名'％s'与'%s'为系统所用，请选择其他名称!"%(Configures.PlaylistsManageTable, Configures.DownloadWorksTable))
-                    return
-                self.managePage.listsFrame.manageTable.add_tables(self.managePage.listsFrame.manageModel, "%s"%text)
-            else:
-                self.managePage.listsFrame.manageTable.add_tables(self.managePage.listsFrame.manageModel, "%s"%textOld)
-                text = textOld
-            sqlOperator.createTable(text)
-            self.managePage.add_a_widget_to_table(text)
-            self.managePage.listsFrame.manageModel.setTable(Configures.PlaylistsManageTable)
-            self.managePage.listsFrame.manageModel.setHeaderData(1, Qt.Horizontal, "*所有列表*")
-            self.managePage.listsFrame.manageModel.select()
-            self.managePage.listsFrame.manageTable.initial_view(self.managePage.listsFrame.manageModel)
-            self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(self.managePage.listsFrame.manageModel.rowCount() - 1, 0))
-            self.managePage.listsFrame.manageTable.selectRow(self.managePage.listsFrame.manageModel.rowCount() - 1)
-
-    def rename_tables(self):
-        selections = self.managePage.listsFrame.manageTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        selectedsRow = selecteds[0].row()
-        oldName = self.managePage.listsFrame.manageModel.data(self.managePage.listsFrame.manageModel.index(selectedsRow, 1))
-        newName, ok = QInputDialog.getText(self, "重命名列表", "请输入新列表名：", QLineEdit.Normal, oldName)
-        if ok:
-            if newName:
-                for i in range(0, self.managePage.listsFrame.manageModel.rowCount()):
-                    if newName == self.managePage.listsFrame.manageModel.record(i).value("tableName"):
-                        QMessageBox.critical(self, "注意！", "列表'%s'已存在！\n请重新修改！"%newName)
-                        return
-                try:
-                    int(newName[0])
-                    QMessageBox.critical(self, "注意！", "列表名不能以数字开头！")
-                    return
-                except:pass
-                if newName in [Configures.PlaylistsManageTable, Configures.DownloadWorksTable]:
-                    QMessageBox.critical(self, "注意！", "列表名'%s'与'%s'为系统所用，请选择其他名称!"%(Configures.PlaylistsManageTable, Configures.DownloadWorksTable))
-                    return
-                sqlOperator.renameTable(oldName, newName)
-                self.managePage.listsFrame.manageModel.setData(self.managePage.listsFrame.manageModel.index(selectedsRow, 1), newName)
-                self.managePage.listsFrame.manageModel.submitAll()
-                self.managePage.listButtons[selectedsRow].set_text(newName)
-                self.managePage.listsFrame.manageModel.setTable(Configures.PlaylistsManageTable)
-                self.managePage.listsFrame.manageModel.setHeaderData(1, Qt.Horizontal, "所有列表")
-                self.managePage.listsFrame.manageModel.select()
-                if oldName == self.playTable:
-                    self.playTable = newName
-                self.manage_table_clicked(selecteds[0])
-                self.managePage.listsFrame.manageTable.selectRow(selectedsRow)
-
-    def delete_tables(self):    
-        selections = self.managePage.listsFrame.manageTable.selectionModel()
-        selecteds = selections.selectedIndexes()
-        row =  selecteds[0].row()
-        tablenameDeleted = self.managePage.listsFrame.manageModel.data(self.managePage.listsFrame.manageModel.index(row, 1))
-        ok = QMessageBox.warning(self, "删除列表", "列表'%s'将被删除，表中记录将被全部移除！\n您是否继续？"%tablenameDeleted, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-        if ok == QMessageBox.Yes:
-            sqlOperator.dropTable(tablenameDeleted)
-            self.managePage.listsFrame.manage_model_remove_row(row)
-            self.managePage.myListTable.removeRow(row - 4)
-            del self.managePage.listButtons[row]
-            if self.playTable!= tablenameDeleted:
-                for i in range(0, self.managePage.listsFrame.manageModel.rowCount()):
-                    if self.managePage.listsFrame.manageModel.record(i).value("tableName") == self.playTable:
-                        break
-                self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(i, 0))
-            else:
-                self.ui_initial()
-                self.manage_table_clicked(self.managePage.listsFrame.manageModel.index(1, 0))
-                self.managePage.listsFrame.musicTable.selectRow(0)
-                self.music_table_clicked(self.managePage.listsFrame.musicTable.currentIndex())
 
     def decide_to_play_or_pause(self, row):
         if  row!= self.currentSourceRow or self.mediaPlayer.state() == QMediaPlayer.StoppedState:
@@ -752,70 +490,9 @@ class Player(PlayerUi):
             self.mediaPlayer.play()
         elif self.mediaPlayer.state() == QMediaPlayer.PlayingState:
             self.mediaPlayer.pause()
-
-    def music_table_clicked(self, index):
-        row = index.row()
-        self.managePage.listsFrame.musicTable.selectRow(row)
-        if self.managePage.listsFrame.model.tableName() == self.playTable:
-            self.decide_to_play_or_pause(row)
-        else:
-            playTableOld = self.playTable
-            self.playTable = self.managePage.listsFrame.model.tableName()
-            self.managePage.change_list_buttons_color(playTableOld, self.playTable)
-            self.managePage.listsFrame.stateLabel.setText("当前播放列表：%s"%self.playTable)
-            self.model.initial_model(self.managePage.listsFrame.model.tableName())
-            self.musicTable.initial_view(self.model)
-            self.allPlaySongs = []
-            self.playbackPage.musicList.clear_list()
-            for i in range(0, self.model.rowCount()):
-                ident = self.model.get_record_paths(i)
-                if self.playTable == Configures.PlaylistOnline:
-                    ident = self.model.get_record_musicId(i)
-                title = self.model.get_record_title(i)
-                self.playback_musictable_add_widget(ident, title)
-            self.set_media_source_at_row(row)
-
-    def playback_page_to_listen(self, ident):
-        row = self.playbackPage.musicList.row_of_item(ident)
-        self.decide_to_play_or_pause(row)
-
-    def playback_page_music_info(self, ident):
-        row = self.playbackPage.musicList.row_of_item(ident)
-        self.show_music_info(self.model, row)
-
-    def playback_page_delete_selected(self, selecteds):
-        if len(selecteds):
-            for i in sorted(range(len(selecteds)), reverse=True):
-                index = selecteds[i]
-                row = index.row()
-                if index.column() == 0:
-                    self.playbackPage.musicList.remove_item_at_row(row)
-                    del self.allPlaySongs[row]
-
-    def check_and_clear_music_table(self):
-        if not self.managePage.listsFrame.model.rowCount():
-            return
-        ok = QMessageBox.warning(self, "清空列表", "当前列表的所有歌曲(包括当前播放歌曲)都将被移除，请确认!", QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
-        if ok  == QMessageBox.Yes:
-            self.clear_music_table()
-            
-    @operate_after_check_thread_locked_state
-    def clear_music_table(self):
-        currentIndex = self.managePage.listsFrame.manageTable.currentIndex()
-        sqlOperator.dropTable(self.currentTable)
-        sqlOperator.createTable(self.currentTable)
-        self.manage_table_clicked(currentIndex)
-        if self.playTable == self.currentTable:
-            self.ui_initial()
-        if self.currentTable == Configures.PlaylistFavorite:
-            self.lovedSongs.clear() 
-            self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.FavoritesNo))
     
     def ui_initial(self):
         self.stop_music()
-        self.model.initial_model(self.playTable)
-        self.musicTable.initial_view(self.model)
-        self.allPlaySongs.clear()
         PlayerUi.ui_initial(self)
 
     def slider_value_changed(self, value):
@@ -827,43 +504,34 @@ class Player(PlayerUi):
         self.playbackPage.timeLabel2.setText(self.totalTime)
         self.syc_lyric(value)
 
-    def set_media_source_at_row(self, row):    
-        if not self.model.rowCount():
+    def set_media_source_at_row(self, row):
+        if not self.playlist.length() or row < 0:
             return 
         self.stop_music()
-        self.musicTable.selectRow(row)
-        if self.playTable == self.managePage.listsFrame.model.tableName():
-            self.managePage.listsFrame.musicTable.selectRow(row)
-        sourcePath = self.model.get_record_paths(row)
-        title = self.model.get_record_title(row)
+        self.playlist.set_current_row(row)
+        self.managePage.playlistWidget.select_row()
+        sourcePath = self.playlist.get_music_path_at(row)
+        title = self.playlist.get_music_title_at(row)
         musicName = get_full_music_name_from_title(title)
         musicPathO = os.path.join(Configures.MusicsDir, musicName)
         musicPath = os.path.join(self.downloadDir, musicName)
         isAnUrl = False
         errorType = Configures.NoError
         isAnUrl = False
-        if  os.path.exists(musicPath):
-            sourcePath = musicPath
-        elif os.path.exists(musicPathO):
-            sourcePath = musicPathO
-        elif self.playTable == Configures.PlaylistOnline:
-            if sourcePath == Configures.NoLink:
-                musicId = self.model.get_record_musicId(row)
-                sourcePath = SearchOnline.get_song_link(musicId)
-                if sourcePath:
-                    self.model.setData(self.model.index(row, 4), sourcePath)
-                    self.model.submitAll()
-                    self.model.initial_model(self.playTable)
-                    self.musicTable.selectRow(row)
-                    self.managePage.listsFrame.model.initial_model(self.playTable)
-                    self.managePage.listsFrame.musicTable.setModel(self.managePage.listsFrame.model)
-                    self.managePage.listsFrame.musicTable.selectRow(row)
-                else:
-                    errorType = Configures.UrlError
-            isAnUrl = True
-        else:
-            if os.path.exists(self.model.get_record_paths(row)):
-                sourcePath=self.model.get_record_paths(row)
+        if not os.path.exists(sourcePath):
+            if  os.path.exists(musicPath):
+                sourcePath = musicPath
+            elif os.path.exists(musicPathO):
+                sourcePath = musicPathO
+            elif self.playlist.get_name() == Configures.PlaylistOnline:
+                if sourcePath == Configures.NoLink:
+                    musicId = self.playlist.get_music_id_at(row)
+                    sourcePath = SearchOnline.get_song_link(musicId)
+                    if sourcePath:
+                        self.playlist.set_music_path_at(row, sourcePath)
+                    else:
+                        errorType = Configures.UrlError
+                isAnUrl = True
             else:
                 self.noError = 0
                 errorType = Configures.PathError
@@ -872,17 +540,16 @@ class Player(PlayerUi):
             if self.isHidden():
                 self.show()
             if errorType == Configures.DisnetError:
-                QMessageBox.critical(self, "错误", "联网出错！\n无法联网播放歌曲'%s'！\n您最好在网络畅通时下载该曲目！"%self.model.get_record_title(row))
+                QMessageBox.critical(self, "错误", "联网出错！\n无法联网播放歌曲'%s'！\n您最好在网络畅通时下载该曲目！"%self.playlist.get_music_title_at(row))
             elif errorType == Configures.PathError:
-                QMessageBox.information(self, "提示", "路径'%s'无效，请尝试重新下载并添加对应歌曲！"%self.model.get_record_paths(row))
+                QMessageBox.information(self, "提示", "路径'%s'无效，请尝试重新下载并添加对应歌曲！"%self.playlist.get_music_path_at(row))
             self.noError = 1 
             return
         if isAnUrl:
             url = QUrl(sourcePath)
         else:
             url = QUrl.fromLocalFile(sourcePath)
-#        print(url)
-        self.play_from_url(url)
+        self.play_from_url(url)       
 
     def play_from_url(self, url):
         mediaContent = QMediaContent(url)
@@ -901,41 +568,39 @@ class Player(PlayerUi):
         self.syc_lyric(-0.5)
 
     def previous_song(self):
-        if not self.model.rowCount():
+        if not self.playlist.length():
             return
         self.stop_music()
         nextRow = 0
         if self.playbackPage.playmode == Configures.PlaymodeRandom:
             nextSongPath = self.random_a_song()
-            nextRow = self.allPlaySongs.index(nextSongPath)
+            nextRow = self.playlist.get_items_queue().index(nextSongPath)
         elif self.playbackPage.playmode == Configures.PlaymodeOrder:
             if self.currentSourceRow - 1 >= 0:
                 nextRow = self.currentSourceRow - 1
             else:
-                nextRow = self.model.rowCount() - 1
+                nextRow = self.playlist.length() - 1
         elif self.playbackPage.playmode == Configures.PlaymodeSingle:
             nextRow = self.currentSourceRow
             if nextRow < 0:
                 nextRow = 0
         self.set_media_source_at_row(nextRow)
-        if self.playTable == self.managePage.listsFrame.model.tableName():
-            self.managePage.listsFrame.musicTable.selectRow(self.musicTable.currentIndex().row())
 
     def random_a_song(self):
-        listTemp = list(set(self.allPlaySongs)-set(self.nearPlayedSongs))
+        listTemp = list(set(self.playlist.get_items_queue())-set(self.nearPlayedSongs))
         ran = random.randint(0, len(listTemp)-1)
         return listTemp[ran]
 
     def next_song(self):
-        if not self.model.rowCount():
+        if not self.playlist.length():
             return
         self.stop_music()
         nextRow = 0
         if self.playbackPage.playmode == Configures.PlaymodeRandom:
             nextSongPath = self.random_a_song()
-            nextRow = self.allPlaySongs.index(nextSongPath)
+            nextRow = self.playlist.get_items_queue().index(nextSongPath)
         elif self.playbackPage.playmode == Configures.PlaymodeOrder:
-            if  self.currentSourceRow + 1 < self.model.rowCount():
+            if  self.currentSourceRow + 1 < self.playlist.length():
                 nextRow = self.currentSourceRow + 1
             else:
                 nextRow = 0
@@ -944,8 +609,6 @@ class Player(PlayerUi):
             if nextRow < 0:
                 nextRow = 0
         self.set_media_source_at_row(nextRow)
-        if self.playTable == self.managePage.listsFrame.model.tableName():
-            self.managePage.listsFrame.musicTable.selectRow(self.musicTable.currentIndex().row())
 
     def listen_random_one(self):
         playmodeTemp = self.playbackPage.playmode
@@ -987,3 +650,34 @@ class Player(PlayerUi):
             else:
                 self.show()
 
+    def switch_to_new_playing_list(self):
+        self.playlist_modified()
+        self.playbackPage.musicList.clear_list()
+        for i in range(0, self.playlist.length()):
+            ident = self.playlist.get_music_path_at(i)
+            if self.playlist.get_name() == Configures.PlaylistOnline:
+                ident = self.playlist.get_music_id_at(i)
+            title = self.playlist.get_music_title_at(i)
+            self.playbackPage.add_widget_into_musiclist(ident, title) 
+        self.set_media_source_at_row(self.playlist.get_current_row())
+    
+    def playlist_modified(self):
+        self.playlist = self.managePage.playlistWidget.get_playlist()
+        self.managePage.playlistWidget.set_playing_status(self.playlist)    
+        self.currentSourceRow = self.playlist.get_current_row()       
+    
+    def playlist_refresh_with_name(self, listName):
+        self.playlist.fill_list(listName)
+        self.managePage.playlistWidget.set_playing_status(self.playlist)     
+
+    def playlist_removed(self, name):
+        if name == self.playlist.get_name():
+            self.ui_initial()
+            self.managePage.playlistWidget.set_playlist_use_name(Configures.PlaylistDefault)
+            self.managePage.change_list_buttons_color(name, Configures.PlaylistDefault)
+            self.switch_to_new_playing_list()
+    
+    def playlist_renamed(self, name, newName):
+        if name == self.playlist.get_name():
+            self.playlist.set_name(newName)
+            self.managePage.playlistWidget.set_playing_status(self.playlist)   
