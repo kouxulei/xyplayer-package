@@ -157,7 +157,7 @@ class Player(PlayerUi):
             self.mediaPlayer.play()
         self.mediaPlayer.positionChanged.connect(self.tick)
 
-    def musics_added(self):
+    def musics_added(self, showAddInfo):
         widget = self.managePage.playlistWidget
         playlist = widget.get_playlist()
         newAddedTitles = []
@@ -171,25 +171,27 @@ class Player(PlayerUi):
                 self.lovedSongs.append(title)
             if widget.get_playing_used_state():
                 self.playbackPage.add_widget_into_musiclist(path, title)
-        self.check_favorite()
-        if len(newAddedTitles):
-            thread = DownloadLrcThread(newAddedTitles)
-            thread.setDaemon(True)
-            thread.setName("downloadLrc")
-            thread.start()
-        addCount = len(widget.files)
-        newAddedCount = len(newAddedTitles)
-        text = "您选择了%s首歌曲！\n新添加了%s首歌曲，其他歌曲已在列表中不被添加！"%(addCount, newAddedCount)
-        if newAddedCount >0 and addCount == newAddedCount:
-            text = "已添加%s首歌曲!"%newAddedCount
-        if newAddedCount == 0:
-            text = "选择的歌曲已在列表中！"
-        QMessageBox.information(self, "添加完成", text)   
+        if playlist.get_name() == Configures.PlaylistFavorite:
+            self.check_favorite()
+        if showAddInfo:
+            if len(newAddedTitles):
+                thread = DownloadLrcThread(newAddedTitles)
+                thread.setDaemon(True)
+                thread.setName("downloadLrc")
+                thread.start()
+            addCount = len(widget.files)
+            newAddedCount = len(newAddedTitles)
+            text = "您选择了%s首歌曲！\n新添加了%s首歌曲，其他歌曲已在列表中不被添加！"%(addCount, newAddedCount)
+            if newAddedCount >0 and addCount == newAddedCount:
+                text = "已添加%s首歌曲!"%newAddedCount
+            if newAddedCount == 0:
+                text = "选择的歌曲已在列表中！"
+            QMessageBox.information(self, "添加完成", text)   
 
     def musics_removed(self):
         widget = self.managePage.playlistWidget
         playlist = widget.get_playlist()
-        if len(widget.removedIndexes):
+        if widget.removedIndexes:
             if widget.get_playing_used_state():
                 self.playlist_modified()
                 self.managePage.playlistWidget.select_row()
@@ -200,7 +202,8 @@ class Player(PlayerUi):
                     del self.lovedSongs[row] 
                 if widget.get_playing_used_state():
                     self.playbackPage.musicList.remove_item_at_row(row)
-            self.check_favorite()
+            if playlist.get_name() == Configures.PlaylistFavorite:
+                self.check_favorite()
 
     def musics_cleared(self):
         widget = self.managePage.playlistWidget
@@ -263,14 +266,15 @@ class Player(PlayerUi):
             self.managePage.playlistWidget.set_playlist_use_name(Configures.PlaylistFavorite)
 
     def check_favorite(self):
-        if self.playlist.get_music_title_at(self.currentSourceRow) in self.lovedSongs:
-            self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
-            self.playbackPage.favoriteButton.setToolTip('取消收藏')
-        else:
-            self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.FavoritesNo))
-            self.playbackPage.favoriteButton.setToolTip('收藏')
-        if self.playlist.get_name() == Configures.PlaylistFavorite:
-            self.playbackPage.favoriteButton.setToolTip('收藏')
+        if self.currentSourceRow >= 0:
+            if self.playlist.get_music_title_at(self.currentSourceRow) in self.lovedSongs:
+                self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
+                self.playbackPage.favoriteButton.setToolTip('取消收藏')
+            else:
+                self.playbackPage.favoriteButton.setIcon(QIcon(IconsHub.FavoritesNo))
+                self.playbackPage.favoriteButton.setToolTip('收藏')
+            if self.playlist.get_name() == Configures.PlaylistFavorite:
+                self.playbackPage.favoriteButton.setToolTip('收藏')
 
     def begin_to_listen(self, title, album, songLink, musicId):
         if not songLink:

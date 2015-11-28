@@ -57,9 +57,10 @@ class FunctionsFrame(QLabel):
         self.titlePic.setPixmap(pixmap)
 
 #返回按键
-        self.backButton = QPushButton()
+        self.backButton = QPushButton('关闭', clicked=self.show_main)
         self.backButton.setFocusPolicy(Qt.NoFocus)
-        self.backButton.setFixedSize(50, 30)
+        self.backButton.setStyleSheet('background:transparent;color:yellow;')
+        self.backButton.setFixedWidth(60)
         
 #综合布局
         titleLayout = QHBoxLayout()
@@ -67,6 +68,7 @@ class FunctionsFrame(QLabel):
         titleLayout.addWidget(self.titlePic)
         titleLayout.addWidget(self.titleLabel)
         titleLayout.addStretch()
+        titleLayout.addWidget(self.backButton)
 
         buttonWidget = QWidget()
         buttonsLayout = QGridLayout(buttonWidget)
@@ -98,7 +100,6 @@ class FunctionsFrame(QLabel):
         mainLayout.addSpacing(18)
     
     def create_connections(self):
-        self.titlePic.clicked.connect(self.show_main)
         self.mountoutExitButton.clicked.connect(self.show_mountout_dialog)
         self.timeoutExitButton.clicked.connect(self.show_timeout_dialog)
         self.downloadPathButton.clicked.connect(self.show_pathset_frame)
@@ -130,25 +131,27 @@ class FunctionsFrame(QLabel):
         if self.mainStack.currentIndex() != 0:
             self.mainStack.setCurrentIndex(0)
             self.titleLabel.setText("更多功能")
+            self.backButton.setText("关闭")
         else:
             self.hide()
         
     def show_mountout_dialog(self):
-        self.mainStack.setCurrentIndex(1)
-        self.titleLabel.setText("计数退出")
+        self.switch_to_page(1, "计数退出")
     
     def show_timeout_dialog(self):
-        self.mainStack.setCurrentIndex(2)
-        self.titleLabel.setText("定时退出")
+        self.switch_to_page(2, "定时退出")
     
     def show_pathset_frame(self):
-        self.mainStack.setCurrentIndex(3)
-        self.titleLabel.setText("选项")
+        self.switch_to_page(3, "选项")
     
     def show_about_page(self):
-        self.mainStack.setCurrentIndex(4)
-        self.titleLabel.setText("关于")
+        self.switch_to_page(4, "关于")
     
+    def switch_to_page(self, num, text):
+        self.mainStack.setCurrentIndex(num)
+        self.titleLabel.setText(text)      
+        self.backButton.setText("返回")  
+  
     def set_muted(self, muted):
         if muted != self.playerMuted:
             self.playerMuted = muted

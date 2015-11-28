@@ -2,7 +2,7 @@ import threading
 from PyQt5.QtWidgets import (
     QMessageBox, QDialog, QStackedWidget, QSystemTrayIcon, QAction, 
     QHBoxLayout, QLabel, QVBoxLayout, QFrame, QMenu, QPushButton)
-from PyQt5.QtGui import QIcon, QCursor,QPixmap
+from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QSize
 from xyplayer import Configures, desktopSize
 from xyplayer.myicons import IconsHub
@@ -187,16 +187,15 @@ class PlayerUi(QDialog):
         self.playmodeActions = [self.playmodeRandomAction, self.playmodeOrderAction, self.playmodeSingleAction]
     
     def mousePressEvent(self, event):
-        if event.button() == Qt.RightButton:
-            self.setCursor(QCursor(Qt.ClosedHandCursor))
-            self.dragPosition = event.globalPos() - self.frameGeometry().topLeft()
+        self.dragPosition = event.globalPos() - self.frameGeometry().topLeft()
         event.accept()
-    
-    def mouseReleaseEvent(self, event):
-        self.setCursor(QCursor(Qt.ArrowCursor))
+#    
+#    def mouseReleaseEvent(self, event):
+#        self.setCursor(QCursor(Qt.ArrowCursor))
     
     def mouseMoveEvent(self, event):
-        if event.buttons() & Qt.RightButton:
+        if event.buttons():
+#            self.setCursor(QCursor(Qt.ClosedHandCursor))
             self.move(event.globalPos() - self.dragPosition)
             event.accept()
     

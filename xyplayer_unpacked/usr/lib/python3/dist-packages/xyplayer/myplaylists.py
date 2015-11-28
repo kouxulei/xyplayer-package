@@ -75,7 +75,8 @@ class PlaylistBasic(object):
     def remove_item_at(self, index, deleteFlag=False):
         if deleteFlag:
             path = self.itemsQueue[index]
-            os.remove(path)
+            if os.path.exists(path):
+                os.remove(path)
         del self.infosGroup[self.itemsQueue[index]]
         del self.itemsQueue[index]
     

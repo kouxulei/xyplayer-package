@@ -8,7 +8,7 @@ from PyQt5.QtCore import pyqtSignal, Qt, QSize, QTimer
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
 from xyplayer.mysettings import globalSettings, configOptions
-from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title, get_usable_fonts
+from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title, system_fonts
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
@@ -21,7 +21,63 @@ class MyTextEdit(QTextEdit):
         if event.button() == Qt.RightButton or event.button() == Qt.LeftButton:
             self.setCursor(QCursor(Qt.ArrowCursor))
             event.accept()
-        
+
+class NewLabel(QLabel):
+    """可以以跑马灯显示超出本事长度文字的标签"""
+    def __init__(self, parent = None, drawCenter=False):
+        super(NewLabel, self).__init__(parent)
+        self.myTimerId = 0
+        self.timer_interval = 300
+        self.step = 3
+        self.init_pos = 15
+        self.setText('')
+        self.drawCenter = drawCenter
+
+    def setText(self, text):
+        self.myText = text
+        self.textWidth = self.fontMetrics().width(text)
+        self.initial_timer()
+        self.update()
+    
+    def initial_timer(self):
+        if self.textWidth < self.width():
+            self.offset = 0
+        else:
+            self.offset = -self.init_pos
+            self.start_timer()
+    
+    def setParameters(self, timer_interval, step, init_pos):
+        self.timer_interval = timer_interval
+        self.step = step
+        self.init_pos = init_pos
+
+    def text(self):
+        return self.myText
+
+    def timerEvent(self, event):
+        if event.timerId() == self.myTimerId:
+            self.offset += self.step
+        if self.offset >= (self.textWidth - self.width() + self.init_pos):
+            self.offset = -self.init_pos
+        self.update()
+
+    def paintEvent(self, event):
+        if self.textWidth < 1:
+            return
+        self.painter = QPainter()
+        self.painter.begin(self)
+        if self.textWidth < self.width():
+            x = 0
+            if self.drawCenter:
+                x = 0.5*(self.width() - self.textWidth)
+        else:
+            x = -self.offset
+        self.painter.drawText(x, 0, self.textWidth, self.height(), Qt.AlignLeft | Qt.AlignVCenter, self.text())
+        self.painter.end()
+    
+    def start_timer(self):
+        self.myTimerId = self.startTimer(self.timer_interval)
+
 class PushButton(QPushButton):
     def __init__(self,parent = None):
         super(PushButton,self).__init__(parent)
@@ -199,7 +255,7 @@ class PlaylistButton(QLabel):
         self.nameLabel.clicked.connect(self.rename_button_clicked)
         self.nameLabel.setStyleSheet("background:transparent;")
         self.nameLabel.setText(self.name)
-        self.nameLabel.setFixedSize(80, 30)
+        self.nameLabel.setFixedSize(140, 30)
         self.killLabel = LabelButtonBasic()
         self.killLabel.setVisible(False)
         self.killLabel.clicked.connect(self.remove_button_clicked)
@@ -208,8 +264,9 @@ class PlaylistButton(QLabel):
         self.killLabel.setPixmap(QPixmap(IconsHub.RemovePlaylist))
         self.nameLabel.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
         mainLayout = QHBoxLayout(self)
-        mainLayout.setContentsMargins(25, 0, 25, 0)
+        mainLayout.setContentsMargins(5, 0, 5, 0)
         mainLayout.addWidget(self.killLabel)
+        mainLayout.addStretch()
         mainLayout.addWidget(self.nameLabel)
     
     def set_remove_mode(self):
@@ -378,62 +435,6 @@ class NewListWidget(QWidget):
             self.artistPicture.setPixmap(QPixmap(self.imagePath))
             self.artistHeadIconSetted = True
 
-class NewLabel(QLabel):
-    """可以以跑马灯显示超出本事长度文字的标签"""
-    def __init__(self, parent = None, drawCenter=False):
-        super(NewLabel, self).__init__(parent)
-        self.myTimerId = 0
-        self.timer_interval = 300
-        self.step = 3
-        self.init_pos = 15
-        self.setText('')
-        self.drawCenter = drawCenter
-
-    def setText(self, text):
-        self.myText = text
-        self.textWidth = self.fontMetrics().width(text)
-        self.initial_timer()
-        self.update()
-    
-    def initial_timer(self):
-        if self.textWidth < self.width():
-            self.offset = 0
-        else:
-            self.offset = -self.init_pos
-            self.start_timer()
-    
-    def setParameters(self, timer_interval, step, init_pos):
-        self.timer_interval = timer_interval
-        self.step = step
-        self.init_pos = init_pos
-
-    def text(self):
-        return self.myText
-
-    def timerEvent(self, event):
-        if event.timerId() == self.myTimerId:
-            self.offset += self.step
-        if self.offset >= (self.textWidth - self.width() + self.init_pos):
-            self.offset = -self.init_pos
-        self.update()
-
-    def paintEvent(self, event):
-        if self.textWidth < 1:
-            return
-        self.painter = QPainter()
-        self.painter.begin(self)
-        if self.textWidth < self.width():
-            x = 0
-            if self.drawCenter:
-                x = 0.5*(self.width() - self.textWidth)
-        else:
-            x = -self.offset
-        self.painter.drawText(x, 0, self.textWidth, self.height(), Qt.AlignLeft | Qt.AlignVCenter, self.text())
-        self.painter.end()
-    
-    def start_timer(self):
-        self.myTimerId = self.startTimer(self.timer_interval)
-
 class DownloadListItem(QLabel):
     """下载任务列表项"""
     downloadStatusChanged = pyqtSignal(str, bool)
@@ -563,7 +564,7 @@ class FontPanel(QWidget):
         mainLayout.addWidget(self.formCombo)
     
     def fill_family_combo(self):
-        self.familys = get_usable_fonts()
+        self.familys = system_fonts
         self.fill_combo_common(self.familyCombo, self.familys)
     
     def fill_size_combo(self):

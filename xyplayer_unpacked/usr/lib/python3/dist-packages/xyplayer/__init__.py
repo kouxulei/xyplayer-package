@@ -13,10 +13,13 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QSettings
 
 app_name = 'xyplayer'
-app_version = '0.8.5-1'
-app_version_num = 80501
+app_version = '0.8.5-2'
+app_version_num = 80502
 
 NDEBUG = True    #调试模式指示器
+if len(sys.argv) > 1 and sys.argv[1] == '-D':
+    NDEBUG = False
+    print('正处于调试模式...')
 
 desktopSize =  QApplication.desktop().screenGeometry()
 

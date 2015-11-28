@@ -3,6 +3,13 @@ from xyplayer import Configures
 
 class IconsHub(object):
     """用于收集图标路径的类"""
+    @classmethod
+    def set_attrs(cls, dict):
+        def _get_icon_path(iconName, dir=Configures.IconsDir):
+            return os.path.join(dir, '%s.png'%iconName)
+        for icon, value in dict.items():
+            iconPath = _get_icon_path(value)
+            setattr(IconsHub, icon, iconPath)
 
 iconsDict = {
     'DownloadPause': 'download_pause',     #下载暂停时的图标
@@ -52,9 +59,4 @@ iconsDict = {
     'RemovePlaylist': 'download_kill'
 }
 
-def get_icon_path(iconName, dir=Configures.IconsDir):
-    return os.path.join(dir, '%s.png'%iconName)
-    
-for icon, value in iconsDict.items():
-    iconPath = get_icon_path(value)
-    setattr(IconsHub, icon, iconPath)
+IconsHub.set_attrs(iconsDict)

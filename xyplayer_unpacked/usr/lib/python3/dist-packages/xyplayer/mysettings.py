@@ -1,10 +1,11 @@
 from PyQt5.QtGui import QColor
 from xyplayer import Configures, settings
+from xyplayer.utils import system_fonts
 
 configOptions = {
     'CloseButtonAct': Configures.SettingsHide, 
     'DownloadfilesPath': Configures.MusicsDir, 
-    'DesktoplyricFontFamily': 'AR PL UKai CN',
+    'DesktoplyricFontFamily': system_fonts[0],
     'DesktoplyricFontSize': 35,    #values: 20~60, step by 5
     'DesktoplyricFontForm': '常规', 
     'DesktoplyricColors': (QColor(14, 100, 255), QColor(85, 255, 127), QColor(14, 100, 255)), 
@@ -48,8 +49,11 @@ class MySettings(object):
             raise AttributeError('Unknown attribute %s!'%option)
         object.__setattr__(self, option, value)
         write_to_settings(option, value, configOptions[option])
+    
+    def check_download_path(self):
+        downloadPathOrigin = Configures.clean_old_settings_file()
+        if downloadPathOrigin:
+            self.DownloadfilesPath = downloadPathOrigin 
 
 globalSettings = MySettings()
-downloadPathOrigin = Configures.clean_old_settings_file()
-if downloadPathOrigin:
-    globalSettings.DownloadfilesPath = downloadPathOrigin
+globalSettings.check_download_path()

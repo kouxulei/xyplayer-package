@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import time
 import json
 import tempfile
@@ -8,6 +9,25 @@ from mutagenx.mp3 import MP3
 from mutagenx.easyid3 import EasyID3
 from PyQt5.QtCore import QTime
 from xyplayer import app_version_num, Configures
+
+def get_usable_fonts():
+    """读取系统可用的中文字体"""
+    fontsListFile = tempfile.NamedTemporaryFile(prefix='xyplayer-', suffix='.fonts').name
+    fonts = []
+    os.system('fc-list > %s'%fontsListFile)
+    pattern = re.compile(r'\: (.+?)\:')
+    with open(fontsListFile, 'r') as f:
+        for line in f.readlines():
+            m = pattern.search(line)
+            font = m.group(1).split(',')[0]
+            if font not in fonts:
+                fonts.append(font)
+    fonts.sort()
+    return tuple(fonts)
+
+system_fonts = get_usable_fonts()
+if not len(system_fonts):
+    sys.exit(3)
 
 def trace_to_keep_time(func):
     """用于计算程序运行时间的装饰器。"""
@@ -212,21 +232,6 @@ def convert_B_to_MB(bytes):
     """单位转换：B转到单位MB。"""
     mb = bytes / (1024 * 1024)
     return mb
-
-def get_usable_fonts():
-    """读取系统可用的中文字体"""
-    fontsListFile = tempfile.NamedTemporaryFile(prefix='xyplayer-', suffix='.fonts').name
-    os.system('fc-list :lang=zh > %s'%fontsListFile)
-    fonts = []
-    pattern = re.compile(r'\: (.+?)\:')
-    with open(fontsListFile, 'r') as f:
-        for line in f.readlines():
-            m = pattern.search(line)
-            font = m.group(1).split(',')[0]
-            if font not in fonts:
-                fonts.append(font)
-    fonts.sort()
-    return tuple(fonts)
     
 def composite_playlist_path_use_name(listName):
     return os.path.join(Configures.PlaylistsDir, '%s%s'%(listName, Configures.PlaylistsExt))

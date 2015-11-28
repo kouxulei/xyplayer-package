@@ -32,6 +32,7 @@ class ManagePage(QWidget):
                                     
 #管理歌曲的列表
         self.playlistWidget = PlaylistWidget()
+        self.playlistWidget.set_playlist_names(playlistsManager.get_play_list_names())
 #搜索页面
         self.searchFrame = search_page.SearchFrame()
 #下载页面
@@ -127,11 +128,11 @@ class ManagePage(QWidget):
         hbox_om = QHBoxLayout()
         hbox_om.setSpacing(7)
         hbox_om.addWidget(self.myListTable.get_button_at(0))
-        hbox_om.addWidget(self.myListTable.get_button_at(1))
+        hbox_om.addWidget(self.myListTable.get_button_at(2))
         
         hbox_fd = QHBoxLayout()
         hbox_fd.setSpacing(7)
-        hbox_fd.addWidget(self.myListTable.get_button_at(2))
+        hbox_fd.addWidget(self.myListTable.get_button_at(1))
         hbox_fd.addWidget(self.myListTable.get_button_at(3))
         
         vbox_no = QVBoxLayout()
@@ -213,8 +214,16 @@ class ManagePage(QWidget):
         self.stackedWidget.setCurrentIndex(1)
         self.playlistWidget.set_playlist_use_name(text)
         self.current_table_changed_signal.emit(text)
+        if self.playlistWidget.get_playing_used_state():
+            self.titleLabel.setStyleSheet("QLabel{background: rgb(50, 255, 50);color:blue;}"
+                                                    "QLabel:hover{background:white;color:green;}")
+        else:
+            self.titleLabel.setStyleSheet("QLabel{background: rgb(210,240,240);color:blue;}"
+                                                    "QLabel:hover{background:white;color:green;}")
 
     def change_list_buttons_color(self, playTableOld, playTable):
+        self.titleLabel.setStyleSheet("QLabel{background: rgb(50, 255, 50);color:blue;}"
+                                                    "QLabel:hover{background:white;color:green;}")
         for button in self.myListTable.get_buttons():
             if button.name == playTableOld:
                 button.setStyleSheet("QLabel{background: rgb(210,240,240);color:blue;}"
@@ -272,7 +281,7 @@ class ManagePage(QWidget):
                 
     def remove_a_playlist(self, index):    
         name = self.myListTable.get_name_at(index)
-        ok = QMessageBox.warning(self, "删除列表", "列表'%s'将被删除，表中记录将被全部移除！\n您是否继续？"%name, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
+        ok = QMessageBox.warning(self, "删除列表", "列表'%s'将被删除，请确认！"%name, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
         if ok == QMessageBox.Yes:
             playlistsManager.remove_a_playlist(name)
             self.myListTable.remove_button_at(index)

@@ -214,7 +214,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
     play_music_at_row_signal = pyqtSignal(int)
     play_or_pause_signal = pyqtSignal(int)
     playlist_changed_signal = pyqtSignal(str, str)
-    musics_added_signal = pyqtSignal()
+    musics_added_signal = pyqtSignal(bool)
     musics_removed_signal = pyqtSignal()
     musics_cleared_signal = pyqtSignal()
     musics_marked_signal = pyqtSignal()
@@ -224,7 +224,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         super(PlaylistWidget, self).__init__(parent)
         self.initial_params()
         self.set_attritutes()
-        self.create_contextmenu()
+        self.create_menu_items()
         self.create_connections()
     
     def initial_params(self):
@@ -233,6 +233,10 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.deleteFlag = False
         self.isPlaying = False
         self.playingList = Playlist()
+        self.allPlaylistNames = []
+    
+    def set_playlist_names(self, listNames):
+        self.allPlaylistNames = listNames
     
     def set_lock(self, lock):
         self.lock = lock
@@ -253,15 +257,16 @@ class PlaylistWidget(PlaylistWidgetBasic):
         else:
             self.playlist.fill_list(listName)
         self.fill_playlist_widget(self.playlist)
-        if self.get_playing_used_state():
-            self.selectRow(self.playingList.get_current_row())
-        self.check_actions_in_page(listName)
+        self.select_row()
+        self.pick_actions_into_menu()
     
     def get_playing_used_state(self):
         return self.isPlaying
         
     def create_connections(self):
         self.customContextMenuRequested.connect(self.music_table_menu)   
+        self.copytoMenu.triggered.connect(self.copy_to_other_playlist)
+        self.movetoMenu.triggered.connect(self.move_to_other_playlist)
         self.addMusicAction.triggered.connect(self.add_musics)
         self.markSelectedAsFavoriteAction.triggered.connect(self.mark_selected_as_favorite)
         self.removeAction.triggered.connect(self.remove_musics)
@@ -285,21 +290,41 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.setColumnWidth(0, 270)
         self.setColumnWidth(1, 80)
 
-    def create_contextmenu(self):
+    def pick_actions_into_menu(self):
+        self.listMenu.clear()
+        if self.listName == Configures.PlaylistOnline:
+            self.create_online_playlist_menu()
+        elif self.listName == Configures.PlaylistFavorite:
+            self.create_favor_playlist_menu()
+        else:
+            self.create_other_playlist_menu()
+
+    def create_menu_items(self):
         self.listMenu  =  QMenu()
         self.addMusicAction  =  QAction("添加歌曲", self)
         self.markSelectedAsFavoriteAction  =  QAction("添加到“我的收藏”", self)
+        self.copytoMenu = QMenu('复制到...')
+        self.movetoMenu = QMenu('移动到...')
         self.downloadAction = QAction("下载", self)
         self.removeAction = QAction("移除歌曲", self)
         self.deleteAction = QAction("移除歌曲并删除本地文件", self)
         self.clearListWidgetAction  =  QAction("清空列表", self)
         self.switchToSearchPageAction = QAction("切换到搜索页面", self)
         self.songSpecAction = QAction("歌曲信息", self)
+    
+    def create_online_playlist_menu(self):
         self.listMenu.addAction(self.downloadAction)
         self.listMenu.addSeparator()
-        self.listMenu.addAction(self.addMusicAction)
+        self.listMenu.addAction(self.removeAction)
         self.listMenu.addSeparator()
-        self.listMenu.addAction(self.markSelectedAsFavoriteAction)
+        self.listMenu.addAction(self.clearListWidgetAction)
+        self.listMenu.addSeparator()
+        self.listMenu.addAction(self.songSpecAction)
+        self.listMenu.addSeparator()
+        self.listMenu.addAction(self.switchToSearchPageAction)   
+    
+    def create_favor_playlist_menu(self):
+        self.listMenu.addAction(self.addMusicAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.removeAction)
         self.listMenu.addAction(self.deleteAction)
@@ -307,23 +332,66 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.listMenu.addAction(self.clearListWidgetAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.songSpecAction)
+    
+    def fill_copyto_and_moveto_menu(self):
+        self.copytoMenu.clear()
+        self.movetoMenu.clear()
+        if self.listName == Configures.PlaylistDefault:
+            if len(self.allPlaylistNames) > 4:
+                for i, name in enumerate(self.allPlaylistNames):
+                    if i >= 4:
+                        self.add_action(name)
+                return True
+        elif self.listName == Configures.PlaylistDownloaded:
+            if len(self.allPlaylistNames) > 3:
+                for i, name in enumerate(self.allPlaylistNames):
+                    if i >= 4 or i == 1:
+                        self.add_action(name)
+                return True
+        else:
+            for i, name in enumerate(self.allPlaylistNames):
+                if i == 1 or i >= 4 and name!=self.listName:
+                    self.add_action(name)
+            return True
+        return False
+    
+    def add_action(self, name):
+        action1 = QAction(name, self)
+        self.copytoMenu.addAction(action1)
+        action2 = QAction(name, self)
+        self.movetoMenu.addAction(action2)
+    
+    def create_other_playlist_menu(self):
+        self.listMenu.addAction(self.addMusicAction)
         self.listMenu.addSeparator()
-        self.listMenu.addAction(self.switchToSearchPageAction)     
+        self.listMenu.addAction(self.markSelectedAsFavoriteAction)
+        self.listMenu.addSeparator()
+        if self.fill_copyto_and_moveto_menu():
+            self.listMenu.addMenu(self.copytoMenu)
+            self.listMenu.addMenu(self.movetoMenu)
+            self.listMenu.addSeparator()
+        self.listMenu.addAction(self.removeAction)
+        self.listMenu.addAction(self.deleteAction)
+        self.listMenu.addSeparator()
+        self.listMenu.addAction(self.clearListWidgetAction)
+        self.listMenu.addSeparator()
+        self.listMenu.addAction(self.songSpecAction)
     
     def music_table_menu(self, pos):
         pos += QPoint(30, 30)
         self.listMenu.exec_(self.mapToGlobal(pos))
     
     def select_row(self):
-        if self.get_playing_used_state():
-            self.selectRow(self.playingList.get_current_row())
+        row = self.playingList.get_current_row()
+        if self.get_playing_used_state() and row>=0:
+            self.selectRow(row)
     
     def add_musics(self):
         self.files = QFileDialog.getOpenFileNames(self, "选择音乐文件", self.downloadDir, self.tr("*.mp3"))[0]
         if not self.files:
             return
         self.exec_add_operation(self.files)
-        self.musics_added_signal.emit()
+        self.musics_added_signal.emit(True)
     
     @operate_after_check_thread_locked_state
     @trace_to_keep_time
@@ -339,7 +407,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
     def remove_musics(self):
         self.removedIndexes = []
         selecteds = self.selectedIndexes()
-        currentRow = self.playingList.get_current_row()
+        currentRow = self.playingList.get_current_row() % self.playingList.length()
         if len(selecteds):
             for index in selecteds:
                 row = index.row()
@@ -351,21 +419,22 @@ class PlaylistWidget(PlaylistWidgetBasic):
                 text_tmp2 = "有%s首歌曲将被移出列表，并被彻底删除，请确认!"%len(self.removedIndexes)
             else:
                 text_tmp1 = "移除选中项"
-                text_tmp2 = "有%s首歌曲将被移出列表!"%len(self.removedIndexes)
+                text_tmp2 = "有%s首歌曲将被移出列表，请确认!"%len(self.removedIndexes)
             ok = QMessageBox.warning(self, text_tmp1, text_tmp2, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
             if ok == QMessageBox.Yes:
+                item = self.playingList.get_item_from_queue(currentRow)
                 if not (self.get_playing_used_state() and currentRow in self.removedIndexes):
                     self.exec_remove_operation(self.removedIndexes)
+                    if self.get_playing_used_state():
+                        currentRow = self.playlist.get_item_index(item)
                 else:
-                    item = self.playlist.get_item_from_queue(currentRow)
-                    currentRow = self.playlist.get_item_index(item)
                     currentMusic = self.playingList.get_music_title_at(currentRow)
                     if self.deleteFlag:
                         text_tmp3 = "移除并删除当前歌曲"
-                        text_tmp4 = "当前播放的歌曲: %s 将会被移除并被删除！\n请确认！"%currentMusic
+                        text_tmp4 = "当前播放的歌曲: %s 将会被移除并被删除，请确认！"%currentMusic
                     else:
                         text_tmp3 = "移除当前歌曲"
-                        text_tmp4 = "当前播放的歌曲: %s 将会被移除!\n您是否要移除这首歌曲？"%currentMusic
+                        text_tmp4 = "当前播放的歌曲: %s 将会被移除，请确认！"%currentMusic
                     ok = QMessageBox.warning(self, text_tmp3, text_tmp4, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
                     if ok == QMessageBox.Yes:
                         self.exec_remove_operation(self.removedIndexes)
@@ -377,6 +446,26 @@ class PlaylistWidget(PlaylistWidgetBasic):
                 self.playlist.set_current_row(currentRow)
                 self.musics_removed_signal.emit()
     
+    def remove_without_check(self, selecteds):
+        self.removedIndexes = []
+        currentRow = self.playingList.get_current_row() % self.playingList.length()
+        if len(selecteds):
+            for index in selecteds:
+                row = index.row()
+                if index.column() == 0:
+                    self.removedIndexes.append(row)
+            self.removedIndexes.sort(reverse=True)
+            item = self.playingList.get_item_from_queue(currentRow)
+            if not (self.get_playing_used_state() and currentRow in self.removedIndexes):
+                self.exec_remove_operation(self.removedIndexes)
+                if self.get_playing_used_state():
+                    currentRow = self.playlist.get_item_index(item)
+            else:
+                self.exec_remove_operation(self.removedIndexes)
+                currentRow = -1                        
+            self.playlist.set_current_row(currentRow)
+            self.musics_removed_signal.emit()
+            
     @operate_after_check_thread_locked_state
     def exec_remove_operation(self, rows):
         if len(rows):
@@ -422,6 +511,29 @@ class PlaylistWidget(PlaylistWidgetBasic):
             playlistTemp.commit_records()
             self.musics_marked_signal.emit()
 
+    def copy_to_other_playlist(self, action):
+        selecteds = self.selectedIndexes()
+        self.add_items_to_new_playlist(action.text(), selecteds)
+    
+    def move_to_other_playlist(self, action):
+        selecteds = self.selectedIndexes()
+        self.add_items_to_new_playlist(action.text(), selecteds)
+        self.remove_without_check(selecteds)
+
+    def add_items_to_new_playlist(self, name, selecteds):
+        currentListName = self.listName
+        if not selecteds:
+            return
+        self.files = []
+        for index in selecteds:
+            row = index.row()
+            if index.column() == 0:
+                self.files.append(self.playlist.get_music_path_at(row))
+        self.set_playlist_use_name(name)
+        self.exec_add_operation(self.files)
+        self.musics_added_signal.emit(False)
+        self.set_playlist_use_name(currentListName)
+
     def show_song_spec(self):
         row = self.currentRow()
         self.show_music_info_at_row(row)
@@ -434,27 +546,6 @@ class PlaylistWidget(PlaylistWidgetBasic):
         else:
             information = "标题：%s\n时长：%s\n专辑：%s\n路径：%s"%(title, totalTime, album, path)
         QMessageBox.information(self, "歌曲详细信息", information)
-
-    def check_actions_in_page(self, name):
-        if name == Configures.PlaylistOnline:
-            self.deleteAction.setVisible(False)
-            self.addMusicAction.setVisible(False)
-            self.switchToSearchPageAction.setVisible(True)
-            self.downloadAction.setVisible(True)
-        elif name in Configures.BasicPlaylists:
-            self.deleteAction.setVisible(True)
-            self.downloadAction.setVisible(False)
-            self.addMusicAction.setVisible(True)
-            self.switchToSearchPageAction.setVisible(False)
-        else:
-            self.deleteAction.setVisible(True)
-            self.downloadAction.setVisible(False)
-            self.addMusicAction.setVisible(True)
-            self.switchToSearchPageAction.setVisible(False)
-        if name in (Configures.PlaylistOnline, Configures.PlaylistFavorite):
-            self.markSelectedAsFavoriteAction.setVisible(False)
-        else:
-            self.markSelectedAsFavoriteAction.setVisible(True)
 
     def double_click_to_play(self, index):
         row = index.row()
