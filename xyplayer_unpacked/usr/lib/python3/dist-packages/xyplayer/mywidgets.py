@@ -1,14 +1,14 @@
 import os
 import random
 import time
-from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, 
+from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QDialog, 
     QColorDialog, QComboBox, QHBoxLayout, QVBoxLayout, QGroupBox, QRadioButton, QLineEdit, QFileDialog)
 from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont
 from PyQt5.QtCore import pyqtSignal, Qt, QSize, QTimer
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
 from xyplayer.mysettings import globalSettings, configOptions
-from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title, system_fonts
+from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title, system_fonts, write_tags, connect_as_title
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
@@ -408,6 +408,11 @@ class NewListWidget(QWidget):
         self.artistNameLabel.setGeometry(84, 54, 154, 20)
         self.playButton.setGeometry(250, 22, 36, 36) 
         self.infoButton.setGeometry(295, 22, 36, 36)
+    
+    def set_title(self, title):
+        artistName, musicName = get_artist_and_musicname_from_title(title)
+        self.musicNameLabel.setText(musicName)
+        self.artistNameLabel.setText(artistName)
 
     def set_pause_state(self, isPaused):
         self.isPaused = isPaused
@@ -809,3 +814,86 @@ class LyricPanelsBox(QGroupBox):
             configOptions[globalSettings.optionsHub.WindowlyricReadyFontSize], 
             configOptions[globalSettings.optionsHub.WindowlyricReadyFontColor]
         )
+
+class TagModifyDialog(QDialog):
+    tag_values_changed_signal = pyqtSignal(bool, int, str, str)
+    def __init__(self, parent=None):
+        super(TagModifyDialog, self).__init__(parent)
+        self.modifiedFlag = False
+        self.row = 0
+        self.artist = ''
+        self.music = ''
+        self.album = ''
+        self.title = ''
+        self.path = ''
+        self.setup_ui()
+    
+    def setup_ui(self):
+        self.setWindowTitle('歌曲信息')
+        label1 = QLabel('歌手：')
+        label2 = QLabel('曲名：')
+        label3 = QLabel('专辑：')
+        self.artistEdit = QLineEdit()
+        self.musicEdit = QLineEdit()
+        self.albumEdit = QLineEdit()
+        self.timeLabel = QLabel()
+        self.sizeLabel = QLabel()
+        self.pathLabel = QLabel()
+        self.applyButton = QPushButton('应用', clicked=self.apply)
+        self.cancelButton = QPushButton('取消', clicked = self.cancel)
+        
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(label1)
+        hbox1.addWidget(self.artistEdit)
+        hbox2 = QHBoxLayout()
+        hbox2.addWidget(label2)
+        hbox2.addWidget(self.musicEdit)
+        hbox3 = QHBoxLayout()
+        hbox3.addWidget(label3)
+        hbox3.addWidget(self.albumEdit)
+        hbox4 = QHBoxLayout()
+        hbox4.addStretch()
+        hbox4.addWidget(self.applyButton)
+        hbox4.addWidget(self.cancelButton)
+        mainLayout = QVBoxLayout(self)
+        mainLayout.addLayout(hbox1)
+        mainLayout.addLayout(hbox2)
+        mainLayout.addLayout(hbox3)
+        mainLayout.addWidget(self.timeLabel)
+        mainLayout.addWidget(self.sizeLabel)
+        mainLayout.addWidget(self.pathLabel)
+        mainLayout.setSpacing(10)
+        mainLayout.addLayout(hbox4)
+    
+    def set_row(self, row):
+        self.row = row
+    
+    def set_parameters(self, artist, musicName, totalTime, album, path, size):
+        self.artist = artist
+        self.music = musicName
+        self.album = album
+        self.path = path
+        self.artistEdit.setText(artist)
+        self.musicEdit.setText(musicName)
+        self.albumEdit.setText(album)
+        self.timeLabel.setText('时长： %s'%totalTime)
+        self.sizeLabel.setText('大小： %.2f MB'%(size/1024/1024))
+        self.pathLabel.setText('路径： %s'%path)
+    
+    def apply(self):
+        if (self.artist, self.music, self.album) != (self.artistEdit.text(), self.musicEdit.text(), self.albumEdit.text()):
+            self.modifiedFlag = True
+            self.album = self.albumEdit.text()
+            self.title = connect_as_title(self.artistEdit.text(), self.musicEdit.text())
+            write_tags(self.path, self.title, self.album)
+        else:
+            self.modifiedFlag = False
+        self.close()
+    
+    def cancel(self):
+        self.modifiedFlag = False
+        self.close()
+    
+    def closeEvent(self, event):
+        self.tag_values_changed_signal.emit(self.modifiedFlag, self.row, self.title, self.album)
+        event.accept()

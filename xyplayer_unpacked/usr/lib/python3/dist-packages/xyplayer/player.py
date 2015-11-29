@@ -56,6 +56,7 @@ class Player(PlayerUi):
         self.managePage.playlistWidget.musics_marked_signal.connect(self.musics_marked)
         self.managePage.playlistWidget.switch_to_search_page_signal.connect(self.managePage.show_search_frame)
         self.managePage.playlistWidget.download_signal.connect(self.online_list_song_download)
+        self.managePage.playlistWidget.tag_values_changed_signal.connect(self.tag_values_changed)
         self.managePage.downloadPage.work_complete_signal.connect(self.refresh_playlist_downloaded)
         self.managePage.downloadPage.titleLabel.clicked.connect(self.open_download_dir)
         self.managePage.searchFrame.listen_online_signal.connect(self.begin_to_listen)
@@ -156,6 +157,28 @@ class Player(PlayerUi):
             self.mediaPlayer.setPosition(self.playbackPage.seekSlider.value())
             self.mediaPlayer.play()
         self.mediaPlayer.positionChanged.connect(self.tick)
+
+    def tag_values_changed(self, row, oldTitle, title, album):
+        widget = self.managePage.playlistWidget
+        playlist = widget.get_playlist()
+        if widget.get_playing_used_state():
+            self.playlist.set_music_title_at(row, title, False)
+            self.playlist.set_music_album_at(row, album, False)
+            self.playlist.commit_records()
+            self.playbackPage.musicList.get_item_at_row(row).set_title(title)
+            if row == self.currentSourceRow:
+                artistName, musicName = get_artist_and_musicname_from_title(title)
+                self.playAction.setText(musicName)
+                self.playbackPage.musicNameLabel.setText(musicName)
+                self.managePage.artistNameLabel.setText(artistName)
+                self.managePage.musicNameLabel.setText(musicName)
+        if playlist.get_name() == Configures.PlaylistFavorite:
+            index = self.lovedSongs.index(oldTitle)
+            self.lovedSongs[index] = title
+        thread = DownloadLrcThread(((title, Configures.LocalMusicId), ))
+        thread.setDaemon(True)
+        thread.setName("downloadLrc")
+        thread.start()
 
     def musics_added(self, showAddInfo):
         widget = self.managePage.playlistWidget

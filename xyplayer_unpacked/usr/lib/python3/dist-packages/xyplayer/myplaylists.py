@@ -45,6 +45,9 @@ class PlaylistBasic(object):
     def get_items_queue(self):
         return self.itemsQueue
     
+    def get_ids(self):
+        return self.infosGroup.keys()
+    
     def get_item_from_queue(self, row):
         return self.itemsQueue[row]
     
@@ -85,6 +88,9 @@ class PlaylistBasic(object):
     
     def get_infos_at(self, row):
         return self.infosGroup[self.itemsQueue[row]]
+    
+    def get_info_use_id(self, id):
+        return self.infosGroup[id]
 
 class Playlist(PlaylistBasic):
     def __init__(self):
@@ -170,6 +176,16 @@ class Playlist(PlaylistBasic):
     def set_music_time_at(self, row, time):
         self.get_infos_at(row)[1] = time
         self.commit_records()
+    
+    def set_music_title_at(self, row, title, commitFlag=True):
+        self.get_infos_at(row)[0] = title
+        if commitFlag:
+            self.commit_records()
+    
+    def set_music_album_at(self, row, album, commitFlag=True):
+        self.get_infos_at(row)[2] = album
+        if commitFlag:
+            self.commit_records()
     
     def commit_records(self):
         if os.path.exists(self.playlistFile):

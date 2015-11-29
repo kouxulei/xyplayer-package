@@ -22,6 +22,7 @@ class DownloadLrcThread(threading.Thread):
         cnt = len(self.list)
         while i < cnt and self.runPermit:
             title = self.list[i][0]
+            print('开始下载及歌手信息：%s'%title)
             try:
                 artist = title.split(Configures.Hyphen)[0].strip()
                 SearchOnline.get_artist_image_path(artist)
