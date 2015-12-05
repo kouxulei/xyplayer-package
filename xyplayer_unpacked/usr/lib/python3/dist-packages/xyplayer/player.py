@@ -12,7 +12,7 @@ from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.mysettings import globalSettings
 from xyplayer.utils import (parse_lrc, get_full_music_name_from_title,composite_lyric_path_use_title, 
-    format_position_to_mmss, get_artist_and_musicname_from_title)
+    format_position_to_mmss, get_artist_and_musicname_from_title, convert_B_to_MB)
 from xyplayer.player_ui import PlayerUi
 
 class Player(PlayerUi):
@@ -41,7 +41,7 @@ class Player(PlayerUi):
         self.playbackPage.select_current_row_signal.connect(self.select_current_source_row)
         self.playbackPage.playmode_changed_signal.connect(self.playmode_changed)
         self.playbackPage.play_from_music_list_signal.connect(self.decide_to_play_or_pause)
-        self.playbackPage.show_music_info_signal.connect(self.managePage.playlistWidget.show_music_info_at_row)
+        self.playbackPage.show_music_info_signal.connect(self.show_music_info_at_row)
 
         self.managePage.randomOneButton.clicked.connect(self.listen_random_one)
         self.managePage.playlist_removed_signal.connect(self.playlist_removed)
@@ -708,3 +708,12 @@ class Player(PlayerUi):
         if name == self.playlist.get_name():
             self.playlist.set_name(newName)
             self.managePage.playlistWidget.set_playing_status(self.playlist)   
+    
+    def show_music_info_at_row(self, row):
+        title, totalTime, album, path, size, musicId = self.playlist.get_record_at(row)[:6]
+        artist, musicName = get_artist_and_musicname_from_title(title)
+        if self.playlist.get_name() == Configures.PlaylistOnline:
+            information = "歌手： %s\n曲名： %s\n专辑： %s\n时长： %s\n歌曲ID： %s\n网址： %s"%(artist, musicName, album, totalTime, musicId, path)
+        else:
+            information = "歌手： %s\n曲名： %s\n专辑： %s\n时长： %s\n大小： %.2f MB\n路径： %s"%(artist, musicName, album, totalTime, convert_B_to_MB(size), path)
+        QMessageBox.information(self, "歌曲详细信息", information) 

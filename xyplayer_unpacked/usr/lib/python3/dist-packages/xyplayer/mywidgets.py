@@ -877,7 +877,7 @@ class TagModifyDialog(QDialog):
         self.musicEdit.setText(musicName)
         self.albumEdit.setText(album)
         self.timeLabel.setText('时长： %s'%totalTime)
-        self.sizeLabel.setText('大小： %.2f MB'%(size/1024/1024))
+        self.sizeLabel.setText('大小： %.2f MB'%convert_B_to_MB(size))
         self.pathLabel.setText('路径： %s'%path)
     
     def apply(self):

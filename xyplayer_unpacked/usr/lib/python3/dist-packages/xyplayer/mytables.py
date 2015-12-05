@@ -593,7 +593,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         title, totalTime, album, path, size, musicId = self.playlist.get_record_at(row)[:6]
         artist, musicName = get_artist_and_musicname_from_title(title)
         if self.listName == Configures.PlaylistOnline:
-            information = "歌手： %s\n曲名： %s\n时长： %s\n专辑： %s\n歌曲ID： %s\n网址： %s"%(artist, musicName, totalTime, album, musicId, path)
+            information = "歌手： %s\n曲名： %s\n专辑： %s\n时长： %s\n歌曲ID： %s\n网址： %s"%(artist, musicName, album, totalTime, musicId, path)
             QMessageBox.information(self, "歌曲详细信息", information)
         else:
             dialog = TagModifyDialog()
