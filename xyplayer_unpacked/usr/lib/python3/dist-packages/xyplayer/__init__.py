@@ -13,33 +13,37 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QSettings
 
 app_name = 'xyplayer'
-app_version = '0.8.5-4'
-app_version_num = 80504
+app_version = '0.8.6-1'
+app_version_num = 80601
 
 NDEBUG = True    #调试模式指示器
 if len(sys.argv) > 1 and sys.argv[1] == '-D':
     NDEBUG = False
-    print('正处于调试模式...')
-
-desktopSize =  QApplication.desktop().screenGeometry()
-
-settings = QSettings('xyplayer', 'xysettings')
-settingsFileName = settings.fileName()    #配置文件路径
-print('Using configuration file: ', settingsFileName)
-settingsDir = os.path.split(settingsFileName)[0]    #放置程序配置文件的目录
+    print('Debugging...')
 
 class Configures(object):
+    DesktopSize =  QApplication.desktop().screenGeometry()
+    WindowWidth = 930
+    WindowHeight = 620
+    
+    Settings = QSettings(app_name, 'xysettings')
+    SettingsFileName = Settings.fileName()    #配置文件路径
+    print('Using configuration file: ', SettingsFileName)
+    SettingsDir = os.path.split(SettingsFileName)[0]    #放置程序配置文件的目录
+    
     InstallPath = os.path.join(os.path.split(sys.argv[0])[0], 'xyplayer')
     if NDEBUG:
         InstallPath = '/usr/lib/python3/dist-packages/xyplayer'
     IconsDir = os.path.join(InstallPath, 'icons/default')
     LicenseFile = os.path.join(InstallPath, 'licenses/GPLv3')
+    QssFileDefault = os.path.join(InstallPath, 'qss/default.qss')
         
     NoLink = 'nolink'    #未获取在线MP3的链接之前用NoLink标记
     LocalMusicId = 'local'    #用于表示本地歌曲的musicId
     ZeroTime = '00:00'    #音乐时段显示的初值
     Hyphen = '._.'    #歌手名与歌曲名的连字符，三者组成歌曲的标题
     MusicMp3 = 'mp3'
+    NumSearchOneTime = 14    #一次搜索返回的结果数目
 
     #程序中可能产生的几种错误类型
     NoError = 0
@@ -54,7 +58,7 @@ class Configures(object):
     UpdateFailed = 3
     
     #下载管理中的下载状态
-    DownloadLogFile = os.path.join(settingsDir, 'downloadworksinfoslog')
+    DownloadLogFile = os.path.join(SettingsDir, 'downloadworksinfoslog')
     DownloadReady = -1    #准备下载
     DownloadCompleted = 0    #已完成下载
     Downloading = 1    #正在下载
@@ -68,7 +72,7 @@ class Configures(object):
     LyricNone = 2
     
     #系统自带的几张数据库表名
-    PlaylistsDir = os.path.join(settingsDir, 'playlists')
+    PlaylistsDir = os.path.join(SettingsDir, 'playlists')
     PlaylistsExt = '.xypl'    #列表文件的后缀名
     PlaylistKeyQueue= 'queue'    #歌曲列表结构的两个键
     PlaylistKeyGroup = 'group'
@@ -76,7 +80,7 @@ class Configures(object):
     PlaylistFavorite = '我的收藏'
     PlaylistDownloaded = '我的下载'
     PlaylistOnline = '试听列表'
-    PlaylistsManager = os.path.join(settingsDir, 'playlistsmanager')
+    PlaylistsManager = os.path.join(SettingsDir, 'playlistsmanager')
     BasicPlaylists = (PlaylistOnline, PlaylistDefault, PlaylistFavorite, PlaylistDownloaded)
     DownloadWorksTable = 'downloadworkstable'    #用来保存下载任务信息的数据库表
     PlaylistsManageTable = 'playlistsmanagetable'    #用来记录所有歌曲列表名
@@ -88,10 +92,6 @@ class Configures(object):
     PlaymodeRandomText = '随机播放'
     PlaymodeOrderText = '顺序播放'
     PlaymodeSingleText = '单曲循环'
-    
-    #列表操作的几个状态
-    NormalMode = 0
-    OperateMode = 1
     
     #选项页面的各个分页名
     SettingsBasicTab = '常规设置'
@@ -118,8 +118,8 @@ class Configures(object):
     ArtistinfosDir = os.path.join(CacheDir, 'infos')
     DebsDir = os.path.join(CacheDir, 'debs')
     LrcsDir = os.path.join(CacheDir, 'lrcs')
-    DataBase = os.path.join(settingsDir, 'xyplayer_083.db')    #sqlite数据库文件
-    Changelog = os.path.join(settingsDir, 'changelog')
+    DataBase = os.path.join(SettingsDir, 'xyplayer_083.db')    #sqlite数据库文件
+    Changelog = os.path.join(SettingsDir, 'changelog')
     
     @classmethod
     def check_dirs(cls):
@@ -139,8 +139,8 @@ class Configures(object):
         """将原来放在.xyplayer目录下的数据库文件等转移到.config/xyplayer目录中。"""
         oldDatabasePath = os.path.join(cls.CacheDir, 'xyplayer_083.db')
         oldChangelogPath = os.path.join(cls.CacheDir, 'changelog')
-        if not os.path.exists(settingsDir):
-            os.makedirs(settingsDir)
+        if not os.path.exists(cls.SettingsDir):
+            os.makedirs(cls.SettingsDir)
         if os.path.exists(oldDatabasePath):
             shutil.move(oldDatabasePath, cls.DataBase)
         if os.path.exists(oldChangelogPath):

@@ -1,14 +1,13 @@
-import os
 import random
 import time
-from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QDialog, 
+from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QDialog, QSlider, 
     QColorDialog, QComboBox, QHBoxLayout, QVBoxLayout, QGroupBox, QRadioButton, QLineEdit, QFileDialog)
-from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont
-from PyQt5.QtCore import pyqtSignal, Qt, QSize, QTimer
-from xyplayer import Configures
+from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont, QTextCursor
+from PyQt5.QtCore import pyqtSignal, Qt, QSize, QTimer, QEvent, QPoint
+from xyplayer import Configures, app_version
 from xyplayer.myicons import IconsHub
 from xyplayer.mysettings import globalSettings, configOptions
-from xyplayer.utils import convert_B_to_MB, get_artist_and_musicname_from_title, system_fonts, write_tags, connect_as_title
+from xyplayer.utils import convert_B_to_MB, system_fonts, write_tags, connect_as_title, change_lyric_offset_in_file
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
@@ -21,6 +20,179 @@ class MyTextEdit(QTextEdit):
         if event.button() == Qt.RightButton or event.button() == Qt.LeftButton:
             self.setCursor(QCursor(Qt.ArrowCursor))
             event.accept()
+
+class MyLyricText(MyTextEdit):
+    lyric_offset_changed_signal = pyqtSignal(int)
+    def __init__(self, parent=None):
+        super(MyLyricText, self).__init__(parent)
+        self.initial_params()
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        self.lyricOffsetSButton.clicked.connect(self.lyric_offset_save)
+        self.lyricOffsetCombo.currentIndexChanged.connect(self.lyric_offset_type)
+        self.lyricOffsetSlider.valueChanged.connect(self.lyric_offset_changed)
+    
+    def initial_params(self):
+        self.lrcPath = ''
+        self.playmode = Configures.PlaymodeRandom    #播放模式指示器
+        self.lyricRunSize = globalSettings.WindowlyricRunFontSize
+        self.lyricRunColor = globalSettings.WindowlyricRunFontColor
+        self.lyricReadySize = globalSettings.WindowlyricReadyFontSize
+        self.lyricReadyColor = globalSettings.WindowlyricReadyFontColor
+    
+    def setup_ui(self):
+        self.lyricOperateButton = QPushButton(clicked = self.show_lyric_operate_widget)
+        self.lyricOperateButton.setIcon(QIcon(IconsHub.Settings))
+        self.lyricOperateButton.setFocusPolicy(Qt.NoFocus)
+        self.lyricOperateButton.setIconSize(QSize(25, 25))
+
+        self.lyricOffsetSButton = QPushButton()
+        self.lyricOffsetSButton.setFocusPolicy(Qt.NoFocus)
+        self.lyricOffsetSButton.setFixedSize(80, 25)
+        self.lyricOffsetSButton.setText('保存修改')
+        
+        self.lyricOffsetCombo = QComboBox()
+        self.lyricOffsetCombo.setFocusPolicy(Qt.NoFocus)
+        self.lyricOffsetCombo.setFixedSize(70, 25)
+        self.lyricOffsetCombo.insertItem(0, '提前')
+        self.lyricOffsetCombo.insertItem(1, '延迟')
+        self.lyricOffsetCombo.insertItem(2, '正常')
+        self.lyricOffsetCombo.setCurrentIndex(2)
+        
+        self.lyricOffsetSlider = QSlider(Qt.Horizontal)
+        self.lyricOffsetSlider.setFocusPolicy(Qt.NoFocus)
+        self.lyricOffsetSlider.setMinimumWidth(280)
+        self.lyricOffsetSlider.setPageStep(1)
+        self.lyricOffsetSlider.setRange(0, 0)
+        
+        self.lyricOffsetLabel = QLineEdit("0.0秒")
+        self.lyricOffsetLabel.setFixedSize(80, 25)
+        self.lyricOffsetLabel.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.lyricOffsetLabel.setReadOnly(True)
+        self.document = self.document()
+        self.setAlignment(Qt.AlignHCenter)
+        self.lyricOperateWidget = QWidget()
+        self.lyricOperateWidget.hide()
+        lyricOffsetLayout = QHBoxLayout(self.lyricOperateWidget)
+        lyricOffsetLayout.setSpacing(2)
+        lyricOffsetLayout.setContentsMargins(0, 0, 0, 0)
+        lyricOffsetLayout.addWidget(self.lyricOffsetCombo)
+        lyricOffsetLayout.addWidget(self.lyricOffsetSlider)
+        lyricOffsetLayout.addWidget(self.lyricOffsetLabel)
+        lyricOffsetLayout.addWidget(self.lyricOffsetSButton)
+        hbox_lyric = QHBoxLayout()
+        hbox_lyric.addWidget(self.lyricOperateWidget)
+        hbox_lyric.addStretch()
+        hbox_lyric.addWidget(self.lyricOperateButton)
+        vbox_lyric = QVBoxLayout(self)
+        vbox_lyric.addStretch()
+        vbox_lyric.addLayout(hbox_lyric)
+    
+    def show_lyric_operate_widget(self):
+        if self.lyricOperateWidget.isHidden():
+            self.lyricOperateWidget.show()
+        else:
+            self.lyricOperateWidget.hide()
+
+    def set_lyric_offset(self, lyricOffset, lyricDict, lrcPath):
+        self.lrcPath = lrcPath
+        k = 2
+        if lyricOffset > 0:
+            k = 0
+        elif lyricOffset < 0:
+            k = 1
+        self.lyricOffsetCombo.setCurrentIndex(k)
+        self.lyricOffsetSlider.setValue(abs(lyricOffset)//100)
+        self.lyricOffsetLabel.setText('%.1f秒'%(abs(lyricOffset)/1000))
+        self.clear()
+        self.setAlignment(Qt.AlignHCenter)
+        t = sorted(lyricDict.keys())
+        self.set_html(1, lyricDict, t)
+    
+    def set_html(self, index, lyricDict, t, extraBlocks=100):
+        htmlList = ['<body><center>']
+        for k in range(extraBlocks):
+            htmlList.append("<br></br>")
+        for i in range(len(t)):
+            if i == index:
+                size = self.lyricRunSize
+                color = self.lyricRunColor
+            else:
+                size = self.lyricReadySize
+                color = self.lyricReadyColor
+            htmlList.append("<p style = 'color:%s;font-size:%spx;'>%s</p>"%(color, size, lyricDict[t[i]]))
+        for i in range(26):
+            htmlList.append("<br></br>")
+        htmlList.append('</body></center>')
+        html = ''.join(htmlList)
+        self.setHtml(html)
+        self.jump_to_line(index)
+        
+    def jump_to_line(self, index):
+        block = self.document.findBlockByLineNumber(index)
+        lines =  (block.layout().lineCount() - 1) / 2
+        pos = block.position()
+        cur = self.textCursor()
+        cur.setPosition(pos, QTextCursor.MoveAnchor)
+        self.setTextCursor(cur)
+        vscrollbar = self.verticalScrollBar()
+        vscrollbar.setValue(vscrollbar.value() + self.height()/2 + self.height()/15*(lines - 0.5))
+    
+    def no_matched_lyric(self):
+        self.clear()
+        self.setHtml(self.get_lyric_style_text('搜索不到匹配的歌词！'))
+        self.setAlignment(Qt.AlignHCenter)        
+    
+    def url_error_lyric(self):
+        self.clear()
+        self.setHtml(self.get_lyric_style_text('网络连接错误！'))
+        self.setAlignment(Qt.AlignHCenter)
+    
+    def get_lyric_style_text(self, text):
+        return "<p style = 'color:white;font-size:20px;'><br><br><br><br><br><br><br>%s</p>"%text
+            
+    def lyric_offset_type(self, index):
+        self.lyricOffset = 0
+        self.lyricOffsetSlider.setValue(0)
+        self.lyricOffsetLabel.setText('0.0秒')
+        if index == 0 or index == 1:
+            self.lyricOffsetSlider.setRange(0, 600)        
+        else:
+            self.lyricOffsetSlider.setRange(0, 0)
+        self.lyric_offset_changed_signal.emit(0)
+    
+    def lyric_offset_changed(self, value):
+        if self.lyricOffsetCombo.currentIndex() == 0:
+            self.lyricOffset = value*100
+        elif self.lyricOffsetCombo.currentIndex() == 1:
+            self.lyricOffset = - value*100
+        self.lyricOffsetLabel.setText('%.1f秒'%(value/10))
+        self.lyric_offset_changed_signal.emit(self.lyricOffset)
+    
+    def lyric_offset_save(self):
+        if self.lrcPath:
+            change_lyric_offset_in_file(self.lrcPath, self.lyricOffset)
+
+    def set_new_window_lyric_style(self, params):
+        self.lyricRunSize, self.lyricRunColor, self.lyricReadySize, self.lyricReadyColor = params
+    
+    def initial_contents(self):
+        authorInfo = ("<p style='color:teal;font-size:20px;'>作者：Zheng-Yejian"
+                            "<br /><br />"
+                            "邮箱： 1035766515@qq.com"
+                            "<br /><br />"
+                            "声明：Use of this source code is governed by GPLv3 license that can be found in the LICENSE file. "
+                            "<br /><br />"
+                            "版本: v%s "
+                            "<br /><br />"
+                            "简介: This is a simple musicplayer that can search, play, download musics from the Internet.</p>"%app_version)
+        self.clear()
+        self.setHtml(authorInfo)
+        cur = self.textCursor()
+        cur.setPosition(0, QTextCursor.MoveAnchor)
+        self.setTextCursor(cur)
 
 class NewLabel(QLabel):
     """可以以跑马灯显示超出本事长度文字的标签"""
@@ -131,7 +303,7 @@ class ToolButton(QToolButton):
         self.text_font.setWeight(QFont.Bold)
         self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.setStyleSheet("background:transparent;color:black;font-size:16px")
+#        self.setStyleSheet("background:transparent;color:black;font-size:16px")
         self.mouse_over  = False
         self.mouse_press = False
 
@@ -218,8 +390,6 @@ class LabelButton(LabelButtonBasic):
         self.setFixedHeight(height)
         self.setText(self.name)
         self.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
-        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
-            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
         self.setScaledContents(True)
         if icon:
             self.setPixmap(QPixmap(icon))
@@ -227,6 +397,110 @@ class LabelButton(LabelButtonBasic):
     def set_text(self, text):
         self.setText(text)
         self.name = text
+
+class PlaylistOperator(QLabel):
+    """歌曲列表管理的滑动窗口"""
+    add_button_clicked_signal = pyqtSignal()
+    rename_button_clicked_signal = pyqtSignal(int)
+    delete_button_clicked_signal = pyqtSignal(int)
+    clicked_signal = pyqtSignal(int)
+    wheel_event_triggered_signal = pyqtSignal(QEvent)
+    def __init__(self, parent=None):
+        super(PlaylistOperator, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+        self.set_row(1)
+    
+    def create_connections(self):
+        self.deleteButton.clicked.connect(self.delete_button_clicked)
+        self.renameButton.clicked.connect(self.rename_button_clicked)
+        self.addButton.clicked.connect(self.add_button_clicked_signal.emit)
+    
+    def setup_ui(self):
+        self.setScaledContents(True)
+        self.setPixmap(QPixmap(IconsHub.PlaylistTableHover))
+        self.addButton = QToolButton()
+        self.addButton.setIcon(QIcon(IconsHub.PlaylistAdd))
+        self.addButton.setIconSize(QSize(20, 20))
+        self.renameButton = QToolButton()
+        self.renameButton.setIcon(QIcon(IconsHub.PlaylistRename))
+        self.renameButton.setIconSize(QSize(20, 20))
+        self.deleteButton = QToolButton()
+        self.deleteButton.setIcon(QIcon(IconsHub.PlaylistDelete))
+        self.deleteButton.setIconSize(QSize(20, 20))
+        
+        mainLayout = QHBoxLayout(self)
+        mainLayout.setContentsMargins(0, 0, 5, 0)
+        mainLayout.addStretch()
+        mainLayout.addWidget(self.addButton)
+        mainLayout.addWidget(self.renameButton)
+        mainLayout.addWidget(self.deleteButton)
+    
+    def set_row(self, row):
+        self.row = row
+        if row <= 3:
+            self.renameButton.setEnabled(False)
+            self.deleteButton.setEnabled(False)
+        else:
+            self.renameButton.setEnabled(True)
+            self.deleteButton.setEnabled(True)    
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked_signal.emit(self.row)
+    
+    def wheelEvent(self, event):
+        self.wheel_event_triggered_signal.emit(event)
+    
+    def rename_button_clicked(self):
+        self.rename_button_clicked_signal.emit(self.row)
+    
+    def delete_button_clicked(self):
+        self.delete_button_clicked_signal.emit(self.row)
+
+class SongOperator(QLabel):
+    """单个歌曲列表的滑动窗口"""
+    wheel_event_triggered_signal = pyqtSignal(QEvent)
+    double_clicked_signal = pyqtSignal(int)
+    right_mouse_button_clicked_signal = pyqtSignal(QPoint)
+    left_mouse_button_clicked_signal = pyqtSignal(int)
+    left_mouse_button_dragged_signal = pyqtSignal(QPoint)
+    def __init__(self, parent=None):
+        super(SongOperator, self).__init__(parent)
+        self.row = 0
+        self.setup_ui()
+
+    def setup_ui(self):
+        self.setScaledContents(True)
+        self.setPixmap(QPixmap(IconsHub.PlaylistWidgetHover))
+        self.nameLabel = NewLabel('')
+        self.nameLabel.setFixedHeight(30)
+        mainLayout = QHBoxLayout(self)
+        mainLayout.setContentsMargins(4, 0, 4, 0)
+        mainLayout.addWidget(self.nameLabel)
+    
+    def set_contents(self, row, text):
+        self.row = row
+        self.nameLabel.setText(text)
+    
+    def get_row(self):
+        return self.row
+    
+    def wheelEvent(self, event):
+        self.wheel_event_triggered_signal.emit(event)
+    
+    def mouseDoubleClickEvent(self, event):
+        self.double_clicked_signal.emit(self.row)
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self.right_mouse_button_clicked_signal.emit(event.pos())
+        elif event.button() == Qt.LeftButton:
+            self.left_mouse_button_clicked_signal.emit(self.row)
+    
+    def mouseMoveEvent(self, event):
+        if event.buttons():
+            self.left_mouse_button_dragged_signal.emit(event.pos())
 
 class PlaylistButton(QLabel):
     clicked = pyqtSignal(str)
@@ -242,8 +516,6 @@ class PlaylistButton(QLabel):
         self.removable = removable
         self.operateState = False
         self.setup_ui()
-        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
-            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
         self.timerFlag = False
         self.startTime = 0
         self.timer = QTimer()
@@ -253,7 +525,6 @@ class PlaylistButton(QLabel):
         self.nameLabel = LabelButtonBasic()
         self.nameLabel.setVisible(False)
         self.nameLabel.clicked.connect(self.rename_button_clicked)
-        self.nameLabel.setStyleSheet("background:transparent;")
         self.nameLabel.setText(self.name)
         self.nameLabel.setFixedSize(140, 30)
         self.killLabel = LabelButtonBasic()
@@ -294,16 +565,11 @@ class PlaylistButton(QLabel):
         return self.name
     
     def rename_button_clicked(self):
-        self.styleDesc = self.styleSheet()
-        self.setStyleSheet("background:rgb(255,0,255);")
         self.rename_me_signal.emit(self.name)
     
-    def set_normal_style_sheet(self):
-        self.setStyleSheet(self.styleDesc)       
+    def set_normal_style_sheet(self):pass
     
     def remove_button_clicked(self):
-        self.styleDesc = self.styleSheet()
-        self.setStyleSheet("background:rgb(255,0,255);")
         self.remove_me_signal.emit(self.name)
     
     def mousePressEvent(self, event):
@@ -329,8 +595,8 @@ class SpecialLabel(QLabel):
     def __init__(self, parent=None):
         super(SpecialLabel, self).__init__(parent)
         self.setAlignment(Qt.AlignHCenter| Qt.AlignVCenter)
-        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
-            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
+#        self.setStyleSheet("QLabel{background:rgb(210,240,240);color:blue;font-family:'微软雅黑';font-size:15px;}"
+#            "QLabel:hover{background:white;color:green;font-family:'微软雅黑';font-size:15px}")
         self.setScaledContents(True)
         self.ratio = 0
         self.cl = [50, 255, 50]
@@ -369,77 +635,6 @@ class SpecialLabel(QLabel):
         self.color1 = QColor(self.cl[q], self.cl[q-1], self.cl[q-2])
         self.color2 = QColor(self.cl[q-1], self.cl[q-2], self.cl[q])
 
-class NewListWidget(QWidget):
-    """playbackPage的“我的歌单”的列表项"""
-    play_button_clicked_signal = pyqtSignal(str)
-    info_button_clicked_signal = pyqtSignal(str)
-    def __init__(self, ident, title):
-        super(NewListWidget, self).__init__()
-        self.setFixedSize(334, 84)
-        self.ident = ident
-        self.isPaused = True
-        self.artistHeadIconSetted = False
-        self.setStyleSheet("QToolButton{background:transparent}"
-                                    "QToolButton:hover{border:0px solid yellow;border-radius:18px;background:yellow}")
-        self.setFocusPolicy(Qt.NoFocus)
-        artistName, musicName = get_artist_and_musicname_from_title(title)
-        imageName = artistName + '.jpg'
-        self.imagePath = os.path.join(Configures.ImagesDir, imageName)
-        self.artistPicture = QLabel(self)
-        self.artistPicture.setScaledContents(True)
-        if os.path.exists(self.imagePath):
-            self.artistPicture.setPixmap(QPixmap(self.imagePath))
-            self.artistHeadIconSetted = True
-        else:
-            self.artistPicture.setPixmap(QPixmap(IconsHub.Anonymous))
-        self.musicNameLabel = QLabel(musicName, self)
-        self.artistNameLabel = QLabel(artistName, self)
-        self.musicNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:20px;color: white;")
-        self.artistNameLabel.setStyleSheet("font-family:'微软雅黑';font-size:14px;color: white;")
-        self.infoButton = QToolButton(self, clicked = self.info_button_clicked)
-        self.infoButton.setIcon(QIcon(IconsHub.Info))
-        self.infoButton.setIconSize(QSize(36, 36))
-        self.playButton = QToolButton(self, clicked = self.play_button_clicked)
-        self.playButton.setIcon(QIcon(IconsHub.ControlPlay))
-        self.playButton.setIconSize(QSize(36, 36))
-
-        self.artistPicture.setGeometry(10,  10,  64, 64)
-        self.musicNameLabel.setGeometry(84, 10, 154, 30)
-        self.artistNameLabel.setGeometry(84, 54, 154, 20)
-        self.playButton.setGeometry(250, 22, 36, 36) 
-        self.infoButton.setGeometry(295, 22, 36, 36)
-    
-    def set_title(self, title):
-        artistName, musicName = get_artist_and_musicname_from_title(title)
-        self.musicNameLabel.setText(musicName)
-        self.artistNameLabel.setText(artistName)
-
-    def set_pause_state(self, isPaused):
-        self.isPaused = isPaused
-        if isPaused:
-            self.playButton.setIcon(QIcon(IconsHub.ControlPlay))
-        else:
-            self.playButton.setIcon(QIcon(IconsHub.ControlPause))
-        self.check_artist_headicon_seted()
-    
-    def play_button_clicked(self):
-        self.isPaused = not self.isPaused
-        iconPath = IconsHub.ControlPlay
-        if self.isPaused:
-            iconPath = IconsHub.ControlPause
-        self.playButton.setIcon(QIcon(iconPath))
-        self.play_button_clicked_signal.emit(self.ident)
-        self.check_artist_headicon_seted()
-
-    def info_button_clicked(self):
-        self.info_button_clicked_signal.emit(self.ident)
-        self.check_artist_headicon_seted()
-
-    def check_artist_headicon_seted(self):
-        if not self.artistHeadIconSetted and os.path.exists(self.imagePath):
-            self.artistPicture.setPixmap(QPixmap(self.imagePath))
-            self.artistHeadIconSetted = True
-
 class DownloadListItem(QLabel):
     """下载任务列表项"""
     downloadStatusChanged = pyqtSignal(str, bool)
@@ -455,8 +650,8 @@ class DownloadListItem(QLabel):
     
     def setup_ui(self):
         self.setObjectName('downloadlistitem')
-        self.setStyleSheet('color:green;')
-        self.setFixedSize(340, 85)
+#        self.setStyleSheet('color:green;')
+        self.setFixedSize(270, 85)
         self.pauseButton = QToolButton(self, clicked=self.pause_button_clicked)
         self.pauseButton.setIcon(QIcon(IconsHub.DownloadPause))
         self.pauseButton.setIconSize(QSize(45, 45))
@@ -474,11 +669,11 @@ class DownloadListItem(QLabel):
         self.statusLabel = QLabel('准备下载', self)
         self.statusLabel.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.pauseButton.setGeometry(3, 16, 52, 52)
-        self.killButton.setGeometry(312, 8, 23, 23)
-        self.titleLabel.setGeometry(58, 12, 252, 18)
-        self.progressBar.setGeometry(58, 37, 276, 15)
+        self.killButton.setGeometry(242, 8, 23, 23)
+        self.titleLabel.setGeometry(58, 12, 182, 18)
+        self.progressBar.setGeometry(58, 37, 206, 15)
         self.sizeProgressLabel.setGeometry(58, 51, 160, 30)
-        self.statusLabel.setGeometry(235, 51, 100, 30)
+        self.statusLabel.setGeometry(165, 51, 100, 30)
     
     def set_pause_state(self, state, statusInfo='已暂停'):
         """当发现线程暂停时，对 应修改任务列表项的暂停状态。"""

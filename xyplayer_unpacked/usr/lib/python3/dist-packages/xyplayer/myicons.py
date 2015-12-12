@@ -12,6 +12,7 @@ class IconsHub(object):
             setattr(IconsHub, icon, iconPath)
 
 iconsDict = {
+    'Download': 'download', 
     'DownloadPause': 'download_pause',     #下载暂停时的图标
     'DownloadStart': 'download_start',     #下载开始时的图标
     'DownloadCompleted':  'download_completed',    #下载完成
@@ -30,7 +31,6 @@ iconsDict = {
     'Anonymous': 'anonymous', 
     'Info': 'info', 
     'Xyplayer': 'xyplayer',    
-    'Functions': 'functions', 
     'PlaymodeRandom': 'playmode_random',     #随机循环
     'PlaymodeOrder': 'playmode_order',    #顺序循环
     'PlaymodeSingle': 'playmode_single',     #单曲循环
@@ -48,15 +48,29 @@ iconsDict = {
     'Settings': 'settings', 
     'ExitmodeTimeout': 'exitmode_timeout', 
     'ExitmodeCountout': 'exitmode_countout', 
+    'Exitmode': 'exitmode', 
     'Functions': 'functions', 
+    'Musics': 'musics', 
     'Search': 'search',
     'SearchAlbum': 'search_album', 
     'SearchArtist': 'search_artist', 
     'SearchMusictitle': 'search_musictitle', 
     'Delete': 'delete', 
     'Preference': 'preference', 
+    'AboutButton': 'about_button', 
     'HeadIcon': 'head_icon', 
-    'RemovePlaylist': 'download_kill'
+    'PlaylistAdd': 'playlist_add', 
+    'PlaylistDelete': 'playlist_delete', 
+    'PlaylistFold': 'playlist_fold', 
+    'PlaylistRename': 'playlist_rename', 
+    'PlaylistTableHover': 'playlist_table_hover', 
+    'PlaylistUnfold': 'playlist_unfold', 
+    'PlaylistWidgetHover': 'playlist_widget_hover', 
+    'PreferenceButton': 'preference_button', 
+    'RemovePlaylist': 'download_kill', 
+    'Update': 'update', 
+    'Volume': 'volume', 
+    'VolumeMuted': 'volume_muted'
 }
 
 IconsHub.set_attrs(iconsDict)

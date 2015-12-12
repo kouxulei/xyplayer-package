@@ -1,5 +1,5 @@
 from PyQt5.QtGui import QColor
-from xyplayer import Configures, settings
+from xyplayer import Configures
 from xyplayer.utils import system_fonts
 
 configOptions = {
@@ -9,13 +9,13 @@ configOptions = {
     'DesktoplyricFontSize': 35,    #values: 20~60, step by 5
     'DesktoplyricFontForm': '常规', 
     'DesktoplyricColors': (QColor(14, 100, 255), QColor(85, 255, 127), QColor(14, 100, 255)), 
-    'WindowlyricRunFontSize': 20,     #values: 18~30, step by 1
-    'WindowlyricRunFontColor': 'white', 
-    'WindowlyricReadyFontSize': 16,     #values: 12~24, step by 1
-    'WindowlyricReadyFontColor': 'black'
+    'WindowlyricRunFontSize': 28,     #values: 18~30, step by 1
+    'WindowlyricRunFontColor': 'purple', 
+    'WindowlyricReadyFontSize': 15,     #values: 12~24, step by 1
+    'WindowlyricReadyFontColor': 'teal'
 }
 
-def read_from_settings(key, keyType, default=None, settings=settings):
+def read_from_settings(key, keyType, default=None, settings=Configures.Settings):
     if not settings.contains(key):
         return default
     try:
@@ -27,7 +27,7 @@ def read_from_settings(key, keyType, default=None, settings=settings):
         print('Warning: %s'%str(error))
         return default if default else keyType()
 
-def write_to_settings(key, value, default, settings=settings):
+def write_to_settings(key, value, default, settings=Configures.Settings):
     if value == default:
         settings.remove(key)
     else:

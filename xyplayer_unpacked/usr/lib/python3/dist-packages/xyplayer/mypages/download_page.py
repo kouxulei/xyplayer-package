@@ -1,15 +1,12 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton,QVBoxLayout, QLabel
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import Qt, pyqtSignal, QTimer, QSize
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from xyplayer import Configures
-from xyplayer.myicons import IconsHub
 from xyplayer.mywidgets import LabelButton, DownloadListItem
 from xyplayer.mytables import WorksList
 from xyplayer.myplaylists import DownloadWorksModel
 from xyplayer.mythreads import DownloadThread
 
 class DownloadPage(QWidget):
-    back_to_main_signal = pyqtSignal()
     work_complete_signal = pyqtSignal()    #下载任务完成时，用于通 知主程序刷新显示“我的下载”歌单
     def __init__(self, parent = None):
         super(DownloadPage, self).__init__(parent)
@@ -22,29 +19,18 @@ class DownloadPage(QWidget):
         self.titleLabel.setFixedSize(110, 33)
         self.titleLabel.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         
-#返回按键
-        self.backButton = QPushButton(clicked = self.back_to_main_signal.emit)
-        self.backButton.setFocusPolicy(Qt.NoFocus)
-        self.backButton.setStyleSheet("font-size:15px")
-        self.backButton.setFixedSize(25, 33)
-        self.backButton.setIcon(QIcon(IconsHub.Back))
-        self.backButton.setIconSize(QSize(20, 20))
-        
         self.netSpeedInfo = QLabel('0.00 KB/s')
         self.netSpeedInfo.setFixedWidth(135)
-        self.netSpeedInfo.setStyleSheet("background:transparent;color:white")
         self.netSpeedInfo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
         firstLayout = QHBoxLayout()
-        firstLayout.addWidget(self.backButton)
         firstLayout.addWidget(self.titleLabel)
         firstLayout.addStretch()
         firstLayout.addWidget(self.netSpeedInfo)
         
         self.downloadList = WorksList()
-        
         mainLayout = QVBoxLayout(self)
-        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.setContentsMargins(0, 5, 0, 0)
         mainLayout.addLayout(firstLayout)
         mainLayout.addWidget(self.downloadList)
         
@@ -160,7 +146,7 @@ class DownloadPage(QWidget):
     
     def reload_works_from_database(self, lock):
         """在程序启动时，读取数据库中的下载任务信息，并启动"""
-        print('reloading works from database ...')
+        print('Reloading works from database ...')
         downloadWorksModel = DownloadWorksModel()
         for row in range(downloadWorksModel.get_length()):
             args = downloadWorksModel.get_work_info_at_row(row)
@@ -170,7 +156,7 @@ class DownloadPage(QWidget):
     
     def record_works_into_database(self):
         """程序结束时，把未完成的任务记录到数据库中"""
-        print('recording infos of download works ...')
+        print('Recording infos of download works ...')
         downloadWorksModel = DownloadWorksModel()
         for name in self.allDownloadWorks:
             work = self.allDownloadWorks[name][0]

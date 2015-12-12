@@ -14,6 +14,45 @@ from xyplayer.mythreads import DownloadLrcThread
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.utils import connect_as_title, get_full_music_name_from_title, composite_lyric_path_use_title
 
+class SearchBox(QLineEdit):
+    search_musics_signal = pyqtSignal(str)
+    searchtype_changed_signal = pyqtSignal(int)
+    def __init__(self, parent=None):
+        super(SearchBox, self).__init__(parent)
+        self.setup_ui()
+        self.create_connections()
+    
+    def create_connections(self):
+        self.returnPressed.connect(self.search_musics)
+        self.searchCombo.currentIndexChanged.connect(self.searchtype_changed_signal.emit)
+    
+    def setup_ui(self):
+        self.searchButton = QToolButton(clicked = self.search_musics)
+        self.searchButton.setFocusPolicy(Qt.NoFocus)
+        self.searchButton.setIconSize(QSize(20, 20))
+        self.searchButton.setIcon(QIcon(IconsHub.Search))
+        self.searchCombo = QComboBox()
+        musicIcon = QIcon(IconsHub.SearchMusictitle)
+        artistIcon = QIcon(IconsHub.SearchArtist)
+        albumIcon = QIcon(IconsHub.SearchAlbum)       
+        self.searchCombo.setIconSize(QSize(20, 20))
+        self.searchCombo.insertItem(0, musicIcon, "歌曲")
+        self.searchCombo.insertItem(1, artistIcon, "歌手")
+        self.searchCombo.insertItem(2, albumIcon, "专辑")
+        self.searchCombo.setFixedSize(80, 28)
+        self.searchCombo.setCursor(Qt.ArrowCursor)
+        self.searchCombo.setCurrentIndex(0)
+        searchLayout = QHBoxLayout(self)
+        searchLayout.addWidget(self.searchCombo)
+        searchLayout.addStretch()
+        searchLayout.addWidget(self.searchButton)
+        searchLayout.setSpacing(0)
+        searchLayout.setContentsMargins(1, 1, 1, 1)
+        self.setTextMargins(83, 0, 23, 0)  
+    
+    def search_musics(self):
+        self.search_musics_signal.emit(self.text())
+        
 class SearchFrame(QWidget):
     switch_to_online_list = pyqtSignal()
     add_bunch_to_list_succeed = pyqtSignal()
@@ -30,45 +69,9 @@ class SearchFrame(QWidget):
     def setup_ui(self):
         self.searchTable = SearchTable()
         self.searchTable.setColumnWidth(0, 39)
-        self.searchTable.setColumnWidth(1, 110)
-        self.searchTable.setColumnWidth(2, 100)
-        self.searchTable.setColumnWidth(3, 100)
-        self.searchButton = QPushButton(clicked = self.search_musics)
-        self.searchButton.setFocusPolicy(Qt.NoFocus)
-        self.searchButton.setFixedSize(QSize(33, 33))
-        self.searchButton.setIconSize(QSize(20, 20))
-        self.searchButton.setIcon(QIcon(IconsHub.Search))
-
-#返回按键
-        self.backButton = QPushButton(clicked = self.back_to_main_signal.emit)
-        self.backButton.setFocusPolicy(Qt.NoFocus)
-        self.backButton.setStyleSheet("font-size:15px")
-        self.backButton.setFixedSize(25, 33)
-        self.backButton.setIcon(QIcon(IconsHub.Back))
-        self.backButton.setIconSize(QSize(20, 20))
-
-#搜索框的3个部件
-        self.lineEdit = QLineEdit()    
-        self.lineEdit.setFixedHeight(33)
-        self.lineEdit.setFocusPolicy(Qt.StrongFocus)
-        self.clearButton = QToolButton(clicked = self.lineEdit.clear)
-        self.clearButton.setCursor(Qt.ArrowCursor)
-        self.clearButton.setFixedSize(32, 32)
-        self.clearButton.setFocusPolicy(Qt.NoFocus)
-        self.clearButton.setIcon(QIcon(IconsHub.Delete))
-        self.clearButton.setIconSize(QSize(20, 20))
-        self.clearButton.hide()
-        
-        self.searchComboBox = QComboBox()
-        musicIcon = QIcon(IconsHub.SearchMusictitle)
-        artistIcon = QIcon(IconsHub.SearchArtist)
-        albumIcon = QIcon(IconsHub.SearchAlbum)       
-        self.searchComboBox.setIconSize(QSize(20, 20))
-        self.searchComboBox.insertItem(0, musicIcon, "歌曲")
-        self.searchComboBox.insertItem(1, artistIcon, "歌手")
-        self.searchComboBox.insertItem(2, albumIcon, "专辑")
-        self.searchComboBox.setFixedSize(79, 33)
-        self.searchComboBox.setCursor(Qt.ArrowCursor)
+        self.searchTable.setColumnWidth(1, 205)
+        self.searchTable.setColumnWidth(2, 180)
+        self.searchTable.setColumnWidth(3, 180)
         
         self.firstPageButton = QPushButton("首页", clicked = self.jump_to_first_page)
         self.firstPageButton.setFocusPolicy(Qt.NoFocus)
@@ -87,14 +90,10 @@ class SearchFrame(QWidget):
         
         self.jumpNum = QLineEdit('0')
         self.jumpNum.setFocusPolicy(Qt.StrongFocus)
-        self.jumpNum.setStyleSheet("font-size:15px")
         self.jumpNum.setFixedSize(84, 31)
         self.jumpNum.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
         self.pageNum = QLabel("/ 0")
-        self.pageNum.setStyleSheet(
-            "QLabel:hover{color:green;font-size:15px}" 
-            "QLabel{background:rgb(210,240,240);color:blue;font-size:15px}")
         self.pageNum.setFixedSize(45, 31)
         self.pageNum.setAlignment(Qt.AlignLeft | Qt.AlignVCenter )
 
@@ -107,41 +106,20 @@ class SearchFrame(QWidget):
         pageNumLayout.setContentsMargins(0, 0, 0, 0)
         self.jumpNum.setTextMargins(0, 0, self.pageNum.width(), 0)
 
-#搜索框self.lineEdit的布局
-        searchLayout = QHBoxLayout(self.lineEdit)
-        searchLayout.addWidget(self.searchComboBox)
-        searchLayout.addStretch()
-        searchLayout.addWidget(self.clearButton)
-        searchLayout.setSpacing(0)
-        searchLayout.setContentsMargins(0, 0, 0, 0)
-#        self.lineEdit.setLayout(searchLayout)
-        self.lineEdit.setTextMargins(self.searchComboBox.width(), 0, self.clearButton.width(), 0)
-
-#搜索栏的布局
-        hbox_sch = QHBoxLayout()
-        hbox_sch.addWidget(self.backButton)
-        hbox_sch.addWidget(self.lineEdit)
-        hbox_sch.addWidget(self.searchButton)
-
 #综合布局
         self.controlWidget = QWidget()
         controlLayout = QHBoxLayout(self.controlWidget)
         controlLayout.setContentsMargins(0, 0, 0, 0)
         controlLayout.setSpacing(6)
-#        spacerItem  =  QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-#        controlLayout.addItem(spacerItem)
         controlLayout.addWidget(self.firstPageButton)
         controlLayout.addWidget(self.previousPageButton)
         controlLayout.addWidget(self.jumpNum)
-#        controlLayout.addWidget(self.pageNum)
         controlLayout.addWidget(self.nextPageButton)
         controlLayout.addWidget(self.lastPageButton)
-#        controlLayout.addItem(spacerItem)
         
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(7)
         mainLayout.setContentsMargins(0, 0, 0, 0)
-        mainLayout.addLayout(hbox_sch)
         mainLayout.addWidget(self.searchTable)
         mainLayout.addWidget(self.controlWidget)
         
@@ -149,16 +127,11 @@ class SearchFrame(QWidget):
         self.pages = 0
         self.currentKeyword = ''
         self.searchByType = 'all'
-        self.searchComboBox.setCurrentIndex(0)
     
     def create_connections(self):
-        self.lineEdit.textChanged.connect(self.clrbutton_show)
-        
         self.previousPageButton.clicked.connect(self.previous_page)
         self.nextPageButton.clicked.connect(self.next_page)
         self.jumpNum.returnPressed.connect(self.go_to_page)
-        self.lineEdit.returnPressed.connect(self.search_musics)
-        self.searchComboBox.currentIndexChanged.connect(self.searchtype_changed)
 
         self.searchTable.switchToOnlineListAction.triggered.connect(self.switch_to_online_list)
         self.searchTable.cellDoubleClicked.connect(self.searchtable_clicked)
@@ -202,7 +175,7 @@ class SearchFrame(QWidget):
         songLink = SearchOnline.get_song_link(musicId)
         if not songLink:
             return
-        thread = DownloadLrcThread([title, musicId])
+        thread = DownloadLrcThread([(title, musicId)])
         thread.setDaemon(True)
         thread.setName('downloadLrc')
         thread.start()
@@ -281,7 +254,6 @@ class SearchFrame(QWidget):
             self.searchByType = 'artist'
         else:
             self.searchByType = 'album'
-        self.search_musics()
         
     def go_to_page(self):
         if not self.currentKeyword:
@@ -308,23 +280,25 @@ class SearchFrame(QWidget):
         self.currentPage = page - 1
         self.pageNum.setFocus()
     
-    def search_musics(self):
-        keyword = self.lineEdit.text()
+    def search_musics(self, keyword):
         if not keyword:
             QMessageBox.information(self, '提示', '请输入搜索关键词！')
-            return
+            return False
         self.currentKeyword = keyword
         self.hit  =  self.show_musics(self.searchByType, self.currentKeyword, 0)
         if self.hit == Configures.UrlError:
-            return
+            QMessageBox.critical(None, "错误", "联网出错！\n请检查网络连接是否正常！")     
+            return False
         self.currentPage = 0
-        if self.hit:
-            self.pages = self.hit//15 + 1
-            self.jumpNum.setText('1')
-            self.pageNum.setText('/ %s'%self.pages)
-        else:
+        if not self.hit:
             self.jumpNum.setText('0')
             self.pageNum.setText('/ 0')
+            QMessageBox.warning(None, "错误", "未找到任何结果！")     
+            return False
+        self.pages = self.hit//Configures.NumSearchOneTime + 1
+        self.jumpNum.setText('1')
+        self.pageNum.setText('/ %s'%self.pages)
+        return True
     
     def previous_page(self):
         if not self.currentPage:
@@ -344,7 +318,6 @@ class SearchFrame(QWidget):
         self.searchTable.clear_search_table()
         songs, hit = SearchOnline.search_songs(searchByType, keyword, page)
         if hit == Configures.UrlError:
-            QMessageBox.critical(None, "错误", "联网出错！\n请检查网络连接是否正常！")     
             return Configures.UrlError
         if not songs or hit == 0:
             return hit
@@ -360,12 +333,6 @@ class SearchFrame(QWidget):
             self.searchTable.add_record(score, music, artist, album, music_id)
             self.searchTable.sortItems(0, Qt.DescendingOrder)
         return hit
-
-    def clrbutton_show(self):
-        if self.lineEdit.text():
-            self.clearButton.show()
-        else:
-            self.clearButton.hide()
         
     def jump_to_first_page(self):
         if not self.pages or self.currentPage ==0:

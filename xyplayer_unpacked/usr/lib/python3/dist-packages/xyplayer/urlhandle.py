@@ -15,7 +15,7 @@ songLinkCache = {}
 class SearchOnline(object):
     """存放所有与获取在线信息有关的函数。"""
     @trace_to_keep_time
-    def search_songs(searchByType, keyword, page, rn = 15):
+    def search_songs(searchByType, keyword, page, rn = Configures.NumSearchOneTime):
         url = ''.join([
             'http://search.kuwo.cn/r.s?ft=music&rn=%s'%rn,'&newsearch=1&primitive=0&cluster=0&itemset=newkm&rformat=xml&encoding=utf8&%s='%searchByType, 
             SearchOnline.parse_quote(keyword), 

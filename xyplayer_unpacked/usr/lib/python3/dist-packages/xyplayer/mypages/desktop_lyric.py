@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QLabel, QMenu, QAction
 from PyQt5.QtGui import QCursor, QFont, QPainter, QLinearGradient, QPen
 from PyQt5.QtCore import Qt, pyqtSignal, QPoint
-from xyplayer import desktopSize, Configures
+from xyplayer import Configures
 from xyplayer.mysettings import globalSettings
 
 class DesktopLyricBasic(QLabel):
@@ -79,7 +79,7 @@ class DesktopLyric(DesktopLyricBasic):
         self.customContextMenuRequested.connect(self.show_context_menu)
     
     def original_place(self):
-        self.move(QPoint((desktopSize.width()-self.width())//2, desktopSize.height()-self.height()-20))
+        self.move(QPoint((Configures.DesktopSize.width()-self.width())//2, Configures.DesktopSize.height()-self.height()-20))
     
     def geometry_info(self):
         return self.geometry().x(), self.geometry().y(), self.width(), self.height()

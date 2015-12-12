@@ -1,10 +1,12 @@
 import os
 from PyQt5.QtWidgets import (QMenu, QAction, QAbstractItemView, QFileDialog, QMessageBox, QTableWidget, 
-    QTableWidgetItem, QTableWidgetSelectionRange)
+    QTableWidgetItem, QTableWidgetSelectionRange, QWidget, QVBoxLayout, QPushButton)
+from PyQt5.QtGui import QIcon
+from xyplayer.myicons import IconsHub
 from PyQt5.QtCore import QPoint, Qt, pyqtSignal
 from xyplayer import Configures
 from xyplayer.myplaylists import Playlist
-from xyplayer.mywidgets import PlaylistButton, TagModifyDialog
+from xyplayer.mywidgets import TagModifyDialog, PlaylistOperator, SongOperator
 from xyplayer.utils import (trace_to_keep_time, get_artist_and_musicname_from_title, operate_after_check_thread_locked_state)
 
 class SearchTable(QTableWidget):
@@ -14,13 +16,13 @@ class SearchTable(QTableWidget):
         self.setRowCount(0)
         self.setColumnCount(5)
         self.hideColumn(4)
-        self.hideColumn(5)
         headers  =  ( "评分","歌曲", "歌手", "专辑", "musicId")  
         self.setHorizontalHeaderLabels(headers)
 #        self.setShowGrid(False)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.verticalHeader().setVisible(False)
+        self.horizontalHeader().setFixedHeight(31)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
 #        self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -38,6 +40,7 @@ class SearchTable(QTableWidget):
 #            artistIdItem  =  QTableWidgetItem(artistId)
             
             self.insertRow(countRow)
+            self.setRowHeight(countRow, 32)
             self.setItem(countRow, 0, scoreItem)
             self.setItem(countRow, 1, musicItem)
             self.setItem(countRow, 2, artistItem)
@@ -61,23 +64,26 @@ class SearchTable(QTableWidget):
         self.listMenu.addAction(self.downloadAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.switchToOnlineListAction)
-        
         self.customContextMenuRequested.connect(self.music_table_menu)
                 
     def music_table_menu(self, pos):
         pos += QPoint(0, 30)
         self.listMenu.exec_(self.mapToGlobal(pos))
-            
-class MyListTable(QTableWidget):
-    """managePage主页面中我的歌单。"""
-    button_in_list_clicked = pyqtSignal(str)
-    operate_mode_activated = pyqtSignal()
-    remove_a_playlist_signal = pyqtSignal(int)
+
+class PlaylistsTable(QTableWidget):
+    switch_to_this_playlist_signal = pyqtSignal(int)
+    add_a_playlist_signal = pyqtSignal()
     rename_a_playlist_signal = pyqtSignal(int)
+    delete_a_playlist_signal = pyqtSignal(int)
     def __init__(self, parent=None):
-        super(MyListTable, self).__init__(parent)
-        self.buttons = []
-        self.names = []
+        super(PlaylistsTable, self).__init__(parent)
+        self.set_attritutes()
+        self.playlistOperator = PlaylistOperator(self)
+        self.playlistOperator.setGeometry(0, 40, 270, 40)
+        self.create_connections()  
+        
+    def set_attritutes(self):
+        self.setMouseTracking(True)
         self.horizontalHeader().setVisible(False)
         self.verticalHeader().setVisible(False)
         self.setShowGrid(False)
@@ -85,50 +91,67 @@ class MyListTable(QTableWidget):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setRowCount(0)    
         self.setColumnCount(1)
-        self.setFixedWidth(172)
         self.horizontalHeader().setFixedHeight(36)
-        self.setColumnWidth(0, 172)
-        
-    def add_a_button(self, name, flag=True):
-        self.names.append(name)
-        button = PlaylistButton(name, flag)
-        button.clicked.connect(self.button_in_list_clicked.emit)   
-        button.long_time_clickd.connect(self.operate_mode_activated.emit)
-        button.remove_me_signal.connect(self.remove_action_triggered)
-        button.rename_me_signal.connect(self.rename_action_triggered)
-        if flag:
-            self.add_widget(button)
-        self.buttons.append(button)
+        self.setColumnWidth(0, 270)
     
-    def get_button_at(self, index):
-        return self.buttons[index]
+    def create_connections(self):
+        self.cellEntered.connect(self.cell_entered)
+        self.playlistOperator.clicked_signal.connect(self.switch_to_this_playlist_signal.emit)
+        self.playlistOperator.add_button_clicked_signal.connect(self.add_a_playlist_signal.emit)
+        self.playlistOperator.rename_button_clicked_signal.connect(self.rename_a_playlist_signal.emit)
+        self.playlistOperator.delete_button_clicked_signal.connect(self.delete_a_playlist_signal.emit)
+        self.playlistOperator.wheel_event_triggered_signal.connect(self.wheelEvent)
     
-    def get_name_at(self, index):
-        return self.names[index]
-    
-    def remove_action_triggered(self, name):
-        self.remove_a_playlist_signal.emit(self.names.index(name))
-    
-    def rename_action_triggered(self, name):
-        self.rename_a_playlist_signal.emit(self.names.index(name))
-    
-    def rename_button_at(self, index, name):
-        self.buttons[index].set_name(name)
-        self.names[index] = name
-    
-    def remove_button_at(self, index):
-        self.removeRow(index-4)
-        del self.buttons[index]
-        del self.names[index]
-    
-    def get_buttons(self):
-        return self.buttons
-    
-    def add_widget(self, widget):
-        countRow  =  self.rowCount()
+    def cell_entered(self, row, column):
+        self.playlistOperator.set_row(row)
+        scrollBar = self.verticalScrollBar()
+        scrolledValue = scrollBar.value()
+        if scrolledValue and scrolledValue == scrollBar.maximum():
+            scrolledValue -= 1
+        self.playlistOperator.setGeometry(0, (row - scrolledValue)*self.rowHeight(row), 270, 40)
+
+    def add_item(self, playlistName):
+        countRow = self.rowCount()
+        playlistItem = QTableWidgetItem(QIcon(IconsHub.PlaylistFold), playlistName)
         self.insertRow(countRow)
-        self.setRowHeight(countRow, 43)
-        self.setCellWidget(countRow, 0, widget)
+        self.setRowHeight(countRow, 40)
+        self.setItem(countRow, 0, playlistItem)
+    
+    def get_name_at(self, row):
+        return self.item(row, 0).text()
+    
+    def rename_an_item(self, row, newName):
+        self.item(row, 0).setText(newName)
+    
+    def remove_item_at(self, row):
+        if row == self.rowCount() - 1:
+            self.cell_entered(row - 1, 0)
+        self.removeRow(row)
+
+class PlaylistsTableUnfold(QWidget):
+    fold_all_signal = pyqtSignal()
+    unfold_next_signal = pyqtSignal()
+    def __init__(self, playlistWidget, parent=None):
+        super(PlaylistsTableUnfold, self).__init__(parent)
+        self.setup_ui(playlistWidget)
+        
+    def setup_ui(self, playlistWidget):
+        self.playlistWidget = playlistWidget
+        self.itemUnfold = QPushButton(QIcon(IconsHub.PlaylistUnfold), '默认列表', clicked = self.fold_all_signal.emit)
+        self.itemUnfold.setFixedHeight(35)
+        self.itemUnfold.setFocusPolicy(Qt.NoFocus)
+        self.itemFold = QPushButton(QIcon(IconsHub.PlaylistFold), '我的收藏', clicked = self.unfold_next_signal.emit)
+        self.itemFold.setFixedHeight(35)
+        self.itemFold.setFocusPolicy(Qt.NoFocus)
+        mainLayout = QVBoxLayout(self)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.addWidget(self.itemUnfold)
+        mainLayout.addWidget(self.playlistWidget)
+        mainLayout.addWidget(self.itemFold)
+    
+    def set_two_item_names(self, name1, name2):
+        self.itemUnfold.setText(name1)
+        self.itemFold.setText(name2)
 
 class WorksList(QTableWidget):
     """用于管理下载任务的列表以及playbackPage中我的歌单的列表。"""
@@ -198,10 +221,9 @@ class PlaylistWidgetBasic(QTableWidget):
     def add_record(self, title, time):
         countRow = self.rowCount()
         titleItem = QTableWidgetItem(title)
-        timeItem = QTableWidgetItem(time)
         self.insertRow(countRow)
         self.setItem(countRow, 0, titleItem)
-        self.setItem(countRow, 1, timeItem)
+        self.setRowHeight(countRow, 31)
     
     def add_record_with_full_info(self, id, title, totalTime, album, path, size, musicId=Configures.LocalMusicId):
         self.playlist.add_record(id, title, totalTime, album, path, size, musicId)
@@ -219,15 +241,73 @@ class PlaylistWidget(PlaylistWidgetBasic):
     musics_removed_signal = pyqtSignal()
     musics_cleared_signal = pyqtSignal()
     musics_marked_signal = pyqtSignal()
-    switch_to_search_page_signal = pyqtSignal()
     download_signal = pyqtSignal()
+    show_artist_info_signal = pyqtSignal(str)
     tag_values_changed_signal = pyqtSignal(int, str, str, str)
     def __init__(self, parent=None):
         super(PlaylistWidget, self).__init__(parent)
+        self.songOperator = SongOperator(self)
         self.initial_params()
         self.set_attritutes()
         self.create_menu_items()
         self.create_connections()
+
+    def create_connections(self):
+        self.cellEntered.connect(self.cell_entered)
+        self.customContextMenuRequested.connect(self.music_table_menu)  
+        self.selectAllAction.triggered.connect(self.select_all_rows)
+        self.selectInvertAction.triggered.connect(self.select_invert_rows)
+        self.selectNoneAction.triggered.connect(self.select_none_rows)
+        self.copytoMenu.triggered.connect(self.copy_to_other_playlist)
+        self.movetoMenu.triggered.connect(self.move_to_other_playlist)
+        self.addMusicAction.triggered.connect(self.add_musics)
+        self.markSelectedAsFavoriteAction.triggered.connect(self.mark_selected_as_favorite)
+        self.removeAction.triggered.connect(self.remove_musics)
+        self.deleteAction.triggered.connect(self.delete_musics)
+        self.clearListWidgetAction.triggered.connect(self.clear_musics)
+        self.songSpecAction.triggered.connect(self.show_song_spec)
+        self.artistSpecAction.triggered.connect(self.show_artist_info)
+        self.downloadAction.triggered.connect(self.download_signal.emit)
+        self.doubleClicked.connect(self.double_click_to_play)
+        self.songOperator.wheel_event_triggered_signal.connect(self.wheelEvent)
+        self.songOperator.double_clicked_signal.connect(self.double_click_to_play_with_row)
+        self.songOperator.right_mouse_button_clicked_signal.connect(self.music_table_menu)
+        self.songOperator.left_mouse_button_clicked_signal.connect(self.selectRow)
+        self.songOperator.left_mouse_button_dragged_signal.connect(self.select_multi_rows)
+
+    def cell_entered(self, row, column):
+        if self.songOperator.isHidden():
+            self.songOperator.set_contents(row, self.item(row, column).text())
+            self.songOperator.show()
+        oldRow = self.songOperator.get_row()
+        if self.item(oldRow, column):
+            self.item(oldRow, column).setText(self.playlist.get_music_title_at(oldRow))
+        self.songOperator.set_contents(row, self.item(row, column).text())
+        self.item(row, column).setText('')
+        scrollBar = self.verticalScrollBar()
+        scrolledValue = scrollBar.value()
+        if scrolledValue and scrolledValue == scrollBar.maximum():
+            scrolledValue -= 1
+        self.songOperator.setGeometry(0, (row - scrolledValue)*self.rowHeight(row), 270, 31)
+    
+    def leaveEvent(self, event=None):
+        self.hide_song_operator()
+    
+    def select_multi_rows(self, pos):
+        exactPos = pos + self.songOperator.pos()
+        item = self.itemAt(exactPos)
+        if item:
+            self.cell_entered(item.row(), 0)
+            if not item.isSelected():  
+                item.setSelected(True)
+    
+    def hide_song_operator(self):
+        if not self.songOperator.isHidden():
+            oldRow = self.songOperator.get_row()
+            item = self.item(oldRow, 0)
+            if item:
+                item.setText(self.playlist.get_music_title_at(oldRow))
+            self.songOperator.hide()
     
     def initial_params(self):
         self.files = []
@@ -237,6 +317,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.isPlaying = False
         self.playingList = Playlist()
         self.allPlaylistNames = []
+        self.mode = 0
     
     def set_playlist_names(self, listNames):
         self.allPlaylistNames = listNames
@@ -262,28 +343,15 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.fill_playlist_widget(self.playlist)
         self.select_row()
         self.pick_actions_into_menu()
-    
+
     def get_playing_used_state(self):
         return self.isPlaying
-        
-    def create_connections(self):
-        self.customContextMenuRequested.connect(self.music_table_menu)  
-        self.selectAllAction.triggered.connect(self.select_all_rows)
-        self.selectInvertAction.triggered.connect(self.select_invert_rows)
-        self.selectNoneAction.triggered.connect(self.select_none_rows)
-        self.copytoMenu.triggered.connect(self.copy_to_other_playlist)
-        self.movetoMenu.triggered.connect(self.move_to_other_playlist)
-        self.addMusicAction.triggered.connect(self.add_musics)
-        self.markSelectedAsFavoriteAction.triggered.connect(self.mark_selected_as_favorite)
-        self.removeAction.triggered.connect(self.remove_musics)
-        self.deleteAction.triggered.connect(self.delete_musics)
-        self.clearListWidgetAction.triggered.connect(self.clear_musics)
-        self.songSpecAction.triggered.connect(self.show_song_spec)
-        self.switchToSearchPageAction.triggered.connect(self.switch_to_search_page_signal.emit)
-        self.downloadAction.triggered.connect(self.download_signal.emit)
-        self.doubleClicked.connect(self.double_click_to_play)
+    
+    def get_playing_list_name(self):
+        return self.playingList.get_name()
 
     def set_attritutes(self):
+        self.setMouseTracking(True)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -291,8 +359,9 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.horizontalHeader().setVisible(False)
+        self.verticalHeader().setVisible(False)
         self.setRowCount(0)
-        self.setColumnCount(2)
+        self.setColumnCount(1)
         self.setColumnWidth(0, 270)
         self.setColumnWidth(1, 80)
 
@@ -318,8 +387,8 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.removeAction = QAction("移除歌曲", self)
         self.deleteAction = QAction("移除歌曲并删除本地文件", self)
         self.clearListWidgetAction  =  QAction("清空列表", self)
-        self.switchToSearchPageAction = QAction("切换到搜索页面", self)
         self.songSpecAction = QAction("歌曲信息", self)
+        self.artistSpecAction = QAction("歌手信息", self)
     
     def create_online_playlist_menu(self):
         self.listMenu.addAction(self.downloadAction)
@@ -333,8 +402,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.listMenu.addAction(self.clearListWidgetAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.songSpecAction)
-        self.listMenu.addSeparator()
-        self.listMenu.addAction(self.switchToSearchPageAction)   
+        self.listMenu.addAction(self.artistSpecAction)
     
     def create_favor_playlist_menu(self):
         self.listMenu.addAction(self.addMusicAction)
@@ -349,6 +417,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.listMenu.addAction(self.clearListWidgetAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.songSpecAction)
+        self.listMenu.addAction(self.artistSpecAction)
     
     def fill_copyto_and_moveto_menu(self):
         self.copytoMenu.clear()
@@ -397,9 +466,10 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.listMenu.addAction(self.clearListWidgetAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.songSpecAction)
+        self.listMenu.addAction(self.artistSpecAction)
     
     def music_table_menu(self, pos):
-        pos += QPoint(30, 30)
+        pos += QPoint(10, 0)
         self.listMenu.exec_(self.mapToGlobal(pos))
     
     def select_row(self):
@@ -445,6 +515,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
                 text_tmp2 = "有%s首歌曲将被移出列表，请确认!"%len(self.removedIndexes)
             ok = QMessageBox.warning(self, text_tmp1, text_tmp2, QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
             if ok == QMessageBox.Yes:
+                self.hide_song_operator()
                 item = self.playingList.get_item_from_queue(currentRow)
                 if not (self.get_playing_used_state() and currentRow in self.removedIndexes):
                     self.exec_remove_operation(self.removedIndexes)
@@ -470,6 +541,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
                 self.musics_removed_signal.emit()
     
     def remove_without_check(self, selecteds):
+        self.hide_song_operator()
         self.removedIndexes = []
         currentRow = self.playingList.get_current_row() % self.playingList.length()
         if len(selecteds):
@@ -507,6 +579,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
             return
         ok = QMessageBox.warning(self, "清空列表", "当前列表的所有歌曲(包括当前播放歌曲)都将被移除，请确认!", QMessageBox.No|QMessageBox.Yes, QMessageBox.No)
         if ok  == QMessageBox.Yes:
+            self.hide_song_operator()
             self.exec_clear_operation()
             self.musics_cleared_signal.emit()
     
@@ -566,22 +639,22 @@ class PlaylistWidget(PlaylistWidgetBasic):
             self.playlist.commit_records()
             self.musics_added_signal.emit(False)
         
-    def select_range_rows(self, selecteds):
-        columns = self.columnCount() - 1
+    def select_range_rows(self, selecteds, flag=True):
         for index in selecteds:
             if index.column() == 0:
-                self.setRangeSelected(QTableWidgetSelectionRange(index.row(), 0, index.row(), columns), True)
-
-    def select_all_rows(self):
-        self.setRangeSelected(QTableWidgetSelectionRange(0, 0, self.rowCount()-1, self.columnCount()-1), True)
+                self.select_a_row(index.row(), flag)
+    
+    def select_a_row(self, row, flag=True):
+        self.setRangeSelected(QTableWidgetSelectionRange(row, 0, row, self.columnCount() - 1), flag)
     
     def select_invert_rows(self):
         selecteds = self.selectedIndexes()
         self.select_all_rows()
-        columns = self.columnCount() - 1
-        for index in selecteds:
-            self.setRangeSelected(QTableWidgetSelectionRange(index.row(), 0, index.row(), columns), False)
-    
+        self.select_range_rows(selecteds, False)
+        
+    def select_all_rows(self):
+        self.setRangeSelected(QTableWidgetSelectionRange(0, 0, self.rowCount()-1, self.columnCount()-1), True)
+        
     def select_none_rows(self):
         self.setRangeSelected(QTableWidgetSelectionRange(0, 0, self.rowCount()-1, self.columnCount()-1), False)
 
@@ -589,7 +662,13 @@ class PlaylistWidget(PlaylistWidgetBasic):
         row = self.currentRow()
         self.show_music_info_at_row(row)
     
+    def show_artist_info(self):
+        row = self.currentRow()
+        artist, musicName = get_artist_and_musicname_from_title(self.playlist.get_music_title_at(row))
+        self.show_artist_info_signal.emit(artist)
+    
     def show_music_info_at_row(self, row):
+        self.hide_song_operator()
         title, totalTime, album, path, size, musicId = self.playlist.get_record_at(row)[:6]
         artist, musicName = get_artist_and_musicname_from_title(title)
         if self.listName == Configures.PlaylistOnline:

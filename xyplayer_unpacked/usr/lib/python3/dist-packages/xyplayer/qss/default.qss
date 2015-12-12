@@ -1,0 +1,4 @@
+QDialog#xyplayer{
+    border-image: url(:PathPrefix/background.png);
+    background:transparent;
+}

@@ -13,7 +13,7 @@ class TimeoutDialog(QDialog):
     state_message_signal = pyqtSignal(str)
     def __init__(self, parent = None):
         super(TimeoutDialog, self).__init__(parent)
-        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
+#        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
         self.timeoutFlag = 0
         self.timer = QTimer()
         self.timer.setInterval(1000)
@@ -32,7 +32,7 @@ class TimeoutDialog(QDialog):
         self.stateLabel.setAlignment(Qt.AlignCenter)
         self.stateLabel.setFixedHeight(30)
         titleLabel = QLabel("剩余时间：")
-        titleLabel.setStyleSheet("font-size:15px")
+#        titleLabel.setStyleSheet("font-size:15px")
         
         label1 =  QLabel("时")
         label2 = QLabel("分")

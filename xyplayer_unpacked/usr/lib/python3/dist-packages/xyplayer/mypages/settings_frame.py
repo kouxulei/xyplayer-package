@@ -1,19 +1,19 @@
 import os
-from PyQt5.QtWidgets import QMessageBox,QHBoxLayout, QPushButton, QTabWidget, QLabel, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QMessageBox,QHBoxLayout, QPushButton, QTabWidget, QLabel, QWidget, QVBoxLayout, QDialog
 from PyQt5.QtCore import pyqtSignal, Qt
 from xyplayer import Configures
 from xyplayer.mypages import desktop_lyric
 from xyplayer.mywidgets import FontPanel, ColorsPanel, CloseActionsBox, PathSelectPanel, LyricPanelsBox
 from xyplayer.mysettings import globalSettings
 
-class SettingsFrame(QWidget):
+class SettingsFrame(QDialog):
     download_dir_changed = pyqtSignal(str)
     desktop_lyric_style_changed = pyqtSignal()
     close_button_act_changed = pyqtSignal(int)
     window_lyric_style_changed = pyqtSignal()
     def __init__(self, parent = None):
         super(SettingsFrame, self).__init__(parent)
-        self.setStyleSheet("QPushButton{font-family:'微软雅黑';font-size:14px;}")
+#        self.setStyleSheet("QPushButton{font-family:'微软雅黑';font-size:14px;}")
         self.initial_basic_tab()
         self.initial_download_tab()
         self.initial_lyric_tab()
@@ -107,7 +107,7 @@ class SettingsFrame(QWidget):
         mainLayout = QVBoxLayout(self)
         mainLayout.addWidget(self.tabWidget)
         mainLayout.addLayout(buttonsLayout)
-        mainLayout.setContentsMargins(2, 4, 4, 4)
+        mainLayout.setContentsMargins(0, 0, 0, 0)
 
     def check_control_buttons_state(self):
         self.okButton.setEnabled(bool(len(self.modifiedDict)))
