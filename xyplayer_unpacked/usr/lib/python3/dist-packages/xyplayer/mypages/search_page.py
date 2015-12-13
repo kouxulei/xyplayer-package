@@ -54,7 +54,6 @@ class SearchBox(QLineEdit):
         self.search_musics_signal.emit(self.text())
         
 class SearchFrame(QWidget):
-    switch_to_online_list = pyqtSignal()
     add_bunch_to_list_succeed = pyqtSignal()
     listen_online_signal = pyqtSignal(str, str, str, str)
     add_to_download_signal = pyqtSignal()
@@ -133,7 +132,6 @@ class SearchFrame(QWidget):
         self.nextPageButton.clicked.connect(self.next_page)
         self.jumpNum.returnPressed.connect(self.go_to_page)
 
-        self.searchTable.switchToOnlineListAction.triggered.connect(self.switch_to_online_list)
         self.searchTable.cellDoubleClicked.connect(self.searchtable_clicked)
         self.searchTable.cellClicked.connect(self.show_tooltip)
         self.searchTable.listenOnlineAction.triggered.connect(self.listen_online)
@@ -152,9 +150,6 @@ class SearchFrame(QWidget):
         artist = self.searchTable.item(row, 2).text()
         album = self.searchTable.item(row, 3).text()
         self.searchTable.setToolTip("评分：%s\n 歌曲：%s\n歌手：%s\n专辑：%s"%(mark, songName, artist, album))
-    
-    def switch_to_list(self):
-        self.switchToOnlineList.emit()    
     
     def listen_online(self):
         if not self.searchTable.rowCount():

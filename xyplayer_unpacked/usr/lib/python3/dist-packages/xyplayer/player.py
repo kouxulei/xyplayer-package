@@ -64,7 +64,8 @@ class Player(PlayerUi):
         self.closeButtonAct = act
     
     def update_desktop_lyric_style(self):
-        self.playbackPanel.update_desktop_lyric_style()
+        self.playbackPanel.desktopLyric.set_color(self.managePage.settingsFrame.get_lyric_colors())
+        self.playbackPanel.desktopLyric.set_font_style(*self.managePage.settingsFrame.get_lyric_font_styles())
     
     def set_new_window_lyric_style(self):
         params = self.managePage.settingsFrame.get_window_lyric_params()
@@ -85,7 +86,7 @@ class Player(PlayerUi):
 
     def open_download_dir(self, name):
         """点击下载任务标题栏打开下载目录。"""
-        QDesktopServices.openUrl(QUrl.fromLocalFile(self.downloadDir))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(self.managePage.get_download_dir()))
 
     def refresh_playlist_online(self):
         """当批量添加试听歌曲到“在线试听”歌单后更新显示"""
@@ -111,8 +112,7 @@ class Player(PlayerUi):
             if row == self.playbackPanel.currentSourceRow:
                 artistName, musicName = get_artist_and_musicname_from_title(title)
                 self.playbackPanel.playAction.setText(musicName)
-                self.managePage.artistNameLabel.setText(artistName)
-                self.managePage.musicNameLabel.setText(musicName)
+                self.playbackPanel.musicTitleLabel.setText(title)
         if playlist.get_name() == Configures.PlaylistFavorite:
             index = self.playbackPanel.lovedSongs.index(oldTitle)
             self.playbackPanel.lovedSongs[index] = title
@@ -221,7 +221,7 @@ class Player(PlayerUi):
                 musicId = playlist.get_music_id_at(row)
                 album = playlist.get_music_album_at(row)
                 musicName = get_full_music_name_from_title(title)
-                musicPath = os.path.join(self.downloadDir, musicName)
+                musicPath = os.path.join(self.managePage.get_download_dir(), musicName)
                 musicPathO = os.path.join(Configures.MusicsDir, musicName)
                 if  os.path.exists(musicPath):
                     isExistsSongs.append('%s : %s'%(title, musicPath))

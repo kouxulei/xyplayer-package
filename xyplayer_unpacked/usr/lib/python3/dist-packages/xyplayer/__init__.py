@@ -13,8 +13,8 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QSettings
 
 app_name = 'xyplayer'
-app_version = '0.8.6-1'
-app_version_num = 80601
+app_version = '0.8.6-2'
+app_version_num = 80602
 
 NDEBUG = True    #调试模式指示器
 if len(sys.argv) > 1 and sys.argv[1] == '-D':

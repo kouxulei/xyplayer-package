@@ -10,11 +10,6 @@ sudo apt-get install gdebi
 sudo gdebi xyplayer_VERSION_all.deb
 ```
 
-##使用技巧
-1. 鼠标右键点击并拖动可移动界面； 
-2. “更多功能”页面单击右键返回；
-3. 对任意歌曲列表按键长按可以进行删除和重命名操作；
-
 ##程序升级
 0.8.1以上的版本加入了在线升级的功能：  
 右下角菜单键 -> 关于 -> 更新 -> 检查更新 -> 在线更新  
@@ -23,4 +18,4 @@ sudo gdebi xyplayer_VERSION_all.deb
 
 ##欢迎交流
 + qq：1532768931
-+ 邮箱：<zhengyejian@sina.com>
++ 邮箱：<1035766515@qq.com>

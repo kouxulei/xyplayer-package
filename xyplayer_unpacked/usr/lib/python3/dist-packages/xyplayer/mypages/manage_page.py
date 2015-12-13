@@ -32,6 +32,9 @@ class ManagePage(QWidget):
     def get_threading_lock(self):
         return self.lock
     
+    def get_download_dir(self):
+        return self.settingsFrame.get_download_dir()
+    
     def reload_download_works(self):
         self.downloadPage.reload_works_from_database(self.lock)      
     

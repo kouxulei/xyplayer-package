@@ -219,10 +219,6 @@ class PlaybackPanel(SpecialLabel):
         self.playmodeButton.setIcon(QIcon(iconPath))
         self.playmodeButton.setToolTip(toolTip)
 
-    def update_desktop_lyric_style(self):
-        self.desktopLyric.set_color(self.managePage.settingsFrame.get_lyric_colors())
-        self.desktopLyric.set_font_style(*self.managePage.settingsFrame.get_lyric_font_styles())
-
     def ui_initial(self):
         self.mediaPlayer.stop()
         self.totalTime = '00:00'
@@ -392,7 +388,7 @@ class PlaybackPanel(SpecialLabel):
         self.mediaPlayer.play()
 
     def state_changed(self, newState):
-        if newState in [QMediaPlayer.PlayingState, QMediaPlayer.PausedState, QMediaPlayer.StoppedState]:
+        if self and newState in [QMediaPlayer.PlayingState, QMediaPlayer.PausedState, QMediaPlayer.StoppedState]:
             if not self.playlist.length():
                 return        
             iconPath = IconsHub.ControlPause
@@ -415,54 +411,48 @@ class PlaybackPanel(SpecialLabel):
         else:
             self.mediaPlayer.play()
 
-    def previous_song(self):
-        if not self.playlist.length():
-            return
-        self.stop_music()
-        nextRow = 0
-        if self.playmode == Configures.PlaymodeRandom:
-            nextSongPath = self.random_a_song()
-            nextRow = self.playlist.get_items_queue().index(nextSongPath)
-        elif self.playmode == Configures.PlaymodeOrder:
-            if self.currentSourceRow - 1 >= 0:
-                nextRow = self.currentSourceRow - 1
-            else:
-                nextRow = self.playlist.length() - 1
-        elif self.playmode == Configures.PlaymodeSingle:
-            nextRow = self.currentSourceRow
-            if nextRow < 0:
-                nextRow = 0
-        self.set_media_source_at_row(nextRow)
-
-    def random_a_song(self):
-        listTemp = list(set(self.playlist.get_items_queue())-set(self.nearPlayedSongs))
-        ran = random.randint(0, len(listTemp)-1)
-        return listTemp[ran]
-
-    def next_song(self):
-        if not self.playlist.length():
-            return
-        self.stop_music()
-        nextRow = 0
-        if self.playmode == Configures.PlaymodeRandom:
-            nextSongPath = self.random_a_song()
-            nextRow = self.playlist.get_items_queue().index(nextSongPath)
-        elif self.playmode == Configures.PlaymodeOrder:
-            if  self.currentSourceRow + 1 < self.playlist.length():
-                nextRow = self.currentSourceRow + 1
-            else:
-                nextRow = 0
-        elif self.playmode == Configures.PlaymodeSingle:
-            nextRow = self.currentSourceRow
-            if nextRow < 0:
-                nextRow = 0
-        self.set_media_source_at_row(nextRow)
-
     def stop_music(self):
         self.mediaPlayer.stop()
         self.seekSlider.setValue(0)
         self.media_player_notify_signal.emit(-0.5)
 
+    def get_next_random_row(self):
+        listTemp = list(self.playlist.get_ids()-set(self.nearPlayedSongs))
+        ran = random.randint(0, len(listTemp)-1)
+        return self.playlist.get_items_queue().index(listTemp[ran])
+    
+    def get_next_single_row(self):
+        nextRow = self.currentSourceRow
+        if nextRow < 0:
+            nextRow = 0
+        return nextRow
+
+    def get_next_order_row(self, reverse=False):
+        if reverse:
+            if self.currentSourceRow < 0:
+                self.currentSourceRow = 0
+            return (self.currentSourceRow - 1) % self.playlist.length()
+        return (self.currentSourceRow + 1) % self.playlist.length()
+
+    def previous_song(self):
+        self.play_source_on_next_row(reverse=True)
+
+    def next_song(self):
+        self.play_source_on_next_row()
+    
+    def play_source_on_next_row(self, reverse=False):
+        if not self.playlist.length():
+            return
+        self.stop_music()
+        nextRow = 0
+        if self.playmode == Configures.PlaymodeRandom:
+            nextRow = self.get_next_random_row()
+        elif self.playmode == Configures.PlaymodeOrder:
+            nextRow = self.get_next_order_row(reverse)
+        elif self.playmode == Configures.PlaymodeSingle:
+            nextRow = self.get_next_single_row()
+        self.set_media_source_at_row(nextRow)
+        
     def current_media_changed(self):  
         if not self.playlist.length():
             return 

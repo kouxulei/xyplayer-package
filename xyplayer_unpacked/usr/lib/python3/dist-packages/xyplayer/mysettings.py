@@ -6,9 +6,9 @@ configOptions = {
     'CloseButtonAct': Configures.SettingsHide, 
     'DownloadfilesPath': Configures.MusicsDir, 
     'DesktoplyricFontFamily': system_fonts[0],
-    'DesktoplyricFontSize': 35,    #values: 20~60, step by 5
+    'DesktoplyricFontSize': 45,    #values: 20~60, step by 5
     'DesktoplyricFontForm': '常规', 
-    'DesktoplyricColors': (QColor(14, 100, 255), QColor(85, 255, 127), QColor(14, 100, 255)), 
+    'DesktoplyricColors': (QColor(14, 100, 255), QColor(85, 170, 255), QColor(14, 100, 255)), 
     'WindowlyricRunFontSize': 28,     #values: 18~30, step by 1
     'WindowlyricRunFontColor': 'purple', 
     'WindowlyricReadyFontSize': 15,     #values: 12~24, step by 1

@@ -200,6 +200,9 @@ class SettingsFrame(QDialog):
     def change_download_dir(self, text):
         self.check_and_change_edit_state(globalSettings.optionsHub.DownloadfilesPath, globalSettings.DownloadfilesPath, str(text))
     
+    def get_download_dir(self):
+        return globalSettings.DownloadfilesPath
+    
     def check_close_button_act(self, act):
         self.check_and_change_edit_state(globalSettings.optionsHub.CloseButtonAct, globalSettings.CloseButtonAct, act)
     

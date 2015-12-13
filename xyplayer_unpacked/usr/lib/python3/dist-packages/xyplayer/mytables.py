@@ -36,8 +36,6 @@ class SearchTable(QTableWidget):
             artistItem  =  QTableWidgetItem(artist)
             albumItem =  QTableWidgetItem(album)            
             musicRidItem  =  QTableWidgetItem(musicRid)
-#            totalTimeItem.setTextAlignment(Qt.AlignCenter)
-#            artistIdItem  =  QTableWidgetItem(artistId)
             
             self.insertRow(countRow)
             self.setRowHeight(countRow, 32)
@@ -57,13 +55,11 @@ class SearchTable(QTableWidget):
         self.listenOnlineAction = QAction('立即试听', self)
         self.addBunchToListAction = QAction('添加到试听列表', self)
         self.downloadAction  =  QAction('下载', self)
-        self.switchToOnlineListAction = QAction('切换到试听列表', self)
         self.listMenu.addAction(self.listenOnlineAction)
         self.listMenu.addAction(self.addBunchToListAction)
         self.listMenu.addSeparator()
         self.listMenu.addAction(self.downloadAction)
         self.listMenu.addSeparator()
-        self.listMenu.addAction(self.switchToOnlineListAction)
         self.customContextMenuRequested.connect(self.music_table_menu)
                 
     def music_table_menu(self, pos):
