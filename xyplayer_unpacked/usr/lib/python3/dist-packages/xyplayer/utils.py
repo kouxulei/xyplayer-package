@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import json
+import shutil
 import tempfile
 from functools import wraps
 from mutagenx.mp3 import MP3
@@ -78,6 +79,19 @@ def format_position_to_mmss(value):
         return QTime(hours, minutes, seconds).toString('hh:mm:ss')
     return QTime(0, minutes, seconds).toString('mm:ss')
 
+def change_mmss_to_seconds(strTime):
+    lstTime = []
+    for v in strTime.split(':'):
+        lstTime.append(int(v))
+    if len(lstTime) == 2:
+        seconds = lstTime[0] * 60 + lstTime[1]
+    elif len(lstTime) == 3:
+        seconds = lstTime[0] * 3600 + lstTime[1] * 60 + lstTime[2]
+    else:
+        print('wrong time format!')
+        seconds = None
+    return seconds
+
 def read_music_info(path):
     """读取歌曲的tag信息。"""
     audio = MP3(path)
@@ -126,6 +140,23 @@ def get_lyric_offset_from_text(text):
 def composite_lyric_path_use_title(title):
     lrcPath = os.path.join(Configures.LrcsDir, '%s.lrc'%title)
     return lrcPath
+
+def get_base_name_from_path(path):
+    if path[:4] == 'http':
+        return path[path.rindex('/')+1:]
+    return os.path.basename(path)
+
+def rename_lyric_file_use_title(oldTitle, newTitle):
+    oldLyric = composite_lyric_path_use_title(oldTitle)
+    newLyric = composite_lyric_path_use_title(newTitle)
+    shutil.move(oldLyric, newLyric)
+
+def import_a_lyric(lyricPathOutside, title):
+    lyricPath = composite_lyric_path_use_title(title)
+    try:
+        shutil.copy(lyricPathOutside, lyricPath)
+    except shutil.SameFileError as e:
+        print(e)
 
 def change_lyric_offset_in_file(file, offset):
     with open(file, 'r') as f:
@@ -232,7 +263,7 @@ def convert_B_to_MB(bytes):
     """单位转换：B转到单位MB。"""
     mb = bytes / (1024 * 1024)
     return mb
-    
+
 def composite_playlist_path_use_name(listName):
     return os.path.join(Configures.PlaylistsDir, '%s%s'%(listName, Configures.PlaylistsExt))
 
@@ -263,5 +294,31 @@ def parse_json_file(file):
 def write_into_disk(file, datas):
     with open(file, 'w') as f:
         f.write(datas)
+        f.close()
+    
+def get_time_of_now():
+    localTime = time.localtime()
+    return time.strftime('%Y-%m-%d %H:%M:%S', localTime)
+
+def format_time_str_with_weekday(ftime):
+    weekdayNums = '日一二三四五六'
+    wtime = time.strptime(ftime,'%Y-%m-%d %H:%M:%S')
+    date = time.strftime('%Y年%m月%d日 %H时%M分%S秒', wtime)
+    return '%s 星期%s'%(date, weekdayNums[int(time.strftime('%w', wtime))])
+
+def organized_list_as_str(infosList):
+    strList =  []
+    for info in infosList:
+        strList.append(info.replace(',', '&'))
+    return ','.join(strList)
+
+def log_playback_history(infosStr):
+    if not os.path.exists(Configures.PlaybackHistoryLog):
+        with open(Configures.PlaybackHistoryLog, 'w') as f:
+            f.write('date,musicfilename,musicname,artistname,album,totaltime,playedtime,playlist,path,markedfaverite,sourcetrace,playmode\n')
+            f.close()
+    with open(Configures.PlaybackHistoryLog, 'a') as f:
+        f.write(infosStr)
+        f.write('\n')
         f.close()
     

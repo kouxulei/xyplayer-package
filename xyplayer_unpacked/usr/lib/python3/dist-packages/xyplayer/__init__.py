@@ -13,11 +13,11 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QSettings
 
 app_name = 'xyplayer'
-app_version = '0.8.6-2'
-app_version_num = 80602
+app_version = '0.8.7-1'
+app_version_num = 80701
 
 NDEBUG = True    #调试模式指示器
-if len(sys.argv) > 1 and sys.argv[1] == '-D':
+if len(sys.argv) > 1 and sys.argv[1] in ['-D', '-d']:
     NDEBUG = False
     print('Debugging...')
 
@@ -71,7 +71,7 @@ class Configures(object):
     LyricNetError = 1
     LyricNone = 2
     
-    #系统自带的几张数据库表名
+    #歌曲列表相关的参数
     PlaylistsDir = os.path.join(SettingsDir, 'playlists')
     PlaylistsExt = '.xypl'    #列表文件的后缀名
     PlaylistKeyQueue= 'queue'    #歌曲列表结构的两个键
@@ -85,7 +85,23 @@ class Configures(object):
     DownloadWorksTable = 'downloadworkstable'    #用来保存下载任务信息的数据库表
     PlaylistsManageTable = 'playlistsmanagetable'    #用来记录所有歌曲列表名
     
+    #管理歌曲播放次数等信息的参数
+    PlaybackHistoryLog = os.path.join(SettingsDir, 'playbackhistory.csv')
+    SonginfosManager = os.path.join(SettingsDir, 'songinfosmanager')
+    SonginfosFreq = 'freq'
+    SonginfosStars = 'stars'
+    SonginfosNearPlayedDate = 'nearplayeddate'
+    SonginfosMusicName = 'musicname'
+    SonginfosArtistName = 'artistname'
+    SonginfosTotalTime = 'totaltime'
+    SonginfosAlbum = 'album'
+    SonginfosNearPlayedList = 'nearplayedlist'
+    SonginfosPlayedTimeSpans = 'playedtimespans'
+    SonginfosPlayedTimeSpanMax = 'playedtimespanmax'
+    SonginfosNearPlayedTime = 'nearplayedtime'
+    
     #三种播放模式
+    Playmodes = ('random', 'order', 'single')
     PlaymodeRandom = 0
     PlaymodeOrder = 1
     PlaymodeSingle = 2
@@ -104,10 +120,10 @@ class Configures(object):
     SettingsFontForms = ('常规', '粗体', '斜体', '粗斜')
     SettingsFontSizes = tuple(range(20, 65, 5))
     SettingsNormColors = (
-        'aqua', 'black', 'blue', 'fuchsia', 
-        'gray', 'green', 'lime', 'maroon', 
-        'navy', 'olive', 'orange', 'purple', 
-        'red', 'silver', 'teal', 'white', 'yellow')
+        'aqua', 'black', 'blue', 'fuchsia', 'cyan', 'chocolate', 
+        'gray', 'green', 'lime', 'maroon', 'gold', 'deepskyblue', 
+        'navy', 'olive', 'orange', 'purple', 'origin', 'violet', 
+        'red', 'silver', 'teal', 'white', 'yellow', 'darkred')
     SettingsRange1 = tuple(range(18, 31))
     SettingsRange2 = tuple(range(12, 25))
     
@@ -118,7 +134,6 @@ class Configures(object):
     ArtistinfosDir = os.path.join(CacheDir, 'infos')
     DebsDir = os.path.join(CacheDir, 'debs')
     LrcsDir = os.path.join(CacheDir, 'lrcs')
-    DataBase = os.path.join(SettingsDir, 'xyplayer_083.db')    #sqlite数据库文件
     Changelog = os.path.join(SettingsDir, 'changelog')
     
     @classmethod
@@ -130,19 +145,13 @@ class Configures(object):
         for dir in dirs:
             if not os.path.exists(dir):
                 os.mkdir(dir)
-        if not os.path.exists(Configures.DataBase):
-            with open(Configures.DataBase, 'w') as f:
-                f.close()
     
     @classmethod
     def correct_file_positions(cls):
         """将原来放在.xyplayer目录下的数据库文件等转移到.config/xyplayer目录中。"""
-        oldDatabasePath = os.path.join(cls.CacheDir, 'xyplayer_083.db')
         oldChangelogPath = os.path.join(cls.CacheDir, 'changelog')
         if not os.path.exists(cls.SettingsDir):
             os.makedirs(cls.SettingsDir)
-        if os.path.exists(oldDatabasePath):
-            shutil.move(oldDatabasePath, cls.DataBase)
         if os.path.exists(oldChangelogPath):
             shutil.move(oldChangelogPath, cls.Changelog)
     

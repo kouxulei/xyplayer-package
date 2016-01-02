@@ -64,6 +64,7 @@ class DesktopLyric(DesktopLyricBasic):
         self.setAttribute(Qt.WA_QuitOnClose, False)
         self.setWindowFlags(Qt.FramelessWindowHint| Qt.WindowStaysOnTopHint | Qt.X11BypassWindowManagerHint)
         self.set_text('桌面歌词显示')
+        self.mousePressFlag = False
         self.original_place()
         self.create_contextmenu()
     
@@ -102,15 +103,17 @@ class DesktopLyric(DesktopLyricBasic):
     
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            self.mousePressFlag = True
             self.setCursor(QCursor(Qt.ClosedHandCursor))
             self.dragPosition = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
     
     def mouseReleaseEvent(self, event):
+        self.mousePressFlag = False
         self.setCursor(QCursor(Qt.ArrowCursor))
     
     def mouseMoveEvent(self, event):
-        if event.buttons() & Qt.LeftButton:
+        if self.mousePressFlag:
             self.move(event.globalPos() - self.dragPosition)
             event.accept()
     

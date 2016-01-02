@@ -22,21 +22,20 @@ class Player(PlayerUi):
         self.playbackPanel.update_window_lyric_signal.connect(self.update_lyric)
         self.playbackPanel.current_media_changed_signal.connect(self.current_media_changed)
         self.playbackPanel.muted_changed_signal.connect(self.managePage.set_muted)
+        self.playbackPanel.music_ended_signal.connect(self.check_mountout_state)
         self.playbackPanel.media_player_notify_signal.connect(self.syc_lyric)
-        
-        self.managePage.changeVolume.connect(self.playbackPanel.set_volume)
-        self.managePage.changeMuting.connect(self.playbackPanel.set_muted)
-
         self.playbackPanel.mark_favorite_completed_signal.connect(self.marked_favorite_completed)
         self.playbackPanel.playmode_changed_signal.connect(self.playmode_changed)
-
+        self.playbackPanel.desktop_lyric_state_changed_signal.connect(self.desktop_lyric_state_changed)
+        self.managePage.changeVolume.connect(self.playbackPanel.set_volume)
+        self.managePage.changeMuting.connect(self.playbackPanel.set_muted)
         self.managePage.updatePanel.updatingStateChanged.connect(self.updating_state_changed)
         self.managePage.playlist_removed_signal.connect(self.playlist_removed)
         self.managePage.playlist_renamed_signal.connect(self.playlist_renamed)
         self.managePage.current_table_changed_signal.connect(self.current_table_changed)
         self.managePage.playlistWidget.play_music_at_row_signal.connect(self.playbackPanel.set_media_source_at_row)
         self.managePage.playlistWidget.play_or_pause_signal.connect(self.playbackPanel.decide_to_play_or_pause)
-        self.managePage.playlistWidget.playlist_changed_signal.connect(self.switch_to_new_playing_list)
+        self.managePage.playlistWidget.playing_list_changed_signal.connect(self.switch_to_new_playing_list)
         self.managePage.playlistWidget.musics_added_signal.connect(self.musics_added)
         self.managePage.playlistWidget.musics_removed_signal.connect(self.musics_removed)
         self.managePage.playlistWidget.musics_cleared_signal.connect(self.musics_cleared)
@@ -48,7 +47,6 @@ class Player(PlayerUi):
         self.managePage.searchFrame.listen_online_signal.connect(self.begin_to_listen)
         self.managePage.searchFrame.add_to_download_signal.connect(self.add_to_download)
         self.managePage.searchFrame.add_bunch_to_list_succeed.connect(self.refresh_playlist_online)
-
         self.managePage.settingsFrame.download_dir_changed.connect(self.set_new_download_dir)
         self.managePage.settingsFrame.desktop_lyric_style_changed.connect(self.update_desktop_lyric_style)
         self.managePage.settingsFrame.close_button_act_changed.connect(self.set_new_close_button_act)
@@ -62,6 +60,12 @@ class Player(PlayerUi):
     
     def set_new_close_button_act(self, act):
         self.closeButtonAct = act
+
+    def desktop_lyric_state_changed(self, be_to_off):
+        if be_to_off:
+            self.showDesktopLyricAction.setText('关闭桌面歌词')
+        else:
+            self.showDesktopLyricAction.setText('开启桌面歌词')
     
     def update_desktop_lyric_style(self):
         self.playbackPanel.desktopLyric.set_color(self.managePage.settingsFrame.get_lyric_colors())
@@ -83,6 +87,8 @@ class Player(PlayerUi):
         self.j = -5
         self.set_new_download_dir(globalSettings.DownloadfilesPath)
         self.switch_to_new_playing_list()
+        self.managePage.set_loved_songs(self.playbackPanel.get_loved_songs())
+        self.managePage.set_songinfos_manager(self.playbackPanel.get_songinfos_manager())
 
     def open_download_dir(self, name):
         """点击下载任务标题栏打开下载目录。"""
@@ -105,22 +111,25 @@ class Player(PlayerUi):
     def tag_values_changed(self, row, oldTitle, title, album):
         widget = self.managePage.playlistWidget
         playlist = widget.get_playlist()
-        if widget.get_playing_used_state():
-            self.playbackPanel.playlist.set_music_title_at(row, title, False)
-            self.playbackPanel.playlist.set_music_album_at(row, album, False)
-            self.playbackPanel.playlist.commit_records()
-            if row == self.playbackPanel.currentSourceRow:
-                artistName, musicName = get_artist_and_musicname_from_title(title)
-                self.playbackPanel.playAction.setText(musicName)
-                self.playbackPanel.musicTitleLabel.setText(title)
-        if playlist.get_name() == Configures.PlaylistFavorite:
-            index = self.playbackPanel.lovedSongs.index(oldTitle)
-            self.playbackPanel.lovedSongs[index] = title
-        thread = DownloadLrcThread(((title, Configures.LocalMusicId), ))
-        thread.setDaemon(True)
-        thread.setName("downloadLrc")
-        thread.start()
-
+        if oldTitle != title:
+            if widget.get_playing_used_state():
+                self.playbackPanel.playlist.set_music_title_at(row, title, False)
+                if row == self.playbackPanel.currentSourceRow:
+                    artistName, musicName = get_artist_and_musicname_from_title(title)
+                    self.playbackPanel.playAction.setText(musicName)
+                    self.playbackPanel.musicTitleLabel.setText(title)
+            if playlist.get_name() == Configures.PlaylistFavorite:
+                index = self.playbackPanel.lovedSongs.index(oldTitle)
+                self.playbackPanel.lovedSongs[index] = title
+            self.playbackPanel.check_favorite()
+            thread = DownloadLrcThread(((title, Configures.LocalMusicId), ))
+            thread.setDaemon(True)
+            thread.setName("downloadLrc")
+            thread.start()
+        else:
+            if widget.get_playing_used_state():
+                self.playbackPanel.playlist.set_music_album_at(row, album, False)
+                
     def musics_added(self, showAddInfo):
         widget = self.managePage.playlistWidget
         playlist = widget.get_playlist()
@@ -198,6 +207,7 @@ class Player(PlayerUi):
             if self.playbackPanel.playlist.get_name() == Configures.PlaylistOnline and self.playbackPanel.currentSourceRow == k:
                 return
         widget.double_click_to_play_with_row(k)
+        self.managePage.select_current_playlist_on_table()
 
     def add_to_download(self):
         for songInfoList in self.managePage.searchFrame.readyToDownloadSongs:
@@ -241,27 +251,22 @@ class Player(PlayerUi):
             if currentTime+self.lyricOffset <= self.t[0]:
                 self.managePage.lyricText.set_html(0, self.lyricDict, self.t)
                 self.playbackPanel.desktopLyric.set_text(self.lyricDict[self.t[0]])
-            else:
-                for i in range(len(self.t) - 1):
-                    if self.t[i] < currentTime+self.lyricOffset and self.t[i + 1] > currentTime+self.lyricOffset and i!= self.j:
-                        self.j = i
-                        text = self.lyricDict[self.t[i]]
-                        self.managePage.lyricText.set_html(i, self.lyricDict, self.t)
-                        if not self.playbackPanel.desktopLyric.isHidden() and self.playbackPanel.desktopLyric.text() != text:
-                            self.playbackPanel.desktopLyric.set_text(text)
-                        break
+            for i in range(len(self.t) - 1):
+                if self.t[i] < currentTime+self.lyricOffset and self.t[i + 1] > currentTime+self.lyricOffset and i!= self.j:
+                    self.j = i
+                    text = self.lyricDict[self.t[i]]
+                    self.managePage.lyricText.set_html(i, self.lyricDict, self.t)
+                    if self.playbackPanel.desktopLyric.text() != text:
+                        self.playbackPanel.desktopLyric.set_text(text)
+                    break
 
     def current_media_changed(self):  
         self.managePage.playlistWidget.select_row()
-        self.check_mountout_state()
 
     def check_mountout_state(self):
-        if self.managePage.exitmodePanel.mountoutDialog.countoutMode:
-            if not self.managePage.exitmodePanel.mountoutDialog.remainMount:
-                self.close()
-            self.managePage.exitmodePanel.mountoutDialog.remainMount -= 1
-            self.managePage.exitmodePanel.mountoutDialog.spinBox.setValue(self.managePage.exitmodePanel.mountoutDialog.remainMount)
-
+        if not self.managePage.exitmodePanel.control_counter_run():
+            self.close()
+        
     def update_lyric(self, title, musicId):
         self.lyricOffset = 0     
         self.lrcPath = composite_lyric_path_use_title(title)

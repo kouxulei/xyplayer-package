@@ -13,7 +13,6 @@ class TimeoutDialog(QWidget):
     state_message_signal = pyqtSignal(str)
     def __init__(self, parent = None):
         super(TimeoutDialog, self).__init__(parent)
-#        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
         self.timeoutFlag = 0
         self.timer = QTimer()
         self.timer.setInterval(1000)
@@ -119,7 +118,7 @@ class MountoutDialog(QWidget):
     def __init__(self, parent = None):
         super(MountoutDialog, self).__init__(parent)
 #        self.setStyleSheet("QLabel,QPushButton{font-family:'微软雅黑';font-size:16px;color:blue;}")
-        label1 = QLabel("系统将再播放")
+        label1 = QLabel("系统将在播放")
         label1.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         label1.setFixedHeight(35)
         self.stateLabel = QLabel("计数状态：未计数")
@@ -128,7 +127,7 @@ class MountoutDialog(QWidget):
         self.spinBox = QSpinBox()
         self.spinBox.valueChanged.connect(self.spinbox_value_changed)
         self.spinBox.setFixedWidth(40)
-        label2 = QLabel("首歌曲退出！")
+        label2 = QLabel("首歌曲后退出！")
         label2.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         label2.setFixedHeight(35)
         
@@ -187,6 +186,12 @@ class MountoutDialog(QWidget):
         if self.countoutMode == 1:
             self.state_message_signal.emit(value)
     
+    def run_counter(self):
+        if self.countoutMode and self.remainMount:
+            self.remainMount -= 1
+            self.spinBox.setValue(self.remainMount)
+            return self.remainMount
+        return True
 
 class ExitmodePanel(QWidget):
     def __init__(self, parent=None):
@@ -201,6 +206,8 @@ class ExitmodePanel(QWidget):
         mainLayout.addWidget(self.timeoutDialog)
         mainLayout.addWidget(self.mountoutDialog)
 
+    def control_counter_run(self):
+        return self.mountoutDialog.run_counter()
    
     
     

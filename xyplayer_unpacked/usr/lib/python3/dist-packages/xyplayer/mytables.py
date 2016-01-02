@@ -6,8 +6,9 @@ from xyplayer.myicons import IconsHub
 from PyQt5.QtCore import QPoint, Qt, pyqtSignal
 from xyplayer import Configures
 from xyplayer.myplaylists import Playlist
-from xyplayer.mywidgets import TagModifyDialog, PlaylistOperator, SongOperator
-from xyplayer.utils import (trace_to_keep_time, get_artist_and_musicname_from_title, operate_after_check_thread_locked_state)
+from xyplayer.mywidgets import PlaylistOperator, SongOperator
+from xyplayer.utils import (trace_to_keep_time, get_artist_and_musicname_from_title, 
+    operate_after_check_thread_locked_state, rename_lyric_file_use_title)
 
 class SearchTable(QTableWidget):
     def __init__(self, parent = None):
@@ -18,7 +19,7 @@ class SearchTable(QTableWidget):
         self.hideColumn(4)
         headers  =  ( "评分","歌曲", "歌手", "专辑", "musicId")  
         self.setHorizontalHeaderLabels(headers)
-#        self.setShowGrid(False)
+        self.setShowGrid(False)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.verticalHeader().setVisible(False)
@@ -87,7 +88,6 @@ class PlaylistsTable(QTableWidget):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setRowCount(0)    
         self.setColumnCount(1)
-        self.horizontalHeader().setFixedHeight(36)
         self.setColumnWidth(0, 270)
     
     def create_connections(self):
@@ -102,8 +102,8 @@ class PlaylistsTable(QTableWidget):
         self.playlistOperator.set_row(row)
         scrollBar = self.verticalScrollBar()
         scrolledValue = scrollBar.value()
-        if scrolledValue and scrolledValue == scrollBar.maximum():
-            scrolledValue -= 1
+#        if scrolledValue and scrolledValue == scrollBar.maximum():
+#            scrolledValue -= 1
         self.playlistOperator.setGeometry(0, (row - scrolledValue)*self.rowHeight(row), 270, 40)
 
     def add_item(self, playlistName):
@@ -134,15 +134,18 @@ class PlaylistsTableUnfold(QWidget):
     def setup_ui(self, playlistWidget):
         self.playlistWidget = playlistWidget
         self.itemUnfold = QPushButton(QIcon(IconsHub.PlaylistUnfold), '默认列表', clicked = self.fold_all_signal.emit)
-        self.itemUnfold.setFixedHeight(35)
+        self.itemUnfold.setFixedHeight(37)
+        self.itemUnfold.setObjectName('playlistButton1')
         self.itemUnfold.setFocusPolicy(Qt.NoFocus)
         self.itemFold = QPushButton(QIcon(IconsHub.PlaylistFold), '我的收藏', clicked = self.unfold_next_signal.emit)
-        self.itemFold.setFixedHeight(35)
+        self.itemFold.setFixedHeight(37)
+        self.itemFold.setObjectName('playlistButton2')
         self.itemFold.setFocusPolicy(Qt.NoFocus)
         mainLayout = QVBoxLayout(self)
         mainLayout.setContentsMargins(0, 0, 0, 0)
         mainLayout.addWidget(self.itemUnfold)
         mainLayout.addWidget(self.playlistWidget)
+        mainLayout.addStretch()
         mainLayout.addWidget(self.itemFold)
     
     def set_two_item_names(self, name1, name2):
@@ -190,7 +193,7 @@ class WorksList(QTableWidget):
                 return i
 
 class PlaylistWidgetBasic(QTableWidget):
-    def __init__(self, listName=Configures.PlaylistDefault, parent=None):
+    def __init__(self, listName, parent=None):
         super(PlaylistWidgetBasic, self).__init__(parent)
         self.listName = ''
         self.playlist = Playlist()
@@ -199,6 +202,7 @@ class PlaylistWidgetBasic(QTableWidget):
         return self.playlist.copy()
     
     def get_operating_playlist_name(self):
+        """获取正在被操作的列表名"""
         return self.listName
     
     def fill_playlist_widget(self, playlist):
@@ -232,14 +236,16 @@ class PlaylistWidgetBasic(QTableWidget):
 class PlaylistWidget(PlaylistWidgetBasic):
     play_music_at_row_signal = pyqtSignal(int)
     play_or_pause_signal = pyqtSignal(int)
-    playlist_changed_signal = pyqtSignal(str, str)
+    playing_list_changed_signal = pyqtSignal(str, str)
     musics_added_signal = pyqtSignal(bool)
     musics_removed_signal = pyqtSignal()
     musics_cleared_signal = pyqtSignal()
     musics_marked_signal = pyqtSignal()
     download_signal = pyqtSignal()
     show_artist_info_signal = pyqtSignal(str)
+    show_song_info_signal = pyqtSignal(int)
     tag_values_changed_signal = pyqtSignal(int, str, str, str)
+    playlist_changed_signal = pyqtSignal()
     def __init__(self, parent=None):
         super(PlaylistWidget, self).__init__(parent)
         self.songOperator = SongOperator(self)
@@ -282,8 +288,8 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.item(row, column).setText('')
         scrollBar = self.verticalScrollBar()
         scrolledValue = scrollBar.value()
-        if scrolledValue and scrolledValue == scrollBar.maximum():
-            scrolledValue -= 1
+#        if scrolledValue and scrolledValue == scrollBar.maximum():
+#            scrolledValue -= 1
         self.songOperator.setGeometry(0, (row - scrolledValue)*self.rowHeight(row), 270, 31)
     
     def leaveEvent(self, event=None):
@@ -339,9 +345,13 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.fill_playlist_widget(self.playlist)
         self.select_row()
         self.pick_actions_into_menu()
+        self.playlist_changed_signal.emit()
 
     def get_playing_used_state(self):
         return self.isPlaying
+    
+    def get_playlist_length(self):
+        return self.playlist.length()
     
     def get_playing_list_name(self):
         return self.playingList.get_name()
@@ -356,6 +366,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.horizontalHeader().setVisible(False)
         self.verticalHeader().setVisible(False)
+        self.setShowGrid(False)
         self.setRowCount(0)
         self.setColumnCount(1)
         self.setColumnWidth(0, 270)
@@ -656,36 +667,24 @@ class PlaylistWidget(PlaylistWidgetBasic):
 
     def show_song_spec(self):
         row = self.currentRow()
-        self.show_music_info_at_row(row)
+        self.show_song_info_signal.emit(row)
     
     def show_artist_info(self):
         row = self.currentRow()
         artist, musicName = get_artist_and_musicname_from_title(self.playlist.get_music_title_at(row))
         self.show_artist_info_signal.emit(artist)
-    
-    def show_music_info_at_row(self, row):
-        self.hide_song_operator()
-        title, totalTime, album, path, size, musicId = self.playlist.get_record_at(row)[:6]
-        artist, musicName = get_artist_and_musicname_from_title(title)
-        if self.listName == Configures.PlaylistOnline:
-            information = "歌手： %s\n曲名： %s\n专辑： %s\n时长： %s\n歌曲ID： %s\n网址： %s"%(artist, musicName, album, totalTime, musicId, path)
-            QMessageBox.information(self, "歌曲详细信息", information)
-        else:
-            dialog = TagModifyDialog()
-            dialog.set_row(row)
-            dialog.set_parameters(artist, musicName, totalTime, album, path, size)
-            dialog.tag_values_changed_signal.connect(self.change_tag_value)
-            dialog.exec()
 
-    def change_tag_value(self, flag, row, title, album):
-        if flag:
-            oldTitle = self.playlist.get_music_title_at(row)
-            self.playlist.set_music_title_at(row, title, False)
-            self.playlist.set_music_album_at(row, album, False)
-            self.playlist.commit_records()
+    def change_tag_value(self, row, title, album, modifiedTime):
+        oldTitle = self.playlist.get_music_title_at(row)
+        self.playlist.set_music_title_at(row, title, False)
+        self.playlist.set_music_album_at(row, album, False)
+        self.playlist.set_modified_time_at(row, modifiedTime, False)
+        self.playlist.commit_records()
+        if oldTitle != title:
             widgetItem = self.item(row, 0)
             widgetItem.setText(title)
-            self.tag_values_changed_signal.emit(row, oldTitle, title, album)
+            rename_lyric_file_use_title(oldTitle, title)
+        self.tag_values_changed_signal.emit(row, oldTitle, title, album)
 
     def double_click_to_play(self, index):
         row = index.row()
@@ -698,4 +697,4 @@ class PlaylistWidget(PlaylistWidgetBasic):
             self.play_or_pause_signal.emit(row)
         else:
             self.isPlaying = True
-            self.playlist_changed_signal.emit(self.playingList.get_name(), self.listName)
+            self.playing_list_changed_signal.emit(self.playingList.get_name(), self.listName)

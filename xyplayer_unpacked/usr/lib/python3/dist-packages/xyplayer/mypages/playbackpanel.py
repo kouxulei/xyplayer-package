@@ -1,4 +1,5 @@
 import os
+import time
 import random
 from PyQt5.QtWidgets import QLabel, QToolButton, QSlider, QHBoxLayout, QVBoxLayout, QMessageBox, QAction
 from PyQt5.QtGui import QPixmap, QIcon, QKeySequence
@@ -6,12 +7,13 @@ from PyQt5.QtCore import Qt, QSize, pyqtSignal, QUrl
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from xyplayer import Configures
 from xyplayer.myicons import IconsHub
-from xyplayer.myplaylists import Playlist
+from xyplayer.myplaylists import Playlist, SonginfosManager
 from xyplayer.mywidgets import SpecialLabel, NewLabel, LabelButton
 from xyplayer.mypages import desktop_lyric
 from xyplayer.mysettings import globalSettings
 from xyplayer.urlhandle import SearchOnline
-from xyplayer.utils import format_position_to_mmss, get_full_music_name_from_title, get_artist_and_musicname_from_title
+from xyplayer.utils import (format_position_to_mmss, get_full_music_name_from_title, get_artist_and_musicname_from_title, 
+    get_base_name_from_path, get_time_of_now, log_playback_history, organized_list_as_str, change_mmss_to_seconds)
 
 class PlaybackPanel(SpecialLabel):
     desktop_lyric_state_changed_signal = pyqtSignal(bool)
@@ -20,8 +22,10 @@ class PlaybackPanel(SpecialLabel):
     muted_changed_signal = pyqtSignal(int)
     mark_favorite_completed_signal = pyqtSignal()
     current_media_changed_signal = pyqtSignal()
+    music_ended_signal = pyqtSignal()
     update_window_lyric_signal = pyqtSignal(str, str)
     show_artist_info_signal = pyqtSignal(str)
+    dont_hide_main_window_signal = pyqtSignal()
     def __init__(self, parent=None):
         super(PlaybackPanel, self).__init__(parent)
         self.initial_mediaplayer()
@@ -46,14 +50,20 @@ class PlaybackPanel(SpecialLabel):
     def initial_mediaplayer(self):
         self.mediaPlayer = QMediaPlayer()
         self.mediaPlayer.setNotifyInterval(500)
+        self.set_volume(globalSettings.Volume)
     
     def initial_params(self):
         self.playlist = None
         self.artistName = 'Zheng-Yejian'
-        self.noError = 1
+        self.timerFlag = False
+        self.timeStart = 0
+        self.timeSpan = 0
+        self.sourcePath = ''
+        self.errorType = Configures.NoError
         self.currentSourceRow = -1
         self.nearPlayedSongs = []
         self.downloadDir = globalSettings.DownloadfilesPath
+        self.songinfosManager = SonginfosManager()
         self.totalTime = Configures.ZeroTime
         self.playmode = Configures.PlaymodeRandom    #播放模式指示器
         playlistTemp = Playlist()
@@ -83,7 +93,7 @@ class PlaybackPanel(SpecialLabel):
         self.stopAction = QAction(
             QIcon(IconsHub.ControlStop), "停止",
             self, enabled = True,
-            triggered = self.stop_music)
+            triggered = self.stop_music_but_timing)
     
     def get_play_button_action(self):
         return self.playAction
@@ -100,6 +110,12 @@ class PlaybackPanel(SpecialLabel):
     def set_download_dir(self, dir):
         self.downloadDir = dir
     
+    def get_loved_songs(self):
+        return self.lovedSongs
+    
+    def get_songinfos_manager(self):
+        return self.songinfosManager
+    
     def setup_ui(self):
         self.setFixedHeight(50)
 #桌面歌词标签
@@ -107,14 +123,17 @@ class PlaybackPanel(SpecialLabel):
         self.desktopLyric.set_color(globalSettings.DesktoplyricColors)
 #3个标签
         self.artistHeadLabel = LabelButton()
-        self.artistHeadLabel.setFixedSize(QSize(45, 45))
+        self.artistHeadLabel.setToolTip(self.tr('查看歌手信息'))
+        self.artistHeadLabel.setFixedSize(QSize(42, 42))
         self.artistHeadLabel.setScaledContents(True)
         self.artistHeadLabel.setPixmap(QPixmap(IconsHub.Anonymous))
 
         self.musicTitleLabel = NewLabel()
-        self.musicTitleLabel.setFixedSize(QSize(300, 20))
+        self.musicTitleLabel.setObjectName('musicTitleLabel')
+        self.musicTitleLabel.setFixedSize(QSize(370, 20))
         self.musicTitleLabel.setText("Zheng-Yejian._.XYPLAYER")
         self.timeLabel = QLabel("00:00/00:00")
+        self.timeLabel.setObjectName('timeLabel')
         self.timeLabel.setFixedHeight(20)
         self.timeLabel.setAlignment(Qt.AlignRight and Qt.AlignVCenter)
 
@@ -152,13 +171,14 @@ class PlaybackPanel(SpecialLabel):
         self.nextButton.setDefaultAction(self.nextAction)
         
         self.desktopLyricButton = QToolButton(clicked = self.show_desktop_lyric)
+        self.desktopLyricButton.setToolTip(self.tr("桌面歌词"))
         self.desktopLyricButton.setFocusPolicy(Qt.NoFocus)
         self.desktopLyricButton.setIcon(QIcon(IconsHub.DesktopLyric))
         self.desktopLyricButton.setIconSize(QSize(25, 25))
 
         self.seekSlider = QSlider(Qt.Horizontal)
+        self.seekSlider.setObjectName('seekSlider')
         self.seekSlider.setFixedHeight(20)
-#        self.seekSlider.setMinimumWidth(400)
         self.seekSlider.setFocusPolicy(Qt.NoFocus)
         self.seekSlider.setRange(0, 0)
         
@@ -173,7 +193,7 @@ class PlaybackPanel(SpecialLabel):
         vbox1.addWidget(self.seekSlider)
         
         mainLayout = QHBoxLayout(self)
-        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.setContentsMargins(2, 0, 0, 0)
         mainLayout.addWidget(self.artistHeadLabel)
         mainLayout.addWidget(self.previousButton)
         mainLayout.addWidget(self.playButton)
@@ -225,7 +245,7 @@ class PlaybackPanel(SpecialLabel):
         self.playAction.setIcon(QIcon(IconsHub.ControlPlay))
         self.musicTitleLabel.setText("Zheng-Yejian._.XYPLAYER")
         self.artistName = 'Zheng-Yejian'
-        self.artistHeadLabel.setPixmap(QPixmap(IconsHub.HeadIcon))
+        self.artistHeadLabel.setPixmap(QPixmap(IconsHub.Anonymous))
         self.seekSlider.setRange(0, 0)
         self.favoriteButton.setIcon(QIcon(IconsHub.Favorites))
         self.favoriteButton.setToolTip('收藏')
@@ -342,12 +362,17 @@ class PlaybackPanel(SpecialLabel):
         self.stop_music()
         self.playlist.set_current_row(row)
         sourcePath = self.playlist.get_music_path_at(row)
-        title = self.playlist.get_music_title_at(row)
-        musicName = get_full_music_name_from_title(title)
-        musicPathO = os.path.join(Configures.MusicsDir, musicName)
-        musicPath = os.path.join(self.downloadDir, musicName)
+        self.title = self.playlist.get_music_title_at(row)
+        self.sourceTrace = 'local' if self.playlist.get_music_id_at(row) == Configures.LocalMusicId else 'online'
+        self.artistName, self.musicName = get_artist_and_musicname_from_title(self.title)
+        self.playlistName = self.playlist.get_name()
+        musicNameWithExt = get_full_music_name_from_title(self.title)
+        self.totalTime = self.playlist.get_music_time_at(row)
+        self.album = self.playlist.get_music_album_at(row)
+        musicPathO = os.path.join(Configures.MusicsDir, musicNameWithExt)
+        musicPath = os.path.join(self.downloadDir, musicNameWithExt)
         isAnUrl = False
-        errorType = Configures.NoError
+        self.errorType = Configures.NoError
         isAnUrl = False
         if not os.path.exists(sourcePath):
             if  os.path.exists(musicPath):
@@ -361,26 +386,31 @@ class PlaybackPanel(SpecialLabel):
                     if sourcePath:
                         self.playlist.set_music_path_at(row, sourcePath)
                     else:
-                        errorType = Configures.UrlError
+                        self.errorType = Configures.UrlError
                 isAnUrl = True
             else:
-                self.noError = 0
-                errorType = Configures.PathError
+                self.errorType = Configures.PathError
                 sourcePath = "/usr/share/sounds/error_happened.ogg"
-        if errorType != Configures.NoError:       
-            if self.isHidden():
-                self.show()
-            if errorType == Configures.DisnetError:
-                QMessageBox.critical(self, "错误", "联网出错！\n无法联网播放歌曲'%s'！\n您最好在网络畅通时下载该曲目！"%self.playlist.get_music_title_at(row))
-            elif errorType == Configures.PathError:
-                QMessageBox.information(self, "提示", "路径'%s'无效，请尝试重新下载并添加对应歌曲！"%self.playlist.get_music_path_at(row))
-            self.noError = 1 
-            return
-        if isAnUrl:
-            url = QUrl(sourcePath)
+        if self.errorType == Configures.NoError:
+            self.sourcePath = sourcePath
+            self.musicFileName = get_base_name_from_path(sourcePath)
+            self.playedDate = get_time_of_now()
+            self.songinfosManager.update_datas_of_item(self.musicFileName, self.playedDate, self.musicName, self.artistName, self.totalTime, self.album, self.playlistName)
+            if not self.timerFlag:
+                self.timerFlag = True
+                self.timeSpan = 0
+            if isAnUrl:
+                url = QUrl(sourcePath)
+            else:
+                url = QUrl.fromLocalFile(sourcePath)
+            self.play_from_url(url)     
         else:
-            url = QUrl.fromLocalFile(sourcePath)
-        self.play_from_url(url)       
+            self.timerFlag = False
+            self.dont_hide_main_window_signal.emit()
+            if self.errorType == Configures.DisnetError:
+                QMessageBox.critical(self, "错误", "联网出错！\n无法联网播放歌曲'%s'！\n您最好在网络畅通时下载该曲目！"%self.playlist.get_music_title_at(row))
+            elif self.errorType == Configures.PathError:
+                QMessageBox.information(self, "提示", "路径'%s'无效，请尝试重新下载并添加对应歌曲！"%self.playlist.get_music_path_at(row))
 
     def play_from_url(self, url):
         mediaContent = QMediaContent(url)
@@ -396,13 +426,18 @@ class PlaybackPanel(SpecialLabel):
                 iconPath = IconsHub.ControlPlay
             icon = QIcon(iconPath)
             self.playAction.setIcon(icon)
+            if self.timerFlag:
+                if newState == QMediaPlayer.PlayingState:
+                    self.timeStart = time.time()
+                else:
+                    self.timeSpan += (time.time() - self.timeStart)
 
     def media_status_changed(self, status):
         if status == QMediaPlayer.EndOfMedia:
             self.music_finished()
 
     def music_finished(self):
-        if self.noError:
+        if self.errorType == Configures.NoError:
             self.next_song()
 
     def play_music(self):
@@ -411,10 +446,29 @@ class PlaybackPanel(SpecialLabel):
         else:
             self.mediaPlayer.play()
 
-    def stop_music(self):
+    def stop_music_but_timing(self):
         self.mediaPlayer.stop()
         self.seekSlider.setValue(0)
-        self.media_player_notify_signal.emit(-0.5)
+        self.media_player_notify_signal.emit(-0.5) 
+
+    def stop_music(self):
+        self.stop_music_but_timing()
+        if self.timerFlag:
+            self.timerFlag = False
+            InfosList = [self.playedDate,
+                                self.musicFileName,
+                                self.musicName,
+                                self.artistName,
+                                self.album,
+                                '%i'%change_mmss_to_seconds(self.totalTime),
+                                '%.1f'%self.timeSpan,
+                                self.playlistName,
+                                self.sourcePath,
+                                '%i'%(self.title in self.lovedSongs),
+                                self.sourceTrace, 
+                                Configures.Playmodes[self.playmode]]
+            log_playback_history(organized_list_as_str(InfosList))
+            self.songinfosManager.update_time_span_relate_of_item(self.musicFileName, self.timeSpan)
 
     def get_next_random_row(self):
         listTemp = list(self.playlist.get_ids()-set(self.nearPlayedSongs))
@@ -443,7 +497,8 @@ class PlaybackPanel(SpecialLabel):
     def play_source_on_next_row(self, reverse=False):
         if not self.playlist.length():
             return
-        self.stop_music()
+        if self.mediaPlayer.position() > 20:
+            self.music_ended_signal.emit()
         nextRow = 0
         if self.playmode == Configures.PlaymodeRandom:
             nextRow = self.get_next_random_row()
@@ -463,26 +518,22 @@ class PlaybackPanel(SpecialLabel):
 
     def update_parameters(self):
         self.currentSourceRow = self.playlist.get_current_row()
-        self.totalTime = self.playlist.get_music_time_at(self.currentSourceRow)
-        title = self.playlist.get_music_title_at(self.currentSourceRow)
-        self.musicTitleLabel.setText(title)
-        self.artistName, musicName = get_artist_and_musicname_from_title(title)
-        self.playAction.setText(musicName)
+        self.musicTitleLabel.setText(self.title)
+        self.playAction.setText(self.musicName)
         imagePath = SearchOnline.get_artist_image_path(self.artistName)
         if imagePath:
             pixmap = QPixmap(imagePath)
         else:
-            self.artistName = ''
             pixmap = QPixmap(IconsHub.Anonymous)
         self.artistHeadLabel.setPixmap(pixmap)
         musicId = self.playlist.get_music_id_at(self.currentSourceRow)
-        self.update_window_lyric_signal.emit(title, musicId)
+        self.update_window_lyric_signal.emit(self.title, musicId)
     
     def update_near_played_queue(self):
-        currentSourceId = self.playlist.get_music_path_at(self.currentSourceRow)
+        self.currentSourceId = self.playlist.get_music_path_at(self.currentSourceRow)
         if self.playlist.get_name() == Configures.PlaylistOnline:
-            currentSourceId = self.playlist.get_music_id_at(self.currentSourceRow)
-        if currentSourceId not in self.nearPlayedSongs:
-            self.nearPlayedSongs.append(currentSourceId)
+            self.currentSourceId = self.playlist.get_music_id_at(self.currentSourceRow)
+        if self.currentSourceId not in self.nearPlayedSongs:
+            self.nearPlayedSongs.append(self.currentSourceId)
         while len(self.nearPlayedSongs) >= self.playlist.length() * 4 / 5:
             del self.nearPlayedSongs[0]

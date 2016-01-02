@@ -17,13 +17,14 @@ class DownloadPage(QWidget):
     def setup_ui(self):
         self.titleLabel = LabelButton('下载任务(0/0)')
         self.titleLabel.setFixedSize(110, 33)
-        self.titleLabel.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
+        self.titleLabel.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         
         self.netSpeedInfo = QLabel('0.00 KB/s')
         self.netSpeedInfo.setFixedWidth(135)
         self.netSpeedInfo.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         
         firstLayout = QHBoxLayout()
+        firstLayout.setContentsMargins(7, 0, 7, 3)
         firstLayout.addWidget(self.titleLabel)
         firstLayout.addStretch()
         firstLayout.addWidget(self.netSpeedInfo)
@@ -146,7 +147,7 @@ class DownloadPage(QWidget):
     
     def reload_works_from_database(self, lock):
         """在程序启动时，读取数据库中的下载任务信息，并启动"""
-        print('Reloading works from database ...')
+        print('Reloading: infos of download works ...')
         downloadWorksModel = DownloadWorksModel()
         for row in range(downloadWorksModel.get_length()):
             args = downloadWorksModel.get_work_info_at_row(row)
@@ -156,7 +157,7 @@ class DownloadPage(QWidget):
     
     def record_works_into_database(self):
         """程序结束时，把未完成的任务记录到数据库中"""
-        print('Recording infos of download works ...')
+        print('Recording: infos of download works ...')
         downloadWorksModel = DownloadWorksModel()
         for name in self.allDownloadWorks:
             work = self.allDownloadWorks[name][0]

@@ -107,7 +107,7 @@ class SettingsFrame(QDialog):
         mainLayout = QVBoxLayout(self)
         mainLayout.addWidget(self.tabWidget)
         mainLayout.addLayout(buttonsLayout)
-        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.setContentsMargins(4, 4, 4, 4)
 
     def check_control_buttons_state(self):
         self.okButton.setEnabled(bool(len(self.modifiedDict)))

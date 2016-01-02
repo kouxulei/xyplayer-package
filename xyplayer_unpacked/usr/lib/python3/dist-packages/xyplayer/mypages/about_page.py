@@ -3,6 +3,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from xyplayer import app_version
 from xyplayer import Configures
+from xyplayer.mywidgets import MyTextEdit
 
 class AboutPage(QDialog):
     updatingStateChanged = pyqtSignal(int)
@@ -23,8 +24,7 @@ class AboutPage(QDialog):
             '<a style = "color:green;" href="http://forum.ubuntu.org.cn/viewtopic.php?f=74&t=465335">版本说明</a>')
 
 #使用说明
-        specText = QTextEdit()
-        specText.setReadOnly(True)
+        specText = MyTextEdit()
         specs = ("<p>xyplayer是一款简单的MP3播放器，支持本地音乐管理、在线音乐搜索试听、下载管理、在线升级等功能。</p>"
                         "<p>当前版本： v%s</p>"
                         "<p>软件协议：本软件使用GNU General Public License V3协议发布，详细内容请看”软件协议“一栏以及项目中的LICENSE文件。</p>"
@@ -37,13 +37,11 @@ class AboutPage(QDialog):
                         "项目的作者，本程序中关于网络资源获取和歌词解码解析的功能是基于kwplayer的代码修改实现的，而且代码管理也是学着您的项目弄的。</p>"
                         "<p>程序的图标有一部分是从网上下载来修改的，感谢这些素材的作者。</p>"
                         "<p>感谢所有给我反馈BUG以及给我提供意见建议的朋友们。</p>")
-        thanksText = QTextEdit()
-        thanksText.setReadOnly(True)
+        thanksText = MyTextEdit()
         thanksText.setText(thanks)
 
 #软件协议
-        licenseText = QTextEdit()
-        licenseText.setReadOnly(True)
+        licenseText = MyTextEdit()
         with open(Configures.LicenseFile, 'r') as f:
             licenseText.append(f.read())
         cur = licenseText.textCursor()
@@ -59,7 +57,7 @@ class AboutPage(QDialog):
         
         mainLayout = QVBoxLayout(self)
         mainLayout.setSpacing(3)
-        mainLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.setContentsMargins(4, 4, 4, 4)
         mainLayout.addWidget(self.authorLabel)
         mainLayout.addWidget(self.emailLabel)
         mainLayout.addWidget(self.addressLabel)

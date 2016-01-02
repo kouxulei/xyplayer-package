@@ -122,7 +122,7 @@ class SearchOnline(object):
             contents = f.read()
             if contents == 'None':
                 return Configures.LyricNone
-            if contents not in ('Configures.UrlError', 'Error'):
+            if contents and contents not in ('Configures.UrlError', 'Error'):
                 return contents
         if musicId != Configures.LocalMusicId:
             lrcContent = SearchOnline.get_lrc_from_musicid(musicId)

@@ -1,7 +1,7 @@
 import os
 from xyplayer import Configures
 from xyplayer.utils import (read_music_info, composite_playlist_path_use_name, wrap_playlist_datas, 
-    wrap_datas, parse_json_file, write_into_disk, rename_playlist, remove_playlist)
+    wrap_datas, parse_json_file, write_into_disk, rename_playlist, remove_playlist, get_time_of_now)
 
 class DownloadWorksModel(object):
     def __init__(self):
@@ -66,10 +66,6 @@ class PlaylistBasic(object):
     def clear_list(self):
         self.itemsQueue.clear()
         self.infosGroup.clear()
-    
-    def get_record_at(self, index):
-        id = self.itemsQueue[index]
-        return self.infosGroup[id]
     
     def add_item(self, id, info):
         self.itemsQueue.append(id)
@@ -139,8 +135,9 @@ class Playlist(PlaylistBasic):
     def get_current_row(self):
         return self.currentRow
     
-    def add_record(self, id, title, totalTime, album, path, size, musicId=Configures.LocalMusicId, freq=0):
-        self.add_item(id, [title, totalTime, album, path, size, musicId, freq, 0, 0, 0, 0, 0])
+    def add_record(self, id, title, totalTime, album, path, size, musicId=Configures.LocalMusicId):
+        timeNow = get_time_of_now()
+        self.add_item(id, [title, totalTime, album, path, size, musicId, timeNow, timeNow, 0, 0, 0, 0])
     
     def get_music_path_at(self, row):
         return self.get_infos_at(row)[3]
@@ -157,10 +154,23 @@ class Playlist(PlaylistBasic):
     def get_music_time_at(self, row):
         return self.get_infos_at(row)[1]
 
+    def get_record_at(self, index):
+        record = PlaylistBasic.get_infos_at(self, index)
+        infoChanged = False
+        if record[6] == 0:
+            infoChanged = True
+            record[6] = get_time_of_now()
+        if record[7] == 0:
+            infoChanged = True
+            record[7] = record[6]
+        if infoChanged:
+            self.commit_records()
+        return record
+
     def add_item_from_path(self, path):
         title, album, totalTime =  read_music_info(path)
         size = os.path.getsize(path)
-        self.add_record(path, title, totalTime, album, path, size)   
+        self.add_record(path, title, totalTime, album, path, size, Configures.LocalMusicId)   
         return title, totalTime 
     
     def get_titles(self):
@@ -173,9 +183,10 @@ class Playlist(PlaylistBasic):
         self.get_infos_at(row)[3] = path
         self.commit_records()
     
-    def set_music_time_at(self, row, time):
+    def set_music_time_at(self, row, time, commitFlag=True):
         self.get_infos_at(row)[1] = time
-        self.commit_records()
+        if commitFlag:
+            self.commit_records()
     
     def set_music_title_at(self, row, title, commitFlag=True):
         self.get_infos_at(row)[0] = title
@@ -184,6 +195,11 @@ class Playlist(PlaylistBasic):
     
     def set_music_album_at(self, row, album, commitFlag=True):
         self.get_infos_at(row)[2] = album
+        if commitFlag:
+            self.commit_records()
+    
+    def set_modified_time_at(self, row, modifiedTime, commitFlag=True):
+        self.get_infos_at(row)[7] = modifiedTime
         if commitFlag:
             self.commit_records()
     
@@ -251,3 +267,70 @@ class PlaylistsManager(object):
         self.commit_records()
             
 playlistsManager = PlaylistsManager()
+
+class SonginfosManager(object):
+    """管理单首歌曲信息的类"""
+    def __init__(self):
+        self.songInfos = {}
+        self.read_infos_from_file()
+
+    def read_infos_from_file(self):
+        if not os.path.exists(Configures.SonginfosManager):
+            self.commit_records()
+        else:
+            self.songInfos = parse_json_file(Configures.SonginfosManager)
+
+    def commit_records(self):
+        write_into_disk(Configures.SonginfosManager, wrap_datas(self.songInfos))
+    
+    def get_values_of_item(self, item):
+        if item not in self.songInfos:
+            self.songInfos[item] = {}
+        return self.songInfos[item]
+    
+    def get_statistic_infos_of_item(self, item):
+        values = self.get_values_of_item(item)
+        return (values.get(Configures.SonginfosFreq, 0), 
+                    values.get(Configures.SonginfosPlayedTimeSpans, 0), 
+                    values.get(Configures.SonginfosPlayedTimeSpanMax, 0), 
+                    values.get(Configures.SonginfosNearPlayedList, 0), 
+                    values.get(Configures.SonginfosNearPlayedDate, 0), 
+                    values.get(Configures.SonginfosNearPlayedTime, 0))
+        
+    def update_near_date_of_item(self, item, date, commitFlag=True):
+        values = self.get_values_of_item(item)
+        values[Configures.SonginfosNearPlayedDate] = date
+        if commitFlag:
+            self.commit_records()   
+            
+    def update_specification_of_item(self, item, musicName, artistName, totalTime, album, playlistName, commitFlag=True):
+        values = self.get_values_of_item(item)
+        keys = [Configures.SonginfosMusicName, Configures.SonginfosArtistName, Configures.SonginfosTotalTime, Configures.SonginfosAlbum, Configures.SonginfosNearPlayedList]
+        datas = [musicName, artistName, totalTime, album, playlistName]
+        for i, key in enumerate(keys):
+            self.update_certain_value(values, key, datas[i])
+        if commitFlag:
+            self.commit_records()   
+    
+    def update_certain_value(self, dict, key, value):
+        if dict.get(key, '') != value:
+            dict[key] = value
+    
+    def update_time_span_relate_of_item(self, item, span, commitFlag=True):
+        values = self.get_values_of_item(item)
+        values[Configures.SonginfosFreq] = values.get(Configures.SonginfosFreq, 0) + 1
+        values[Configures.SonginfosNearPlayedTime] = span
+        if not Configures.SonginfosPlayedTimeSpans in values:
+            values[Configures.SonginfosPlayedTimeSpans] = span
+        else:
+            values[Configures.SonginfosPlayedTimeSpans] += span
+        if not Configures.SonginfosPlayedTimeSpanMax in values or values[Configures.SonginfosPlayedTimeSpanMax] < span:
+            values[Configures.SonginfosPlayedTimeSpanMax] = span
+        if commitFlag:
+            self.commit_records()   
+    
+    def update_datas_of_item(self, item, date, musicName, artistName, totalTime, album, playlistName, commitFlag=True):
+        self.update_near_date_of_item(item, date, commitFlag=False)
+        self.update_specification_of_item(item, musicName, artistName, totalTime, album, playlistName, commitFlag=False)
+        if commitFlag:
+            self.commit_records()     

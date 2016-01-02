@@ -1,25 +1,20 @@
 import random
 import time
-from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QDialog, QSlider, 
+from PyQt5.QtWidgets import (QPushButton, QLabel, QToolButton, QWidget, QTextEdit, QProgressBar, QSlider, 
     QColorDialog, QComboBox, QHBoxLayout, QVBoxLayout, QGroupBox, QRadioButton, QLineEdit, QFileDialog)
-from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QCursor,  QColor, QIcon, QPalette, QFont, QTextCursor
+from PyQt5.QtGui import QPixmap, QPainter, QLinearGradient, QColor, QIcon, QPalette, QFont, QTextCursor
 from PyQt5.QtCore import pyqtSignal, Qt, QSize, QTimer, QEvent, QPoint
 from xyplayer import Configures, app_version
 from xyplayer.myicons import IconsHub
 from xyplayer.mysettings import globalSettings, configOptions
-from xyplayer.utils import convert_B_to_MB, system_fonts, write_tags, connect_as_title, change_lyric_offset_in_file
+from xyplayer.utils import convert_B_to_MB, system_fonts, change_lyric_offset_in_file
 
 class MyTextEdit(QTextEdit):
     def __init__(self, parent = None):
         super(MyTextEdit, self).__init__(parent)
-        self.setContextMenuPolicy(Qt.NoContextMenu)
+#        self.setContextMenuPolicy(Qt.NoContextMenu)
         self.setReadOnly(True)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-    
-    def mousePressEvent(self, event):
-        if event.button() == Qt.RightButton or event.button() == Qt.LeftButton:
-            self.setCursor(QCursor(Qt.ArrowCursor))
-            event.accept()
+#        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
 class MyLyricText(MyTextEdit):
     lyric_offset_changed_signal = pyqtSignal(int)
@@ -41,12 +36,19 @@ class MyLyricText(MyTextEdit):
         self.lyricRunColor = globalSettings.WindowlyricRunFontColor
         self.lyricReadySize = globalSettings.WindowlyricReadyFontSize
         self.lyricReadyColor = globalSettings.WindowlyricReadyFontColor
-    
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton or event.button() == Qt.LeftButton:
+#            self.setCursor(QCursor(Qt.ArrowCursor))
+            event.accept()
+
     def setup_ui(self):
-        self.lyricOperateButton = QPushButton(clicked = self.show_lyric_operate_widget)
-        self.lyricOperateButton.setIcon(QIcon(IconsHub.Settings))
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.lyricOperateButton = QToolButton(clicked = self.show_lyric_operate_widget)
+        self.lyricOperateButton.setToolTip(self.tr('调整歌词偏移量'))
+        self.lyricOperateButton.setIcon(QIcon(IconsHub.LyricOffset))
         self.lyricOperateButton.setFocusPolicy(Qt.NoFocus)
-        self.lyricOperateButton.setIconSize(QSize(25, 25))
+        self.lyricOperateButton.setIconSize(QSize(30, 30))
 
         self.lyricOffsetSButton = QPushButton()
         self.lyricOffsetSButton.setFocusPolicy(Qt.NoFocus)
@@ -151,7 +153,7 @@ class MyLyricText(MyTextEdit):
         self.setAlignment(Qt.AlignHCenter)
     
     def get_lyric_style_text(self, text):
-        return "<p style = 'color:white;font-size:20px;'><br><br><br><br><br><br><br>%s</p>"%text
+        return "<p style = 'color:teal;font-size:20px;'><br><br><br><br><br><br><br>%s</p>"%text
             
     def lyric_offset_type(self, index):
         self.lyricOffset = 0
@@ -179,7 +181,7 @@ class MyLyricText(MyTextEdit):
         self.lyricRunSize, self.lyricRunColor, self.lyricReadySize, self.lyricReadyColor = params
     
     def initial_contents(self):
-        authorInfo = ("<p style='color:teal;font-size:20px;'>作者：Zheng-Yejian"
+        authorInfo = ("<p style='color:%s;font-size:20px;'>作者：Zheng-Yejian"
                             "<br /><br />"
                             "邮箱： 1035766515@qq.com"
                             "<br /><br />"
@@ -187,7 +189,7 @@ class MyLyricText(MyTextEdit):
                             "<br /><br />"
                             "版本: v%s "
                             "<br /><br />"
-                            "简介: This is a simple musicplayer that can search, play, download musics from the Internet.</p>"%app_version)
+                            "简介: This is a simple musicplayer that can search, play, download musics from the Internet.</p>"%(globalSettings.WindowlyricReadyFontColor, app_version))
         self.clear()
         self.setHtml(authorInfo)
         cur = self.textCursor()
@@ -418,14 +420,16 @@ class PlaylistOperator(QLabel):
     
     def setup_ui(self):
         self.setScaledContents(True)
-        self.setPixmap(QPixmap(IconsHub.PlaylistTableHover))
         self.addButton = QToolButton()
         self.addButton.setIcon(QIcon(IconsHub.PlaylistAdd))
+        self.addButton.setToolTip(self.tr('添加列表'))
         self.addButton.setIconSize(QSize(20, 20))
         self.renameButton = QToolButton()
+        self.renameButton.setToolTip(self.tr('重命名列表'))
         self.renameButton.setIcon(QIcon(IconsHub.PlaylistRename))
         self.renameButton.setIconSize(QSize(20, 20))
         self.deleteButton = QToolButton()
+        self.deleteButton.setToolTip(self.tr('删除列表'))
         self.deleteButton.setIcon(QIcon(IconsHub.PlaylistDelete))
         self.deleteButton.setIconSize(QSize(20, 20))
         
@@ -741,18 +745,18 @@ class FontPanel(QWidget):
         self.formCombo.currentTextChanged.connect(self.form_combo_text_changed)
     
     def setup_ui(self):
-        label1 = QLabel('字体:', self)
-        label2 = QLabel('字号:', self)
-        label3 = QLabel('字型:', self)
+        label1 = QLabel('字体：', self)
+        label2 = QLabel('字号：', self)
+        label3 = QLabel('字型：', self)
         self.familyCombo = QComboBox(self)
-        self.familyCombo.setFixedWidth(95)
+        self.familyCombo.setFixedWidth(150)
         self.sizeCombo = QComboBox(self)
-        self.sizeCombo.setFixedWidth(50)
+        self.sizeCombo.setFixedWidth(90)
         self.formCombo = QComboBox(self)
-        self.formCombo.setFixedWidth(60)
+        self.formCombo.setFixedWidth(90)
         
         mainLayout = QHBoxLayout(self)
-        mainLayout.setSpacing(2)
+        mainLayout.setSpacing(5)
         mainLayout.setContentsMargins(0, 2, 0, 4)
         mainLayout.addWidget(label1)
         mainLayout.addWidget(self.familyCombo)
@@ -887,8 +891,9 @@ class PathSelectPanel(QWidget):
     def setup_ui(self):
         label = QLabel("下载目录")
         self.lineEdit = QLineEdit()
-        self.openDir = QToolButton(clicked = self.select_dir)
-        self.openDir.setText('...')
+        self.openDir = QPushButton('...',  clicked = self.select_dir)
+        self.openDir.setFixedWidth(30)
+        self.openDir.setFocusPolicy(Qt.NoFocus)
         downloadDirLayout = QHBoxLayout(self)
         downloadDirLayout.setContentsMargins(0, 0, 0, 0)
         downloadDirLayout.setSpacing(2)
@@ -933,12 +938,12 @@ class LyricPanel(QWidget):
         font = QFont()
         font.setBold(True)
         titleLabel.setFont(font)
-        label1 = QLabel('字号:')
-        label2 = QLabel('颜色:')
+        label1 = QLabel('字号：')
+        label2 = QLabel('颜色：')
         self.sizeCombo = QComboBox()
-        self.sizeCombo.setFixedWidth(50)
+        self.sizeCombo.setFixedWidth(80)
         self.colorCombo = QComboBox()
-        self.colorCombo.setFixedWidth(80)
+        self.colorCombo.setFixedWidth(100)
         self.fill_color_combo()
         mainLayout = QHBoxLayout(self)
         mainLayout.setContentsMargins(0, 0, 0, 0)
@@ -1009,86 +1014,3 @@ class LyricPanelsBox(QGroupBox):
             configOptions[globalSettings.optionsHub.WindowlyricReadyFontSize], 
             configOptions[globalSettings.optionsHub.WindowlyricReadyFontColor]
         )
-
-class TagModifyDialog(QDialog):
-    tag_values_changed_signal = pyqtSignal(bool, int, str, str)
-    def __init__(self, parent=None):
-        super(TagModifyDialog, self).__init__(parent)
-        self.modifiedFlag = False
-        self.row = 0
-        self.artist = ''
-        self.music = ''
-        self.album = ''
-        self.title = ''
-        self.path = ''
-        self.setup_ui()
-    
-    def setup_ui(self):
-        self.setWindowTitle('歌曲信息')
-        label1 = QLabel('歌手：')
-        label2 = QLabel('曲名：')
-        label3 = QLabel('专辑：')
-        self.artistEdit = QLineEdit()
-        self.musicEdit = QLineEdit()
-        self.albumEdit = QLineEdit()
-        self.timeLabel = QLabel()
-        self.sizeLabel = QLabel()
-        self.pathLabel = QLabel()
-        self.applyButton = QPushButton('应用', clicked=self.apply)
-        self.cancelButton = QPushButton('取消', clicked = self.cancel)
-        
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(label1)
-        hbox1.addWidget(self.artistEdit)
-        hbox2 = QHBoxLayout()
-        hbox2.addWidget(label2)
-        hbox2.addWidget(self.musicEdit)
-        hbox3 = QHBoxLayout()
-        hbox3.addWidget(label3)
-        hbox3.addWidget(self.albumEdit)
-        hbox4 = QHBoxLayout()
-        hbox4.addStretch()
-        hbox4.addWidget(self.applyButton)
-        hbox4.addWidget(self.cancelButton)
-        mainLayout = QVBoxLayout(self)
-        mainLayout.addLayout(hbox1)
-        mainLayout.addLayout(hbox2)
-        mainLayout.addLayout(hbox3)
-        mainLayout.addWidget(self.timeLabel)
-        mainLayout.addWidget(self.sizeLabel)
-        mainLayout.addWidget(self.pathLabel)
-        mainLayout.setSpacing(10)
-        mainLayout.addLayout(hbox4)
-    
-    def set_row(self, row):
-        self.row = row
-    
-    def set_parameters(self, artist, musicName, totalTime, album, path, size):
-        self.artist = artist
-        self.music = musicName
-        self.album = album
-        self.path = path
-        self.artistEdit.setText(artist)
-        self.musicEdit.setText(musicName)
-        self.albumEdit.setText(album)
-        self.timeLabel.setText('时长： %s'%totalTime)
-        self.sizeLabel.setText('大小： %.2f MB'%convert_B_to_MB(size))
-        self.pathLabel.setText('路径： %s'%path)
-    
-    def apply(self):
-        if (self.artist, self.music, self.album) != (self.artistEdit.text(), self.musicEdit.text(), self.albumEdit.text()):
-            self.modifiedFlag = True
-            self.album = self.albumEdit.text()
-            self.title = connect_as_title(self.artistEdit.text(), self.musicEdit.text())
-            write_tags(self.path, self.title, self.album)
-        else:
-            self.modifiedFlag = False
-        self.close()
-    
-    def cancel(self):
-        self.modifiedFlag = False
-        self.close()
-    
-    def closeEvent(self, event):
-        self.tag_values_changed_signal.emit(self.modifiedFlag, self.row, self.title, self.album)
-        event.accept()

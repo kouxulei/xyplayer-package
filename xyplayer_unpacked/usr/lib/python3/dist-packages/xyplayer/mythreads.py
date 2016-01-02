@@ -8,7 +8,7 @@ from xyplayer.utils import write_tags, get_file_contents_length, read_music_info
 from xyplayer.urlhandle import SearchOnline
 from xyplayer.myplaylists import Playlist
 
-BufferBlock = 5120
+BufferBlock = 10240
 
 class DownloadLrcThread(threading.Thread):
     """下载歌词、歌手信息的线程。"""

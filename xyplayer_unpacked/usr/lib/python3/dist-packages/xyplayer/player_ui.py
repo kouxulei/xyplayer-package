@@ -1,14 +1,13 @@
 import threading
 from PyQt5.QtWidgets import (
     QMessageBox, QDialog, QStackedWidget, QSystemTrayIcon, QAction, QApplication, 
-    QHBoxLayout, QLabel, QVBoxLayout, QMenu, QPushButton)
+    QHBoxLayout, QLabel, QVBoxLayout, QMenu, QToolButton)
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QSize, QFile, QPoint
 from xyplayer import Configures, app_name
 from xyplayer.myicons import IconsHub
-from xyplayer.mypages import manage_page, search_page, artist_info_dialog
+from xyplayer.mypages import manage_page, search_page, playbackpanel
 from xyplayer.mywidgets import PushButton
-from xyplayer.playbackpanel import PlaybackPanel
 
 class PlayerUi(QDialog):
     def __init__(self, parent = None):
@@ -34,9 +33,16 @@ class PlayerUi(QDialog):
         self.preferenceButton.clicked.connect(self.show_settings_frame)
         self.minButton.clicked.connect(self.show_minimized)
         self.closeButton.clicked.connect(self.close_button_acted)
-        self.playbackPanel.desktop_lyric_state_changed_signal.connect(self.desktop_lyric_state_changed)
         self.playbackPanel.show_artist_info_signal.connect(self.show_artist_info)
+        self.playbackPanel.dont_hide_main_window_signal.connect(self.dont_hide_mainwindow)
         self.managePage.playlistWidget.show_artist_info_signal.connect(self.show_artist_info)
+        self.managePage.playlistWidget.show_song_info_signal.connect(self.show_song_info)
+        self.managePage.playlistWidget.musics_added_signal.connect(self.hide_song_info_page)
+        self.managePage.playlistWidget.musics_removed_signal.connect(self.hide_song_info_page)
+        self.managePage.playlistWidget.musics_cleared_signal.connect(self.hide_song_info_page)
+        self.managePage.playlist_removed_signal.connect(self.hide_song_info_page)
+        self.managePage.playlist_renamed_signal.connect(self.hide_song_info_page)
+        self.managePage.playlistWidget.playlist_changed_signal.connect(self.hide_song_info_page)
 
     def setup_ui(self):        
         self.setAttribute(Qt.WA_DeleteOnClose)
@@ -48,6 +54,7 @@ class PlayerUi(QDialog):
         self.setGeometry((Configures.DesktopSize.width() - Configures.WindowWidth)//2, (Configures.DesktopSize.height() - Configures.WindowHeight)//2, Configures.WindowWidth, Configures.WindowHeight)
         self.setAttribute(Qt.WA_QuitOnClose,True)
         self.dragPosition = QPoint(0, 0)
+        self.mousePressedFlag = False
 
 #title_widgets
         self.titleIconLabel = QLabel()
@@ -56,16 +63,21 @@ class PlayerUi(QDialog):
         self.titleIconLabel.setScaledContents(True)
         self.titleIconLabel.setPixmap(pixmap)
         self.titleLabel = QLabel("XYPLAYER")
+        self.titleLabel.setObjectName('titleLabel')
         self.titleLabel.setFixedHeight(30)
         self.titleLabel.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.titleLabel.setObjectName('titleLabel')
         self.minButton = PushButton()
+        self.minButton.setToolTip(self.tr('最小化'))
         self.minButton.setFocusPolicy(Qt.NoFocus)
         self.closeButton = PushButton()
+        self.closeButton.setToolTip(self.tr('关闭主面板'))
         self.closeButton.setFocusPolicy(Qt.NoFocus)
         self.aboutButton = PushButton()
+        self.aboutButton.setToolTip(self.tr('关于'))
         self.aboutButton.setFocusPolicy(Qt.NoFocus)
         self.preferenceButton = PushButton()
+        self.preferenceButton.setToolTip(self.tr('选项'))
         self.preferenceButton.setFocusPolicy(Qt.NoFocus)
         self.minButton.loadPixmap(IconsHub.MinButton)
         self.closeButton.loadPixmap(IconsHub.CloseButton)
@@ -76,29 +88,29 @@ class PlayerUi(QDialog):
         self.managePage = manage_page.ManagePage()
 
 #播放器
-        self.playbackPanel = PlaybackPanel()
+        self.playbackPanel = playbackpanel.PlaybackPanel()
 
-#歌手信息
-        self.artistInfoDialog = artist_info_dialog.ArtistInfoDialog()
-
-        self.mainPageButton = QPushButton(self, clicked = self.global_home)
+        self.mainPageButton = QToolButton(self, clicked = self.show_lyric_text)
+        self.mainPageButton.setToolTip('返回歌词页面')
         self.mainPageButton.hide()
-        self.mainPageButton.setGeometry(620, 3, 60, 30)
-        self.mainPageButton.setObjectName('globalHomeButton')
+        self.mainPageButton.setGeometry(625, 5, 30, 30)
+        self.mainPageButton.setObjectName('homeButton')
         self.mainPageButton.setFocusPolicy(Qt.NoFocus)
-        self.mainPageButton.setIcon(QIcon(IconsHub.GlobalMainpage))
+        self.mainPageButton.setIcon(QIcon(IconsHub.Home))
         self.mainPageButton.setIconSize(QSize(20, 20))
         self.pageLabel = QLabel(self)
+        self.pageLabel.setObjectName('pageLabel')
         self.pageLabel.hide()
-        self.pageLabel.setGeometry(685, 3, 100, 30)
+        self.pageLabel.setGeometry(660, 5, 100, 30)
         self.searchBox = search_page.SearchBox(self)
-        self.searchBox.setGeometry(180, 3, 290, 30)
+        self.searchBox.setGeometry(180, 6, 280, 28)
 
 #综合布局 
         titleLayout = QHBoxLayout()
         titleLayout.setContentsMargins(3, 0, 0, 0)
         titleLayout.setSpacing(0)
         titleLayout.addWidget(self.titleIconLabel)
+        titleLayout.addSpacing(2)
         titleLayout.addWidget(self.titleLabel)
         titleLayout.addStretch()
         titleLayout.addWidget(self.aboutButton)
@@ -141,7 +153,7 @@ class PlayerUi(QDialog):
 
     def create_actions(self):
         self.showMainWindowAction = QAction(
-             QIcon(IconsHub.ShowMainWindow), "隐藏主界面", 
+             QIcon(IconsHub.Home), "隐藏主界面", 
                 self,  triggered = self.show_mainwindow )
         
         self.playmodeOrderAction = QAction(
@@ -163,15 +175,15 @@ class PlayerUi(QDialog):
         self.playmodeActions = [self.playmodeRandomAction, self.playmodeOrderAction, self.playmodeSingleAction]
     
     def mousePressEvent(self, event):
+        self.mousePressedFlag = True
         self.dragPosition = event.globalPos() - self.frameGeometry().topLeft()
         event.accept()
-#    
-#    def mouseReleaseEvent(self, event):
-#        self.setCursor(QCursor(Qt.ArrowCursor))
+ 
+    def mouseReleaseEvent(self, event):
+        self.mousePressedFlag = False
     
     def mouseMoveEvent(self, event):
-        if event.buttons():
-#            self.setCursor(QCursor(Qt.ClosedHandCursor))
+        if self.mousePressedFlag:
             self.move(event.globalPos() - self.dragPosition)
             event.accept()
     
@@ -180,39 +192,40 @@ class PlayerUi(QDialog):
         self.forceCloseFlag = True
         self.close()
 
-    def closeEvent(self, event):
-        self.artistInfoDialog.close()
+    def check_if_can_close(self):
+        closeChecked = False
         if self.managePage.exitmodePanel.mountoutDialog.countoutMode and not self.managePage.exitmodePanel.mountoutDialog.remainMount or self.managePage.exitmodePanel.timeoutDialog.timeoutFlag or self.forceCloseFlag:
-            self.handle_before_close()
-            event.accept()
+            closeChecked = True
         else:
             if threading.active_count() == 1:
-                if self.managePage.downloadPage.allWorksCount:
-                    self.playbackPanel.mediaPlayer.stop()
-                    self.hide()
-                    self.trayIcon.hide()
-                    self.managePage.downloadPage.record_works_into_database()
-                event.accept()
+                closeChecked = True
             else:
                 self.show()
                 ok = QMessageBox.question(self, '退出', '当前有下载任务正在进行，您是否要挂起全部下载任务并退出？',QMessageBox.Cancel|QMessageBox.Ok, QMessageBox.Cancel )
                 if ok == QMessageBox.Ok:
-                    self.handle_before_close()
-                    event.accept()
+                    closeChecked = True
                 else:
-                    event.ignore()
+                    closeChecked = False
+        return closeChecked
+
+    def closeEvent(self, event):
+        if self.check_if_can_close():
+            self.handle_before_close()
+            event.accept()  
+        else:
+            event.ignore()
 
     def handle_before_close(self):
-        self.playbackPanel.mediaPlayer.stop()
+        self.playbackPanel.stop_music()
         self.hide()
         self.trayIcon.hide()
+        self.managePage.handle_before_app_exit()
         for t in threading.enumerate():
             if t.name == 'downloadLrc':
                 t.stop()
             elif t!= threading.main_thread():
                 t.pause()
                 t.join()
-        self.managePage.downloadPage.record_works_into_database()
 
     def playmode_changed(self, oldPlaymode, newPlaymode):
         self.playmodeActions[oldPlaymode].setIcon(QIcon(IconsHub.PlaymodeSelectedNo))
@@ -241,53 +254,55 @@ class PlayerUi(QDialog):
             self.showMainWindowAction.setText('隐藏主界面')
             self.show()
         else:
-            self.artistInfoDialog.close()
             self.showMainWindowAction.setText('显示主界面')
             self.hide()
     
-    def desktop_lyric_state_changed(self, be_to_off):
-        if be_to_off:
-            self.showDesktopLyricAction.setText('关闭桌面歌词')
-        else:
-            self.showDesktopLyricAction.setText('开启桌面歌词')
+    def dont_hide_mainwindow(self):
+        if self.isHidden():
+            self.showMainWindowAction.setText('隐藏主界面')
+            self.show()        
     
     def ui_initial(self):
         self.playbackPanel.ui_initial()
         self.managePage.ui_initial()
     
-    def global_home(self):
+    def show_lyric_text(self):
         self.pageLabel.hide()
         self.mainPageButton.hide()
         self.managePage.show_main_stack_window()
     
     def show_about_page(self):
-        self.pageLabel.setText(self.tr('关于'))
-        self.mainPageButton.show()
-        self.pageLabel.show()
+        self.show_page_label_and_button(self.tr('关于'))
         self.managePage.show_about_page()
     
     def show_settings_frame(self):
-        self.pageLabel.setText(self.tr('选项'))
-        self.mainPageButton.show()
-        self.pageLabel.show()
+        self.show_page_label_and_button(self.tr('选项'))
         self.managePage.show_settings_frame()
     
     def search_musics_online(self, keyword):
         if self.managePage.searchFrame.search_musics(keyword):
-            self.pageLabel.setText(self.tr('搜索'))
-            self.mainPageButton.show()
-            self.pageLabel.show()
+            self.show_page_label_and_button(self.tr('搜索'))
             self.managePage.show_search_frame()
+
+    def show_artist_info(self, name):
+        self.show_page_label_and_button(self.tr('歌手'))
+        self.managePage.show_artist_info(name)
+    
+    def show_song_info(self, row):
+        self.show_page_label_and_button(self.tr('歌曲'))
+        self.managePage.show_song_info(row)
+
+    def hide_song_info_page(self, arg1=None, arg2=None):
+        if self.managePage.get_page_description() == '歌曲':
+            self.show_lyric_text()
+
+    def show_page_label_and_button(self, pageName):
+        self.pageLabel.setText(self.tr(pageName))
+        self.mainPageButton.show()
+        self.pageLabel.show()
     
     def close_button_acted(self):
         if self.closeButtonAct == Configures.SettingsHide:
             self.show_mainwindow()
         else:
             self.close()
-
-    def show_artist_info(self, name):
-        if name == 'Zheng-Yejian':
-            self.artistInfoDialog.ui_initial()
-        else:
-            self.artistInfoDialog.set_artist_info(name)
-        self.artistInfoDialog.exec()

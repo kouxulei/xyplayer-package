@@ -27,11 +27,14 @@ class SearchBox(QLineEdit):
         self.searchCombo.currentIndexChanged.connect(self.searchtype_changed_signal.emit)
     
     def setup_ui(self):
+        self.setObjectName('searchBox')
         self.searchButton = QToolButton(clicked = self.search_musics)
         self.searchButton.setFocusPolicy(Qt.NoFocus)
-        self.searchButton.setIconSize(QSize(20, 20))
+        self.searchButton.setIconSize(QSize(21, 21))
         self.searchButton.setIcon(QIcon(IconsHub.Search))
+        self.searchButton.setCursor(Qt.ArrowCursor)
         self.searchCombo = QComboBox()
+        self.searchCombo.setObjectName('searchCombo')
         musicIcon = QIcon(IconsHub.SearchMusictitle)
         artistIcon = QIcon(IconsHub.SearchArtist)
         albumIcon = QIcon(IconsHub.SearchAlbum)       
@@ -39,7 +42,7 @@ class SearchBox(QLineEdit):
         self.searchCombo.insertItem(0, musicIcon, "歌曲")
         self.searchCombo.insertItem(1, artistIcon, "歌手")
         self.searchCombo.insertItem(2, albumIcon, "专辑")
-        self.searchCombo.setFixedSize(80, 28)
+        self.searchCombo.setFixedSize(90, 26)
         self.searchCombo.setCursor(Qt.ArrowCursor)
         self.searchCombo.setCurrentIndex(0)
         searchLayout = QHBoxLayout(self)
@@ -47,8 +50,8 @@ class SearchBox(QLineEdit):
         searchLayout.addStretch()
         searchLayout.addWidget(self.searchButton)
         searchLayout.setSpacing(0)
-        searchLayout.setContentsMargins(1, 1, 1, 1)
-        self.setTextMargins(83, 0, 23, 0)  
+        searchLayout.setContentsMargins(0, 0, 1, 0)
+        self.setTextMargins(95, 0, 25, 0)  
     
     def search_musics(self):
         self.search_musics_signal.emit(self.text())

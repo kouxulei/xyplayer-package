@@ -12,7 +12,8 @@ configOptions = {
     'WindowlyricRunFontSize': 28,     #values: 18~30, step by 1
     'WindowlyricRunFontColor': 'purple', 
     'WindowlyricReadyFontSize': 15,     #values: 12~24, step by 1
-    'WindowlyricReadyFontColor': 'teal'
+    'WindowlyricReadyFontColor': 'teal', 
+    'Volume': 75    #程序音量, 0~100
 }
 
 def read_from_settings(key, keyType, default=None, settings=Configures.Settings):
