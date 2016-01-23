@@ -50,7 +50,7 @@ class SearchBox(QLineEdit):
         searchLayout.addStretch()
         searchLayout.addWidget(self.searchButton)
         searchLayout.setSpacing(0)
-        searchLayout.setContentsMargins(0, 0, 1, 0)
+        searchLayout.setContentsMargins(0, 0, 2, 0)
         self.setTextMargins(95, 0, 25, 0)  
     
     def search_musics(self):

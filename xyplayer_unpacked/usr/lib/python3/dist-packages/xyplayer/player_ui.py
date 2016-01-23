@@ -6,7 +6,7 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QSize, QFile, QPoint
 from xyplayer import Configures, app_name
 from xyplayer.myicons import IconsHub
-from xyplayer.mypages import manage_page, search_page, playbackpanel
+from xyplayer.mypages import manage_page, search_page, playback_panel
 from xyplayer.mywidgets import PushButton
 
 class PlayerUi(QDialog):
@@ -88,7 +88,7 @@ class PlayerUi(QDialog):
         self.managePage = manage_page.ManagePage()
 
 #播放器
-        self.playbackPanel = playbackpanel.PlaybackPanel()
+        self.playbackPanel = playback_panel.PlaybackPanel()
 
         self.mainPageButton = QToolButton(self, clicked = self.show_lyric_text)
         self.mainPageButton.setToolTip('返回歌词页面')

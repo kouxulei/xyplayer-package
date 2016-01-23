@@ -316,9 +316,11 @@ class SonginfosManager(object):
         if dict.get(key, '') != value:
             dict[key] = value
     
-    def update_time_span_relate_of_item(self, item, span, commitFlag=True):
+    def update_time_span_relate_of_item(self, item, span, clickPlayFlag, commitFlag=True):
         values = self.get_values_of_item(item)
         values[Configures.SonginfosFreq] = values.get(Configures.SonginfosFreq, 0) + 1
+        if clickPlayFlag:
+            values[Configures.SonginfosClickPlayTimes] = values.get(Configures.SonginfosClickPlayTimes, 0) + 1
         values[Configures.SonginfosNearPlayedTime] = span
         if not Configures.SonginfosPlayedTimeSpans in values:
             values[Configures.SonginfosPlayedTimeSpans] = span

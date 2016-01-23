@@ -1,4 +1,5 @@
 import os
+import io
 import re
 import sys
 import time
@@ -142,7 +143,7 @@ def composite_lyric_path_use_title(title):
     return lrcPath
 
 def get_base_name_from_path(path):
-    if path[:4] == 'http':
+    if path.startswith('http'):
         return path[path.rindex('/')+1:]
     return os.path.basename(path)
 
@@ -310,15 +311,33 @@ def organized_list_as_str(infosList):
     strList =  []
     for info in infosList:
         strList.append(info.replace(',', '&'))
+    while(len(strList) < len(Configures.HistoryLoggedItems)):
+        strList.append('null')
     return ','.join(strList)
+
+def log_into_file(file, content):
+    with open(file, 'a') as f:
+        f.write(content)
+        f.write('\n')
+        f.close()
 
 def log_playback_history(infosStr):
     if not os.path.exists(Configures.PlaybackHistoryLog):
         with open(Configures.PlaybackHistoryLog, 'w') as f:
-            f.write('date,musicfilename,musicname,artistname,album,totaltime,playedtime,playlist,path,markedfaverite,sourcetrace,playmode\n')
+            title = ','.join(Configures.HistoryLoggedItems)
+            f.write('%s\n'%title)
             f.close()
-    with open(Configures.PlaybackHistoryLog, 'a') as f:
-        f.write(infosStr)
-        f.write('\n')
-        f.close()
-    
+    oldHistoryLog = os.path.join(Configures.SettingsDir, 'playbackhistory.csv')
+    if os.path.exists(oldHistoryLog):
+        with open(oldHistoryLog, 'r') as f:
+            logs = f.read()
+            f.close()
+        stringIO = io.StringIO(logs)
+        for i, line in enumerate(stringIO.readlines()):
+            if i > 0:
+                log_into_file(Configures.PlaybackHistoryLog, '%s,0,null,null,null,null,null'%line[:-1])
+        os.remove(oldHistoryLog)
+    log_into_file(Configures.PlaybackHistoryLog, infosStr)
+
+
+

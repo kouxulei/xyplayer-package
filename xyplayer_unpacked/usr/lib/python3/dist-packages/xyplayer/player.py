@@ -185,7 +185,13 @@ class Player(PlayerUi):
     
     def musics_marked(self):
         widget = self.managePage.playlistWidget
-        self.playbackPanel.musics_marked(widget)
+        playlist = widget.get_playlist()       
+        if widget.get_playing_list_name() == Configures.PlaylistFavorite:
+            self.playlist_refresh_with_name(Configures.PlaylistFavorite)
+        for index in widget.markedIndexes:
+            title = playlist.get_music_title_at(index)
+            self.playbackPanel.add_title_into_loved_songs(title)
+        self.playbackPanel.check_favorite()
 
     def marked_favorite_completed(self):
         if self.managePage.playlistWidget.get_playlist().get_name() == Configures.PlaylistFavorite:
@@ -313,7 +319,7 @@ class Player(PlayerUi):
 
     def switch_to_new_playing_list(self):
         self.playlist_modified()
-        self.playbackPanel.set_media_source_at_row(self.playbackPanel.playlist.get_current_row())
+        self.playbackPanel.set_media_source_at_row(self.playbackPanel.playlist.get_current_row(), clickPlayFlag=True)
     
     def playlist_modified(self):
         self.playbackPanel.set_playlist(self.managePage.playlistWidget.get_playlist())

@@ -55,6 +55,7 @@ class PlaybackPanel(SpecialLabel):
     def initial_params(self):
         self.playlist = None
         self.artistName = 'Zheng-Yejian'
+        self.clickPlayFlag = False    #用来标志一首歌是否是主动点击选中的
         self.timerFlag = False
         self.timeStart = 0
         self.timeSpan = 0
@@ -300,15 +301,6 @@ class PlaybackPanel(SpecialLabel):
             if self.playlist.get_name() == Configures.PlaylistFavorite:
                 self.favoriteButton.setToolTip('收藏')
 
-    def musics_marked(self, widget):
-        playlist = widget.get_playlist()       
-        if self.playlist.get_name() == Configures.PlaylistFavorite:
-            self.playlist_refresh_with_name(Configures.PlaylistFavorite)
-        for index in widget.markedIndexes:
-            title = playlist.get_music_title_at(index)
-            self.lovedSongs.append(title)
-        self.check_favorite()
-
     def mark_as_favorite(self):   
         if self.playlist.get_name() == Configures.PlaylistFavorite or not self.playlist.length() or self.currentSourceRow < 0:
             return
@@ -349,37 +341,30 @@ class PlaybackPanel(SpecialLabel):
             self.show_artist_info_signal.emit(self.artistName)
 
     def decide_to_play_or_pause(self, row):
-        if  row!= self.currentSourceRow or self.mediaPlayer.state() == QMediaPlayer.StoppedState:
-            self.set_media_source_at_row(row)
-        elif self.mediaPlayer.state()  == QMediaPlayer.PausedState:
+        if  row!= self.currentSourceRow:
+            self.set_media_source_at_row(row, clickPlayFlag = True)
+        elif self.mediaPlayer.state()  in (QMediaPlayer.PausedState, QMediaPlayer.StoppedState):
             self.mediaPlayer.play()
         elif self.mediaPlayer.state() == QMediaPlayer.PlayingState:
             self.mediaPlayer.pause()
 
-    def set_media_source_at_row(self, row):
+    def set_media_source_at_row(self, row, clickPlayFlag=False):
         if not self.playlist.length() or row < 0:
             return 
         self.stop_music()
+        self.clickPlayFlag = clickPlayFlag
         self.playlist.set_current_row(row)
         sourcePath = self.playlist.get_music_path_at(row)
         self.title = self.playlist.get_music_title_at(row)
         self.sourceTrace = 'local' if self.playlist.get_music_id_at(row) == Configures.LocalMusicId else 'online'
         self.artistName, self.musicName = get_artist_and_musicname_from_title(self.title)
         self.playlistName = self.playlist.get_name()
-        musicNameWithExt = get_full_music_name_from_title(self.title)
         self.totalTime = self.playlist.get_music_time_at(row)
         self.album = self.playlist.get_music_album_at(row)
-        musicPathO = os.path.join(Configures.MusicsDir, musicNameWithExt)
-        musicPath = os.path.join(self.downloadDir, musicNameWithExt)
-        isAnUrl = False
         self.errorType = Configures.NoError
         isAnUrl = False
         if not os.path.exists(sourcePath):
-            if  os.path.exists(musicPath):
-                sourcePath = musicPath
-            elif os.path.exists(musicPathO):
-                sourcePath = musicPathO
-            elif self.playlist.get_name() == Configures.PlaylistOnline:
+            if self.playlist.get_name() == Configures.PlaylistOnline:
                 if sourcePath == Configures.NoLink:
                     musicId = self.playlist.get_music_id_at(row)
                     sourcePath = SearchOnline.get_song_link(musicId)
@@ -466,9 +451,11 @@ class PlaybackPanel(SpecialLabel):
                                 self.sourcePath,
                                 '%i'%(self.title in self.lovedSongs),
                                 self.sourceTrace, 
-                                Configures.Playmodes[self.playmode]]
+                                Configures.Playmodes[self.playmode], 
+                                '%i'%self.clickPlayFlag]
             log_playback_history(organized_list_as_str(InfosList))
-            self.songinfosManager.update_time_span_relate_of_item(self.musicFileName, self.timeSpan)
+            self.songinfosManager.update_time_span_relate_of_item(self.musicFileName, self.timeSpan, self.clickPlayFlag)
+            self.clickPlayFlag = False
 
     def get_next_random_row(self):
         listTemp = list(self.playlist.get_ids()-set(self.nearPlayedSongs))
@@ -537,3 +524,6 @@ class PlaybackPanel(SpecialLabel):
             self.nearPlayedSongs.append(self.currentSourceId)
         while len(self.nearPlayedSongs) >= self.playlist.length() * 4 / 5:
             del self.nearPlayedSongs[0]
+
+    def add_title_into_loved_songs(self, title):
+        self.lovedSongs.append(title)

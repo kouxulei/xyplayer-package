@@ -13,8 +13,8 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QSettings
 
 app_name = 'xyplayer'
-app_version = '0.8.7-1'
-app_version_num = 80701
+app_version = '0.8.7-2'
+app_version_num = 80702
 
 NDEBUG = True    #调试模式指示器
 if len(sys.argv) > 1 and sys.argv[1] in ['-D', '-d']:
@@ -86,7 +86,11 @@ class Configures(object):
     PlaylistsManageTable = 'playlistsmanagetable'    #用来记录所有歌曲列表名
     
     #管理歌曲播放次数等信息的参数
-    PlaybackHistoryLog = os.path.join(SettingsDir, 'playbackhistory.csv')
+    PlaybackHistoryLog = os.path.join(SettingsDir, 'playback_history.csv')
+    HistoryLoggedItems = ['date', 'musicfilename', 'musicname', 'artistname', 
+        'album', 'totaltime', 'playedtime', 'playlist', 'path', 
+        'markedfaverite', 'sourcetrace', 'playmode', 'clickplay', 
+        'reserved1', 'reserved2', 'reserved3', 'reserved4', 'reserved5']
     SonginfosManager = os.path.join(SettingsDir, 'songinfosmanager')
     SonginfosFreq = 'freq'
     SonginfosStars = 'stars'
@@ -99,6 +103,7 @@ class Configures(object):
     SonginfosPlayedTimeSpans = 'playedtimespans'
     SonginfosPlayedTimeSpanMax = 'playedtimespanmax'
     SonginfosNearPlayedTime = 'nearplayedtime'
+    SonginfosClickPlayTimes = 'clickplaytimes'
     
     #三种播放模式
     Playmodes = ('random', 'order', 'single')

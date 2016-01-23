@@ -284,7 +284,7 @@ class PlaylistWidget(PlaylistWidgetBasic):
         oldRow = self.songOperator.get_row()
         if self.item(oldRow, column):
             self.item(oldRow, column).setText(self.playlist.get_music_title_at(oldRow))
-        self.songOperator.set_contents(row, self.item(row, column).text())
+        self.songOperator.set_contents(row, self.playlist.get_music_title_at(row))
         self.item(row, column).setText('')
         scrollBar = self.verticalScrollBar()
         scrolledValue = scrollBar.value()
@@ -334,7 +334,9 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.playingList = playlist
  
     def set_playlist_use_name(self, listName):
-        self.listName = listName
+        if self.listName != listName:
+            self.listName = listName
+            self.playlist_changed_signal.emit()
         self.isPlaying = False
         if self.playingList.get_name() == listName:
             self.isPlaying = True
@@ -345,7 +347,6 @@ class PlaylistWidget(PlaylistWidgetBasic):
         self.fill_playlist_widget(self.playlist)
         self.select_row()
         self.pick_actions_into_menu()
-        self.playlist_changed_signal.emit()
 
     def get_playing_used_state(self):
         return self.isPlaying
